@@ -1,14 +1,25 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2012 by Vivante Corp.  All rights reserved.
+*    Copyright (C) 2005 - 2012 by Vivante Corp.
 *
-*    The material in this file is confidential and contains trade secrets
-*    of Vivante Corporation. This is proprietary information owned by
-*    Vivante Corporation. No part of this work may be disclosed,
-*    reproduced, copied, transmitted, or used in any way for any purpose,
-*    without the express written permission of Vivante Corporation.
+*    This program is free software; you can redistribute it and/or modify
+*    it under the terms of the GNU General Public License as published by
+*    the Free Software Foundation; either version 2 of the license, or
+*    (at your option) any later version.
+*
+*    This program is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+*    GNU General Public License for more details.
+*
+*    You should have received a copy of the GNU General Public License
+*    along with this program; if not write to the Free Software
+*    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 *
 *****************************************************************************/
+
+
+
 
 
 /*
@@ -24,6 +35,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 #include "vivante_common.h"
 
@@ -45,6 +57,14 @@ extern "C" {
     /************************************************************************
      * STRUCTS & ENUMS(START)
      ************************************************************************/
+
+    /*Memory Map Info*/
+    typedef struct _mmInfo {
+        unsigned int mSize;
+        void * mUserAddr;
+        void* mapping;
+        unsigned int physical;
+    } MemMapInfo, *MemMapInfoPtr;
 
     /*Cache Ops*/
     typedef enum _cacheOps {
@@ -161,6 +181,10 @@ extern "C" {
      ************************************************************************/
     Bool GetVivPictureFormat(int exa_fmt, VivPictFmtPtr viv);
     Bool GetDefaultFormat(int bpp, VivPictFmtPtr format);
+    char *MapViv2DPixmap(Viv2DPixmapPtr pdst );
+    Bool VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride);
+    Bool VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride);
+    void VDestroySurf();
     /************************************************************************
      *EXA RELATED UTILITY (END)
      ************************************************************************/
@@ -173,6 +197,12 @@ extern "C" {
     Bool VIV2DGPUCtxInit(GALINFOPTR galInfo);
     Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo);
     Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type);
+#if USE_GPU_FB_MEM_MAP
+    Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void * mappingInfo, unsigned int * gpuAddress);
+    Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, unsigned int gpuAddress);
+#endif
+    Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
+    void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     /************************************************************************
      * GPU RELATED (END)
      ************************************************************************/
@@ -188,6 +218,7 @@ extern "C" {
 
     Bool DoSolidBlit(GALINFOPTR galInfo);
     Bool DoCopyBlit(GALINFOPTR galInfo);
+    Bool CopyBlitFromHost(MemMapInfoPtr mmInfo, GALINFOPTR galInfo);
     /************************************************************************
      * 2D Operations (END)
      ************************************************************************/

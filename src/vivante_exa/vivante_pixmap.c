@@ -19,6 +19,9 @@
 *****************************************************************************/
 
 
+
+
+
 #include "vivante_exa.h"
 #include "vivante.h"
 #include "vivante_priv.h"
@@ -252,13 +255,6 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
         TRACE_EXIT(FALSE);
     }
 
-    /* only invalidate when the pixmap memory is written; ignore all other
-     * accesses. */
-    if (index == EXA_PREPARE_DEST || index == EXA_PREPARE_AUX_DEST) {
-        VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-        VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
-
-    }
 
     TRACE_EXIT(TRUE);
 }
@@ -285,7 +281,6 @@ VivFinishAccess(PixmapPtr pPix, int index) {
         pPix->devPrivate.ptr = NULL;
     }
     vivpixmap->mRef--;
-    VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, MEMORY_BARRIER);
     TRACE_EXIT();
 }
 

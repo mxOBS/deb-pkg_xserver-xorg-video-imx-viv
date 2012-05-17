@@ -19,6 +19,9 @@
 *****************************************************************************/
 
 
+
+
+
 #include "vivante_gal.h"
 #include "vivante_priv.h"
 
@@ -307,6 +310,13 @@ void UnMapSurface(Viv2DPixmapPtr priv) {
     TRACE_EXIT();
 }
 
+char *MapViv2DPixmap(Viv2DPixmapPtr pdst ){
+
+	GenericSurfacePtr surf = (GenericSurfacePtr) pdst->mVidMemInfo;
+
+	return (surf ? surf->mVideoNode.mLogicalAddr:NULL);
+}
+
 unsigned int GetStride(Viv2DPixmapPtr pixmap) {
     TRACE_ENTER();
     GenericSurfacePtr surf = (GenericSurfacePtr) pixmap->mVidMemInfo;
@@ -316,3 +326,201 @@ unsigned int GetStride(Viv2DPixmapPtr pixmap) {
 /************************************************************************
  * PIXMAP RELATED (END)
  ************************************************************************/
+
+Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
+    TRACE_ENTER();
+    gceSTATUS status = gcvSTATUS_OK;
+    gctPOINTER logical = (gctPOINTER) mmInfo->mUserAddr;
+    gctSIZE_T size = (gctSIZE_T) (mmInfo->mSize);
+    gctPOINTER mappingInfo = NULL;
+    gctUINT32 physical = 0;
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+
+    status = gcoOS_MapUserMemory(gpuctx->mDriver->mOs, logical, size, &mappingInfo, &physical);
+    if (status < 0) {
+        TRACE_ERROR("Mapping Failed\n");
+        gcoOS_UnmapUserMemory(gpuctx->mDriver->mOs, logical, size, mappingInfo, physical);
+        mmInfo->physical = 0;
+        mmInfo->mapping = NULL;
+        TRACE_EXIT(FALSE);
+    }
+    mmInfo->physical = physical;
+    mmInfo->mapping = mappingInfo;
+    TRACE_EXIT(TRUE);
+}
+
+void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
+    TRACE_ENTER();
+    gceSTATUS status = gcvSTATUS_OK;
+    gctPOINTER logical = (gctPOINTER) mmInfo->mUserAddr;
+    gctSIZE_T size = (gctSIZE_T) (mmInfo->mSize);
+    gctPOINTER mappingInfo = (gctPOINTER) mmInfo->mapping;
+    gctUINT32 physical = (gctUINT32) mmInfo->physical;
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    status = gcoOS_UnmapUserMemory(gpuctx->mDriver->mOs, logical, size, mappingInfo, physical);
+    if (status < 0) {
+        TRACE_ERROR("UnMapping Failed\n");
+    }
+    mmInfo->physical = 0;
+    mmInfo->mapping = NULL;
+    TRACE_EXIT();
+}
+
+
+#define  MAX_WIDTH		1024
+#define  MAX_HEIGHT		1024
+
+typedef struct _IVSURF {
+gcoSURF	surf;
+int		lineaddr;
+}IVSURF,*PIVSURF;
+
+static IVSURF _vsurf16={NULL,0};
+static IVSURF _vsurf32={NULL,0};
+
+static Bool VDestroySurf16() {
+	gceSTATUS status = gcvSTATUS_OK;
+
+	if (_vsurf16.surf==NULL) TRACE_EXIT(TRUE);
+
+ 	status=gcoSURF_Unlock(_vsurf16.surf, &(_vsurf16.lineaddr));
+
+	if (status!=gcvSTATUS_OK)
+		TRACE_EXIT(FALSE);
+
+	status=gcoSURF_Destroy(_vsurf16.surf);
+
+	_vsurf16.surf=NULL;
+
+	TRACE_EXIT(TRUE);
+}
+
+static Bool VDestroySurf32() {
+
+	gceSTATUS status = gcvSTATUS_OK;
+
+	if (_vsurf32.surf==NULL) TRACE_EXIT(TRUE);
+
+	status=gcoSURF_Unlock(_vsurf32.surf, &(_vsurf32.lineaddr));
+
+	if (status!=gcvSTATUS_OK)
+		TRACE_EXIT(FALSE);
+
+	status=gcoSURF_Destroy(_vsurf32.surf);
+
+	_vsurf32.surf=NULL;
+
+	TRACE_EXIT(TRUE);
+
+}
+
+Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+ {
+
+	static int gphyaddr;
+	static int glgaddr;
+	static int gwidth;
+	static int gheight;
+	static int gstride;
+	static int lastmaxsize=0;
+
+	gceSTATUS status = gcvSTATUS_OK;
+
+    	VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+
+	if (maxsize <MAX_WIDTH)
+		maxsize=MAX_WIDTH;
+
+	if (_vsurf16.surf && (maxsize >lastmaxsize)) {
+		if (VDestroySurf16()!=TRUE)
+			TRACE_EXIT(FALSE);
+		lastmaxsize=maxsize;
+	}
+
+	if (_vsurf16.surf==NULL) {
+
+		lastmaxsize=maxsize;
+		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,gcvSURF_BITMAP,gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
+
+		if (status!=gcvSTATUS_OK)
+			TRACE_EXIT(FALSE);
+
+		status=gcoSURF_GetAlignedSize(_vsurf16.surf,&gwidth,&gheight,&gstride);
+
+		if (status!=gcvSTATUS_OK)
+			TRACE_EXIT(FALSE);
+
+		status=gcoSURF_Lock(_vsurf16.surf,  &gphyaddr, (void *)&glgaddr);
+
+		_vsurf16.lineaddr=glgaddr;
+
+	}
+
+	*phyaddr=gphyaddr;
+	*lgaddr=glgaddr;
+	*width=gwidth;
+	*height=gheight;
+	*stride=gstride;
+
+	TRACE_EXIT(TRUE);
+
+ }
+
+
+ Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+ {
+
+	static int gphyaddr;
+	static int glgaddr;
+	static int gwidth;
+	static int gheight;
+	static int gstride;
+	static int lastmaxsize=0;
+	gceSTATUS status = gcvSTATUS_OK;
+
+	VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+
+	if (maxsize <MAX_WIDTH)
+		maxsize=MAX_WIDTH;
+
+	if (_vsurf32.surf && (maxsize >lastmaxsize)) {
+		if (VDestroySurf32()!=TRUE)
+			TRACE_EXIT(FALSE);
+		lastmaxsize=maxsize;
+	}
+
+
+	if (_vsurf32.surf==NULL) {
+
+		lastmaxsize=maxsize;
+		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,gcvSURF_BITMAP,gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
+
+		if (status!=gcvSTATUS_OK)
+			TRACE_EXIT(FALSE);
+
+		status=gcoSURF_GetAlignedSize(_vsurf32.surf,&gwidth,&gheight,&gstride);
+
+		if (status!=gcvSTATUS_OK)
+			TRACE_EXIT(FALSE);
+
+		status=gcoSURF_Lock(_vsurf32.surf,  &gphyaddr, (void *)&glgaddr);
+
+		_vsurf32.lineaddr=glgaddr;
+
+	}
+
+	*phyaddr=gphyaddr;
+	*lgaddr=glgaddr;
+	*width=gwidth;
+	*height=gheight;
+	*stride=gstride;
+
+	TRACE_EXIT(TRUE);
+
+}
+
+void  VDestroySurf()
+{
+	VDestroySurf16();
+	VDestroySurf32();
+}

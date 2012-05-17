@@ -19,11 +19,12 @@
 *****************************************************************************/
 
 
+
+
+
 #include "vivante.h"
 #include "vivante_exa.h"
-#define VIV_MAX_WIDTH   (1 <<11)
-#define VIV_MAX_HEIGHT (1 <<11)
-#define PIXMAP_PITCH_ALIGN    64
+
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (START)
  ************************************************************************/
@@ -206,6 +207,13 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     pExa->memorySize = pScrn->videoRam;
     pExa->offScreenBase = pScrn->virtualY * pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 
+#if USE_GPU_FB_MEM_MAP
+    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, pViv->mFB.mMappingInfo, &pViv->mFB.memPhysBase)) {
+        TRACE_ERROR("ERROR ON MAPPING FB\n");
+        TRACE_EXIT(FALSE);
+    }
+#endif
+
 
     /*flags*/
     pExa->flags = EXA_HANDLES_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX | EXA_OFFSCREEN_PIXMAPS;
@@ -226,6 +234,10 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     pExa->PrepareCopy = VivPrepareCopy;
     pExa->Copy = VivCopy;
     pExa->DoneCopy = VivDoneCopy;
+
+#if UPLOAD_FUNC_ENABLED
+    pExa->UploadToScreen = VivUploadToScreen;
+#endif
 
 
 
@@ -258,7 +270,15 @@ static Bool DestroyExaLayer(ScreenPtr pScreen) {
     VivPtr pViv = GET_VIV_PTR(pScrn);
     TRACE_ENTER();
     xf86DrvMsg(pScreen->myNum, X_INFO, "Shutdown EXA\n");
+#if USE_GPU_FB_MEM_MAP
+    ExaDriverPtr pExa = pViv->mFakeExa.mExaDriver;
+    if (!VIV2DGPUUserMemUnMap((char*) pExa->memoryBase, pExa->memorySize, pViv->mFB.mMappingInfo, pViv->mFB.memPhysBase)) {
+        TRACE_ERROR("Unmapping User memory Failed\n");
+    }
+#endif
+
     exaDriverFini(pScreen);
+
     if (!VIV2DGPUCtxDeInit(&pViv->mGrCtx)) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "internal error: GPU Ctx DeInit Failed\n");
@@ -609,6 +629,7 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
     }
     /*Getting the  linear offset*/
     fPtr->mFB.mFBOffset = fbdevHWLinearOffset(pScrn);
+
     /*Setting the physcal addr*/
     fPtr->mFB.memPhysBase = pScrn->memPhysBase;
 
@@ -762,11 +783,9 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
         }
     }
 
-#if 0
     if (VivDRIScreenInit(pScreen)) {
         VivDRIFinishScreenInit(pScreen);
     }
-#endif
 
     TRACE_EXIT(TRUE);
 }
@@ -778,9 +797,7 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
     Bool ret = FALSE;
     TRACE_ENTER();
 
-#if 0
     VivDRICloseScreen(pScreen);
-#endif
 
     if (fPtr->mFakeExa.mUseExaFlag) {
         DEBUGP("UnLoading EXA");

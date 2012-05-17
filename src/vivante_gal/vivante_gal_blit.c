@@ -19,6 +19,9 @@
 *****************************************************************************/
 
 
+
+
+
 #include "vivante_gal.h"
 #include "vivante_priv.h"
 #include "vivante.h"
@@ -215,6 +218,43 @@ Bool DoSolidBlit(GALINFOPTR galInfo) {
     status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Blit failed\n");
+        TRACE_EXIT(FALSE);
+    }
+    TRACE_EXIT(TRUE);
+}
+
+Bool CopyBlitFromHost(MemMapInfoPtr mmInfo, GALINFOPTR galInfo) {
+    TRACE_ENTER();
+    gceSTATUS status = gcvSTATUS_OK;
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+    if (!SetDestinationSurface(galInfo)) {
+        TRACE_EXIT(FALSE);
+    }
+    if (!SetClipping(galInfo)) {
+        TRACE_EXIT(FALSE);
+    }
+
+    status = gco2D_SetGenericSource
+            (
+            gpuctx->mDriver->m2DEngine,
+            &mmInfo->physical,
+            1,
+            &pBlt->mSrcSurfInfo.mStride,
+            1,
+            gcvLINEAR,
+            pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+            gcvSURF_0_DEGREE,
+            pBlt->mSrcSurfInfo.mWidth,
+            pBlt->mSrcSurfInfo.mHeight
+            );
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("gco2D_SetGenericSource failed - %d\n", status);
+        TRACE_EXIT(FALSE);
+    }
+
+    if (!DoCopyBlit(galInfo)) {
+        TRACE_ERROR("ERROR ON COPY BLIT\n");
         TRACE_EXIT(FALSE);
     }
     TRACE_EXIT(TRUE);
