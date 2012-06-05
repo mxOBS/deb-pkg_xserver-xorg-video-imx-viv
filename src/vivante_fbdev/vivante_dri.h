@@ -19,9 +19,6 @@
 *****************************************************************************/
 
 
-
-
-
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/via/via_dri.h,v 1.3 2004/12/10 16:07:03 alanh Exp $ */
 /*
  * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.

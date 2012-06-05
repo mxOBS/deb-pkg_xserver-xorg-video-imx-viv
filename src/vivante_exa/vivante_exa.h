@@ -19,9 +19,6 @@
 *****************************************************************************/
 
 
-
-
-
 /*
  * File:   vivante_exa.h
  * Author: vivante
@@ -38,7 +35,7 @@ extern "C" {
 
 #include "vivante_common.h"
 
-#define VIV_EXA_FLUSH_2D_CMD_ENABLE         0
+#define VIV_EXA_FLUSH_2D_CMD_ENABLE         1
 #define VIV_EXA_SOLID_SIZE_CHECK_ENABLE     1
 #define VIV_EXA_COPY_SIZE_CHECK_ENABLE      1
 
@@ -144,6 +141,7 @@ extern "C" {
      * UTILITY FUNCTIONS  (START)
      ************************************************************************/
     Bool CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask);
+    PixmapPtr GetDrawablePixmap(DrawablePtr pDrawable);
     /************************************************************************
      * UTILITY FUNCTIONS (END)
      ************************************************************************/

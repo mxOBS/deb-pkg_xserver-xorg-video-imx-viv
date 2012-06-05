@@ -20,10 +20,7 @@
 
 
 
-
-
-
-
+#include "vivante_common.h"
 #include "vivante.h"
 #include "vivante_dri.h"
 
@@ -116,15 +113,17 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
     if (!pDRIInfo) return FALSE;
 
     pViv->pDRIInfo = pDRIInfo;
-    pDRIInfo->drmDriverName = VivKernelDriverName;
-    pDRIInfo->clientDriverName = VivClientDriverName;
-    pDRIInfo->busIdString = xalloc(64);
-    strcpy(pDRIInfo->busIdString, "platform:Vivante GCCore");
+    pDRIInfo->drmDriverName=VivKernelDriverName;
+    pDRIInfo->clientDriverName=VivClientDriverName;
+    pDRIInfo->busIdString =(char *)xalloc(64);
+    /* use = to copy string and it seems good, but when you free it, it will report invalid pointer, use strcpy instead */
+    //pDRIInfo->busIdString="platform:Vivante GCCore";
+    strcpy(pDRIInfo->busIdString,"platform:Vivante GCCore");
 
     pDRIInfo->ddxDriverMajorVersion = VIV_DRI_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion = VIV_DRI_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion = 0;
-    pDRIInfo->frameBufferPhysicalAddress = pViv->mFB.memPhysBase + pViv->mFB.mFBOffset;
+    pDRIInfo->frameBufferPhysicalAddress =(pointer)(pViv->mFB.memPhysBase + pViv->mFB.mFBOffset);
     pDRIInfo->frameBufferSize = pScrn->videoRam;
 
     pDRIInfo->frameBufferStride = (pScrn->displayWidth *
@@ -146,10 +145,10 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
     pDRIInfo->bufferRequests = DRI_ALL_WINDOWS;
 
     /*
-    ** drmAddMap required the base and size of target buffer to be page aligned.
-    ** While frameBufferSize sometime doesn't, so we force it aligned here, and
-    ** restore it back after DRIScreenInit
-    */
+     ** drmAddMap required the base and size of target buffer to be page aligned.
+     ** While frameBufferSize sometime doesn't, so we force it aligned here, and
+     ** restore it back after DRIScreenInit
+     */
     pDRIInfo->frameBufferSize = VIV_PAGE_ALIGN(pDRIInfo->frameBufferSize);
     if (!DRIScreenInit(pScreen, pDRIInfo, &pViv->drmSubFD)) {
         xf86DrvMsg(pScreen->myNum, X_ERROR,

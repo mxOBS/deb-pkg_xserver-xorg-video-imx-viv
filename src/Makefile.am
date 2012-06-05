@@ -19,19 +19,6 @@
 ##############################################################################
 
 
-##############################################################################
-#
-#    Copyright (c) 2005 - 2012 by Vivante Corp.  All rights reserved.
-#
-#    The material in this file is confidential and contains trade secrets
-#    of Vivante Corporation. This is proprietary information owned by
-#    Vivante Corporation. No part of this work may be disclosed,
-#    reproduced, copied, transmitted, or used in any way for any purpose,
-#    without the express written permission of Vivante Corporation.
-#
-##############################################################################
-
-
 #  Copyright 2005 Adam Jackson.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a
@@ -76,5 +63,6 @@ vivante_drv_la_SOURCES = \
     vivante_exa/vivante_exa.c\
     vivante_exa/vivante_solid.c\
     vivante_exa/vivante_copy.c\
+    vivante_exa/vivante_composite.c\
     vivante_exa/vivante_pixmap.c\
     vivante_fbdev/vivante_dri.c

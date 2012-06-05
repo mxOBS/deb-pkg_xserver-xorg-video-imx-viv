@@ -19,10 +19,8 @@
 *****************************************************************************/
 
 
-
-
-
 #include "vivante_priv.h"
+#include "vivante_common.h"
 #include "vivante_gal.h"
 
 /**

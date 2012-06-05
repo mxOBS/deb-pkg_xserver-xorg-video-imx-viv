@@ -20,8 +20,7 @@
 
 
 
-
-
+#include "vivante_common.h"
 #include "vivante.h"
 #include "vivante_exa.h"
 
@@ -175,6 +174,7 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
  * X Window System Registration (START)
  ************************************************************************/
 
+#define UPLOAD_FUNC_ENABLED 1
 
 static Bool InitExaLayer(ScreenPtr pScreen) {
     ExaDriverPtr pExa;
@@ -241,6 +241,10 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
 
 
 
+    pExa->CheckComposite = VivCheckComposite;
+    pExa->PrepareComposite = VivPrepareComposite;
+    pExa->Composite = VivComposite;
+    pExa->DoneComposite = VivDoneComposite;
 
     pExa->CreatePixmap = VivCreatePixmap;
     pExa->DestroyPixmap = VivDestroyPixmap;

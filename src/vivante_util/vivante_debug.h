@@ -19,9 +19,6 @@
 *****************************************************************************/
 
 
-
-
-
 /*
  * File:   vivante_debug.h
  * Author: vivante
@@ -42,7 +39,7 @@ extern "C" {
      * DEBUG Macros (START)
      *
      ******************************************************************************/
-//#define VIVFBDEV_DEBUG
+    //#define VIVFBDEV_DEBUG
 #ifdef VIVFBDEV_DEBUG
 #define DEBUGP(x, args ...) fprintf(stderr, "[%s(), %s:%u]\n\n" \
 x, __FILE__, __FUNCTION__ ,__LINE__, ## args)

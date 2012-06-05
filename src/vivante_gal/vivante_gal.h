@@ -19,9 +19,6 @@
 *****************************************************************************/
 
 
-
-
-
 /*
  * File:   vivante_gal.h
  * Author: vivante
@@ -35,9 +32,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-#include "vivante_common.h"
 
     /*******************************************************************************
      *
@@ -78,7 +72,12 @@ extern "C" {
     typedef enum _blitOpCode {
         VIVSOLID = 0,
         VIVCOPY,
-        VIVCOMPOSITE
+        VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN,
+        VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN,
+        VIVCOMPOSITE_MASKED_SIMPLE,
+        VIVCOMPOSITE_SRC_REPEAT_PIXEL_ONLY_PATTERN,
+        VIVCOMPOSITE_SRC_REPEAT_ARBITRARY_SIZE_PATTERN,
+        VIVCOMPOSITE_SIMPLE
     } BlitCode;
 
     /*Format information*/
@@ -100,8 +99,19 @@ extern "C" {
     typedef struct _vivBox {
         int x1;
         int y1;
-        int x2;
-        int y2;
+
+        union {
+
+            struct {
+                int x2;
+                int y2;
+            };
+
+            struct {
+                int width;
+                int height;
+            };
+        };
     } VivBox, *VivBoxPtr;
 
     /*Prv Pixmap Structure*/
@@ -140,11 +150,21 @@ extern "C" {
         /*Operation Related*/
         VivBox mSrcBox;
         VivBox mDstBox;
+        VivBox mMskBox;
+        /*Foreground and Background ROP*/
         int mFgRop;
         int mBgRop;
+        /*Blending opeartion*/
+        VivBlendOp mBlendOp;
+        /*Transformation for source*/
+        PictTransformPtr mTransform;
         Pixel mColorARGB32; /*A8R8G8B8*/
         Bool mColorConvert;
         unsigned long mPlaneMask;
+        /*Rotation for source*/
+        int mRotation;
+	Bool swcpy;
+	Bool swsolid;
     } VIV2DBLITINFO, *VIV2DBLITINFOPTR;
 
     /*Gal Encapsulation*/
@@ -181,9 +201,9 @@ extern "C" {
      ************************************************************************/
     Bool GetVivPictureFormat(int exa_fmt, VivPictFmtPtr viv);
     Bool GetDefaultFormat(int bpp, VivPictFmtPtr format);
-    char *MapViv2DPixmap(Viv2DPixmapPtr pdst );
-    Bool VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride);
-    Bool VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride);
+    char *MapViv2DPixmap(Viv2DPixmapPtr pdst);
+    Bool VGetSurfAddrBy16(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
+    Bool VGetSurfAddrBy32(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
     void VDestroySurf();
     /************************************************************************
      *EXA RELATED UTILITY (END)
@@ -215,7 +235,7 @@ extern "C" {
     Bool SetSourceSurface(GALINFOPTR galInfo);
     Bool SetClipping(GALINFOPTR galInfo);
 
-
+    Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox);
     Bool DoSolidBlit(GALINFOPTR galInfo);
     Bool DoCopyBlit(GALINFOPTR galInfo);
     Bool CopyBlitFromHost(MemMapInfoPtr mmInfo, GALINFOPTR galInfo);

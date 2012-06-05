@@ -19,11 +19,9 @@
 *****************************************************************************/
 
 
-
-
-
 #include "vivante_exa.h"
 #include "vivante.h"
+#include "../vivante_gal/vivante_priv.h"
 
 /**
  * PrepareCopy() sets up the driver for doing a copy within video
@@ -59,56 +57,57 @@
 
 Bool
 VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
-        int xdir, int ydir, int alu, Pixel planemask) {
-    TRACE_ENTER();
-    Viv2DPixmapPtr psrc = exaGetPixmapDriverPrivate(pSrcPixmap);
-    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDstPixmap);
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+	int xdir, int ydir, int alu, Pixel planemask) {
+	TRACE_ENTER();
+	Viv2DPixmapPtr psrc = exaGetPixmapDriverPrivate(pSrcPixmap);
+	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDstPixmap);
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
 #if VIV_EXA_COPY_SIZE_CHECK_ENABLE
-    if (pSrcPixmap->drawable.width * pSrcPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_COPY
-            || pDstPixmap->drawable.width * pDstPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_COPY) {
-        TRACE_EXIT(FALSE);
-    }
+	if (pSrcPixmap->drawable.width * pSrcPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_COPY
+	|| pDstPixmap->drawable.width * pDstPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_COPY) {
+		TRACE_EXIT(FALSE);
+	}
 #endif
 
-    if (!CheckBltvalidity(pDstPixmap, alu, planemask)) {
-        TRACE_EXIT(FALSE);
-    }
+	if (!CheckBltvalidity(pDstPixmap, alu, planemask)) {
+		TRACE_EXIT(FALSE);
+	}
 
-    if (!GetDefaultFormat(pSrcPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat))) {
-        TRACE_EXIT(FALSE);
-    }
+	if (!GetDefaultFormat(pSrcPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat))) {
+		TRACE_EXIT(FALSE);
+	}
 
-    if (!GetDefaultFormat(pDstPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
-        TRACE_EXIT(FALSE);
-    }
-    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pDstPixmap->drawable.height;
-    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pDstPixmap->drawable.width;
-    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pDstPixmap->devKind;
-    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
+	if (!GetDefaultFormat(pDstPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
+		TRACE_EXIT(FALSE);
+	}
 
-    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight = pSrcPixmap->drawable.height;
-    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth = pSrcPixmap->drawable.width;
-    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride = pSrcPixmap->devKind;
-    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv = psrc;
+	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pDstPixmap->drawable.height;
+	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pDstPixmap->drawable.width;
+	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pDstPixmap->devKind;
+	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
 
-
-    pViv->mGrCtx.mBlitInfo.mBgRop = 0xCC;
-    pViv->mGrCtx.mBlitInfo.mFgRop = 0xCC;
-    pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
+	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight = pSrcPixmap->drawable.height;
+	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth = pSrcPixmap->drawable.width;
+	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride = pSrcPixmap->devKind;
+	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv = psrc;
 
 
-    if (!SetDestinationSurface(&pViv->mGrCtx)) {
-        TRACE_EXIT(FALSE);
-    }
-    if (!SetSourceSurface(&pViv->mGrCtx)) {
-        TRACE_EXIT(FALSE);
-    }
+	pViv->mGrCtx.mBlitInfo.mBgRop = 0xCC;
+	pViv->mGrCtx.mBlitInfo.mFgRop = 0xCC;
+	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
 
-    if (!SetClipping(&pViv->mGrCtx)) {
-        TRACE_EXIT(FALSE);
-    }
+	if (0) {
+		if (!SetDestinationSurface(&pViv->mGrCtx)) {
+			TRACE_EXIT(FALSE);
+		}
+		if (!SetSourceSurface(&pViv->mGrCtx)) {
+			TRACE_EXIT(FALSE);
+		}
+		if (!SetClipping(&pViv->mGrCtx)) {
+			TRACE_EXIT(FALSE);
+		}
+	}
 
     TRACE_EXIT(TRUE);
 }
@@ -136,27 +135,119 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
  * pixmaps, probably using exaGetPixmapOffset() and exaGetPixmapPitch().
  *
  * This call is required if PrepareCopy ever succeeds.
- */
+ *
+**/
+ #define MAX_SUB_COPY_SIZE 2500
+ static void VivSWCopy(VivPtr pViv,int bytesperpixel) {
+    VIV2DBLITINFOPTR pBlt = &(pViv->mGrCtx.mBlitInfo);
+	char				*lgsrcaddr=NULL;
+	char				*lgdstaddr=NULL;
+	int				srcX,srcY,dstX,dstY;
+	int				width,srcwidth,dstwidth;
+	int				height,srcheight,dstheight;
+	int				dirx=1;
+	int				diry=1;
+	int				i,j,k;
+	GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	lgsrcaddr=(char *)srcsurf->mLogicalAddr;
+	lgdstaddr=(char *)dstsurf->mLogicalAddr;
+	dstX=pViv->mGrCtx.mBlitInfo.mDstBox.x1;
+	dstY=pViv->mGrCtx.mBlitInfo.mDstBox.y1;
+	width=pViv->mGrCtx.mBlitInfo.mDstBox.x2 -pViv->mGrCtx.mBlitInfo.mDstBox.x1;
+	height=pViv->mGrCtx.mBlitInfo.mDstBox.y2 -pViv->mGrCtx.mBlitInfo.mDstBox.y1;
+
+	srcX=pViv->mGrCtx.mBlitInfo.mSrcBox.x1;
+	srcY=pViv->mGrCtx.mBlitInfo.mSrcBox.y1;
+
+	srcwidth=pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth;
+	dstwidth=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth;
+
+	srcheight=pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight;
+	dstheight=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight;
+
+	if (srcY<dstY || ((srcY==dstY)&&(srcX<dstX)) )
+	{
+		srcX=pViv->mGrCtx.mBlitInfo.mSrcBox.x2-1;
+		srcY=pViv->mGrCtx.mBlitInfo.mSrcBox.y2-1;
+		dstX=pViv->mGrCtx.mBlitInfo.mDstBox.x2-1;
+		dstY=pViv->mGrCtx.mBlitInfo.mDstBox.y2-1;
+		dirx=-1;
+		diry=-1;
+	}
+
+	lgsrcaddr+=(srcY*srcsurf->mStride+srcX*bytesperpixel);
+	/* move to the last byte */
+	if (dirx<0)
+		lgsrcaddr+=(bytesperpixel-1);
+
+	lgdstaddr+=(dstY*dstsurf->mStride+dstX*bytesperpixel);
+	/* move to the last byte */
+	if (diry<0)
+		lgdstaddr+=(bytesperpixel-1);
+
+	for(i=0;i<height;i++) {
+		/* Y dir--clipping judgement*/
+		if ( (srcY+i*diry)<srcheight && (srcY+i*diry)>=0
+			&&(dstY+i*diry)<dstheight && (dstY+i*diry)>=0) {
+			for(j=0;j<((width)*bytesperpixel);j++){
+				k=j/bytesperpixel;
+				/* X dir--clipping judgement */
+				if ( (srcX+k*dirx)<srcwidth && (srcX+k*dirx)>=0
+					&&(dstX+k*dirx)<dstwidth && (dstX+k*dirx)>=0)
+				{
+					lgdstaddr[dirx*j]=lgsrcaddr[dirx*j];
+				}
+			}
+
+		}
+		lgdstaddr+=(diry*dstsurf->mStride);
+		lgsrcaddr+=(dirx*srcsurf->mStride);
+	}
+  }
 void
 VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
-        int dstX, int dstY, int width, int height) {
-    TRACE_ENTER();
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
-    /*Setting up the rectangle*/
-    pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
-    pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
-    pViv->mGrCtx.mBlitInfo.mDstBox.x2 = dstX + width;
-    pViv->mGrCtx.mBlitInfo.mDstBox.y2 = dstY + height;
+	int dstX, int dstY, int width, int height) {
+	TRACE_ENTER();
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+	/*Setting up the rectangle*/
+	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
+	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
+	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = dstX + width;
+	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = dstY + height;
 
-    pViv->mGrCtx.mBlitInfo.mSrcBox.x1 = srcX;
-    pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
-    pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
-    pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
+	pViv->mGrCtx.mBlitInfo.mSrcBox.x1 = srcX;
+	pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
+	pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
+	pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
+	pViv->mGrCtx.mBlitInfo.swcpy=FALSE;
 
-    if (!DoCopyBlit(&pViv->mGrCtx)) {
-        TRACE_ERROR("Copy Blit Failed\n");
-    }
-    TRACE_EXIT();
+	if (1){
+		if (pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp==pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp) {
+			if ((width*height)<MAX_SUB_COPY_SIZE){
+				pViv->mGrCtx.mBlitInfo.swcpy=TRUE;
+				VivSWCopy(pViv,pDstPixmap->drawable.bitsPerPixel/8);
+				TRACE_EXIT();
+			}
+		}
+	}
+
+	if (!SetDestinationSurface(&pViv->mGrCtx)) {
+		TRACE_ERROR("Copy Blit Failed\n");
+	}
+
+	if (!SetSourceSurface(&pViv->mGrCtx)) {
+		TRACE_ERROR("Copy Blit Failed\n");
+	}
+
+	if (!SetClipping(&pViv->mGrCtx)) {
+		TRACE_ERROR("Copy Blit Failed\n");
+	}
+
+	if (!DoCopyBlit(&pViv->mGrCtx)) {
+		TRACE_ERROR("Copy Blit Failed\n");
+	}
+	TRACE_EXIT();
 }
 
 /**
@@ -173,11 +264,18 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
  */
 void
 VivDoneCopy(PixmapPtr pDstPixmap) {
-    TRACE_ENTER();
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
-    VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
+	TRACE_ENTER();
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+	if (pViv && pViv->mGrCtx.mBlitInfo.swcpy) {
+		pViv->mGrCtx.mBlitInfo.swcpy=FALSE;
+		TRACE_EXIT();
+	}
+
+	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
+
 #if VIV_EXA_FLUSH_2D_CMD_ENABLE
-    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE));
+	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
 #endif
-    TRACE_EXIT();
+
+	TRACE_EXIT();
 }

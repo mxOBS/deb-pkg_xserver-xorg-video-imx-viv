@@ -19,10 +19,8 @@
 *****************************************************************************/
 
 
-
-
-
 #include "vivante_exa.h"
+#include "vivante_common.h"
 #include "vivante_gal.h"
 #include "vivante.h"
 
@@ -51,6 +49,25 @@ Bool CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
     }
     TRACE_EXIT(TRUE);
 }
+
+PixmapPtr
+GetDrawablePixmap(DrawablePtr pDrawable) {
+    /* Make sure there is a drawable. */
+    if (NULL == pDrawable) {
+        return NULL;
+    }
+
+    /* Check for a backing pixmap. */
+    if (DRAWABLE_WINDOW == pDrawable->type) {
+
+        WindowPtr pWindow = (WindowPtr) pDrawable;
+        return pDrawable->pScreen->GetWindowPixmap(pWindow);
+    }
+
+    /* Otherwise, it's a regular pixmap. */
+    return (PixmapPtr) pDrawable;
+}
+
 
 /**
  * UploadToScreen() loads a rectangle of data from src into pDst.
@@ -84,212 +101,210 @@ Bool CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
  * acceleration is supported.
  */
 
-typedef Bool (*FUpToScreen)(PixmapPtr pDst, int x, int y, int w,int h, char *src, int src_pitch);
+typedef Bool(*FUpToScreen)(PixmapPtr pDst, int x, int y, int w, int h, char *src, int src_pitch);
 
-static Bool  DoneByNothing(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch)
-{
-	TRACE_EXIT(FALSE);
+static Bool DoneByNothing(PixmapPtr pDst, int x, int y, int w,
+        int h, char *src, int src_pitch) {
+    TRACE_EXIT(FALSE);
 }
 
-static Bool  DoneBySWCPY(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch)
-{
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDst);
-	char * mDestAddr;
-	int stride;
-	int cpp = (pDst->drawable.bitsPerPixel + 7) / 8;
-	int i;
+static Bool DoneBySWCPY(PixmapPtr pDst, int x, int y, int w,
+        int h, char *src, int src_pitch) {
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
+    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDst);
+    char * mDestAddr;
+    int stride;
+    int cpp = (pDst->drawable.bitsPerPixel + 7) / 8;
+    int i;
 
-	if (pViv==NULL || pdst==NULL)
-		TRACE_EXIT(FALSE);
+    if (pViv == NULL || pdst == NULL)
+        TRACE_EXIT(FALSE);
 
-	stride=GetStride(pdst);
-	mDestAddr=(char*) MapViv2DPixmap(pdst);
+    stride = GetStride(pdst);
+    mDestAddr = (char*) MapViv2DPixmap(pdst);
 
-	if (mDestAddr==NULL)
-		TRACE_EXIT(FALSE);
+    if (mDestAddr == NULL)
+        TRACE_EXIT(FALSE);
 
-	mDestAddr += y * stride + x *cpp;
+    mDestAddr += y * stride + x *cpp;
 
-	for (i = 0; i < h; i++) {
-		memcpy(mDestAddr, src, w * cpp);
-		mDestAddr += stride;
-		src += src_pitch;
-	}
+    for (i = 0; i < h; i++) {
+        memcpy(mDestAddr, src, w * cpp);
+        mDestAddr += stride;
+        src += src_pitch;
+    }
 
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
-static Bool  DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch)
-{
-	TRACE_ENTER();
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDst);
-	VIV2DBLITINFOPTR pBltInfo = &(pViv->mGrCtx.mBlitInfo);
-	MemMapInfo mmap;
-	int aligned_pitch;
-	int height = h;
-	int aligned_height;
-	int aligned_width;
-	char *aligned_start;
-	int  bytesperpixel;
-	int  maxsize;
-	BOOL retvsurf=TRUE;
+static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
+        int h, char *src, int src_pitch) {
+    TRACE_ENTER();
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
+    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDst);
+    VIV2DBLITINFOPTR pBltInfo = &(pViv->mGrCtx.mBlitInfo);
+    MemMapInfo mmap;
+    int aligned_pitch;
+    int height = h;
+    int aligned_height;
+    int aligned_width;
+    char *aligned_start;
+    int bytesperpixel;
+    int maxsize;
+    BOOL retvsurf = TRUE;
 
-	if (pDst->drawable.bitsPerPixel<16){
-		TRACE_EXIT(FALSE);
-	}
+    if (pDst->drawable.bitsPerPixel < 16) {
+        TRACE_EXIT(FALSE);
+    }
 
-	maxsize=(w>h) ? w: h;
+    maxsize = (w > h) ? w : h;
 
-	switch(pDst->drawable.bitsPerPixel){
+    switch (pDst->drawable.bitsPerPixel) {
 
-		case 16:
-			bytesperpixel=2;
-			retvsurf=VGetSurfAddrBy16(&pViv->mGrCtx,maxsize,(int *)(&mmap.physical),(int *)(&(mmap.mUserAddr)),&aligned_width,&aligned_height,&aligned_pitch);
+        case 16:
+            bytesperpixel = 2;
+            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
 
-			break;
-		case 32:
-			bytesperpixel=4;
-			retvsurf=VGetSurfAddrBy32(&pViv->mGrCtx,maxsize,(int *)(&mmap.physical),(int *)(&(mmap.mUserAddr)),&aligned_width,&aligned_height,&aligned_pitch);
-			break;
-		default:
-			return FALSE;
-	}
+            break;
+        case 32:
+            bytesperpixel = 4;
+            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            break;
+        default:
+            return FALSE;
+    }
 
-	if (retvsurf==FALSE)
-		TRACE_EXIT(FALSE);
+    if (retvsurf == FALSE)
+        TRACE_EXIT(FALSE);
 
-	mmap.mapping = NULL;
-	mmap.mSize=aligned_pitch*aligned_width;
+    mmap.mapping = NULL;
+    mmap.mSize = aligned_pitch*aligned_width;
 
-	aligned_start=(char *)mmap.mUserAddr;
+    aligned_start = (char *) mmap.mUserAddr;
 
-	while (height--) {
-		memcpy(aligned_start, src, w*bytesperpixel);
-		src += src_pitch;
-		aligned_start += aligned_pitch;
-	}
+    while (height--) {
+        memcpy(aligned_start, src, w * bytesperpixel);
+        src += src_pitch;
+        aligned_start += aligned_pitch;
+    }
 
-	if (!GetDefaultFormat(pDst->drawable.bitsPerPixel, &(pBltInfo->mDstSurfInfo.mFormat))) {
-		TRACE_EXIT(FALSE);
-	}
-	pBltInfo->mSrcSurfInfo.mFormat = pBltInfo->mDstSurfInfo.mFormat;
+    if (!GetDefaultFormat(pDst->drawable.bitsPerPixel, &(pBltInfo->mDstSurfInfo.mFormat))) {
+        TRACE_EXIT(FALSE);
+    }
+    pBltInfo->mSrcSurfInfo.mFormat = pBltInfo->mDstSurfInfo.mFormat;
 
-	pBltInfo->mDstBox.x1 = x;
-	pBltInfo->mDstBox.y1 = y;
-	pBltInfo->mDstBox.x2 = x + w;
-	pBltInfo->mDstBox.y2 = y + h;
+    pBltInfo->mDstBox.x1 = x;
+    pBltInfo->mDstBox.y1 = y;
+    pBltInfo->mDstBox.x2 = x + w;
+    pBltInfo->mDstBox.y2 = y + h;
 
-	pBltInfo->mSrcBox.x1 = 0;
-	pBltInfo->mSrcBox.y1 = 0;
-	pBltInfo->mSrcBox.x2 = w;
-	pBltInfo->mSrcBox.y2 = h;
+    pBltInfo->mSrcBox.x1 = 0;
+    pBltInfo->mSrcBox.y1 = 0;
+    pBltInfo->mSrcBox.x2 = w;
+    pBltInfo->mSrcBox.y2 = h;
 
-	pBltInfo->mDstSurfInfo.mHeight = pDst->drawable.height;
-	pBltInfo->mDstSurfInfo.mWidth = pDst->drawable.width;
-	pBltInfo->mDstSurfInfo.mStride = pDst->devKind;
-	pBltInfo->mDstSurfInfo.mPriv = pdst;
+    pBltInfo->mDstSurfInfo.mHeight = pDst->drawable.height;
+    pBltInfo->mDstSurfInfo.mWidth = pDst->drawable.width;
+    pBltInfo->mDstSurfInfo.mStride = pDst->devKind;
+    pBltInfo->mDstSurfInfo.mPriv = pdst;
 
-	pBltInfo->mSrcSurfInfo.mStride = aligned_pitch;
-	pBltInfo->mSrcSurfInfo.mWidth = aligned_width;
-	pBltInfo->mSrcSurfInfo.mHeight = aligned_height;
+    pBltInfo->mSrcSurfInfo.mStride = aligned_pitch;
+    pBltInfo->mSrcSurfInfo.mWidth = aligned_width;
+    pBltInfo->mSrcSurfInfo.mHeight = aligned_height;
 
-	pBltInfo->mBgRop = 0xCC;
-	pBltInfo->mFgRop = 0xCC;
+    pBltInfo->mBgRop = 0xCC;
+    pBltInfo->mFgRop = 0xCC;
 
-	if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
-		TRACE_ERROR("Copy Blit From Host Failed\n");
-		TRACE_EXIT(FALSE);
-	}
+    if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
+        TRACE_ERROR("Copy Blit From Host Failed\n");
+        TRACE_EXIT(FALSE);
+    }
 
-	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
 
-	exaMarkSync(pDst->drawable.pScreen);
+    exaMarkSync(pDst->drawable.pScreen);
 }
 
-static Bool  DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch)
-{
-	TRACE_ENTER();
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDst);
-	VIV2DBLITINFOPTR pBltInfo = &(pViv->mGrCtx.mBlitInfo);
-	MemMapInfo mmap;
-	int width_in_bytes = w * bits_to_bytes(pDst->drawable.bitsPerPixel);
-	int aligned_pitch = VIV_ALIGN(width_in_bytes, PIXMAP_PITCH_ALIGN);
-	int height = h;
-	int aligned_width = VIV_ALIGN(w, 8);
-	void * start;
-	char *aligned_start;
-	mmap.mSize = h * aligned_pitch;
-	mmap.mapping = NULL;
-	mmap.physical = 0;
-	start = calloc(1, mmap.mSize + 63);
-	mmap.mUserAddr = aligned_start = (char*) VIV_ALIGN(((int) start), 64);
+static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
+        int h, char *src, int src_pitch) {
+    TRACE_ENTER();
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
+    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDst);
+    VIV2DBLITINFOPTR pBltInfo = &(pViv->mGrCtx.mBlitInfo);
+    MemMapInfo mmap;
+    int width_in_bytes = w * bits_to_bytes(pDst->drawable.bitsPerPixel);
+    int aligned_pitch = VIV_ALIGN(width_in_bytes, PIXMAP_PITCH_ALIGN);
+    int height = h;
+    int aligned_width = VIV_ALIGN(w, 8);
+    void * start;
+    char *aligned_start;
+    mmap.mSize = h * aligned_pitch;
+    mmap.mapping = NULL;
+    mmap.physical = 0;
+    start = calloc(1, mmap.mSize + 63);
+    mmap.mUserAddr = aligned_start = (char*) VIV_ALIGN(((int) start), 64);
 
-	while (height--) {
-		memcpy(aligned_start, src, width_in_bytes);
-		src += src_pitch;
-		aligned_start += aligned_pitch;
-	}
+    while (height--) {
+        memcpy(aligned_start, src, width_in_bytes);
+        src += src_pitch;
+        aligned_start += aligned_pitch;
+    }
 
-	if (!GetDefaultFormat(pDst->drawable.bitsPerPixel, &(pBltInfo->mDstSurfInfo.mFormat))) {
-		TRACE_EXIT(FALSE);
-	}
-	pBltInfo->mSrcSurfInfo.mFormat = pBltInfo->mDstSurfInfo.mFormat;
+    if (!GetDefaultFormat(pDst->drawable.bitsPerPixel, &(pBltInfo->mDstSurfInfo.mFormat))) {
+        TRACE_EXIT(FALSE);
+    }
+    pBltInfo->mSrcSurfInfo.mFormat = pBltInfo->mDstSurfInfo.mFormat;
 
-	pBltInfo->mDstBox.x1 = x;
-	pBltInfo->mDstBox.y1 = y;
-	pBltInfo->mDstBox.x2 = x + w;
-	pBltInfo->mDstBox.y2 = y + h;
+    pBltInfo->mDstBox.x1 = x;
+    pBltInfo->mDstBox.y1 = y;
+    pBltInfo->mDstBox.x2 = x + w;
+    pBltInfo->mDstBox.y2 = y + h;
 
-	pBltInfo->mSrcBox.x1 = 0;
-	pBltInfo->mSrcBox.y1 = 0;
-	pBltInfo->mSrcBox.x2 = w;
-	pBltInfo->mSrcBox.y2 = h;
+    pBltInfo->mSrcBox.x1 = 0;
+    pBltInfo->mSrcBox.y1 = 0;
+    pBltInfo->mSrcBox.x2 = w;
+    pBltInfo->mSrcBox.y2 = h;
 
-	pBltInfo->mDstSurfInfo.mHeight = pDst->drawable.height;
-	pBltInfo->mDstSurfInfo.mWidth = pDst->drawable.width;
-	pBltInfo->mDstSurfInfo.mStride = pDst->devKind;
-	pBltInfo->mDstSurfInfo.mPriv = pdst;
+    pBltInfo->mDstSurfInfo.mHeight = pDst->drawable.height;
+    pBltInfo->mDstSurfInfo.mWidth = pDst->drawable.width;
+    pBltInfo->mDstSurfInfo.mStride = pDst->devKind;
+    pBltInfo->mDstSurfInfo.mPriv = pdst;
 
-	pBltInfo->mSrcSurfInfo.mStride = aligned_pitch;
-	pBltInfo->mSrcSurfInfo.mWidth = aligned_width;
-	pBltInfo->mSrcSurfInfo.mHeight = h;
+    pBltInfo->mSrcSurfInfo.mStride = aligned_pitch;
+    pBltInfo->mSrcSurfInfo.mWidth = aligned_width;
+    pBltInfo->mSrcSurfInfo.mHeight = h;
 
-	pBltInfo->mBgRop = 0xCC;
-	pBltInfo->mFgRop = 0xCC;
+    pBltInfo->mBgRop = 0xCC;
+    pBltInfo->mFgRop = 0xCC;
 
-	if (!MapUserMemToGPU(&pViv->mGrCtx, &mmap)) {
-		TRACE_EXIT(FALSE);
-	}
+    if (!MapUserMemToGPU(&pViv->mGrCtx, &mmap)) {
+        TRACE_EXIT(FALSE);
+    }
 
-	if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
-		UnmapUserMem(&pViv->mGrCtx, &mmap);
-		TRACE_ERROR("Copy Blit From Host Failed\n");
-		TRACE_EXIT(FALSE);
-	}
+    if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
+        UnmapUserMem(&pViv->mGrCtx, &mmap);
+        TRACE_ERROR("Copy Blit From Host Failed\n");
+        TRACE_EXIT(FALSE);
+    }
 
-	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-	UnmapUserMem(&pViv->mGrCtx, &mmap);
-	exaMarkSync(pDst->drawable.pScreen);
-	free(start);
-	TRACE_EXIT(TRUE);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    UnmapUserMem(&pViv->mGrCtx, &mmap);
+    exaMarkSync(pDst->drawable.pScreen);
+    free(start);
+    TRACE_EXIT(TRUE);
 }
 
-typedef  enum {DONE_BY_NOTHING,DONE_BY_SWCPY,DONE_BY_VSURF,DONE_BY_MAPFUNCS} FUPSCREENTYPE;
+typedef enum {
+    DONE_BY_NOTHING, DONE_BY_SWCPY, DONE_BY_VSURF, DONE_BY_MAPFUNCS
+} FUPSCREENTYPE;
 
-static FUpToScreen _fptoscreen[4]={DoneByNothing,DoneBySWCPY,DoneByVSurf,DoneByMapFuncs};
+static FUpToScreen _fptoscreen[4] = {DoneByNothing, DoneBySWCPY, DoneByVSurf, DoneByMapFuncs};
 
-static FUPSCREENTYPE  ftype=DONE_BY_SWCPY/*DONE_BY_VSURF*/;
+static FUPSCREENTYPE ftype = DONE_BY_SWCPY/*DONE_BY_VSURF*/;
 
 Bool
 VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch) {
-	return _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
+        int h, char *src, int src_pitch) {
+    return _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
 }

@@ -19,11 +19,10 @@
 *****************************************************************************/
 
 
-
-
-
 #include "vivante_exa.h"
+
 #include "vivante.h"
+
 #include "vivante_priv.h"
 
 /**
@@ -36,19 +35,19 @@
 
 void *
 VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
-    TRACE_ENTER();
-    Viv2DPixmapPtr vivpixmap = NULL;
-    vivpixmap = malloc(sizeof (Viv2DPixmap));
-    if (!vivpixmap) {
-        TRACE_EXIT(NULL);
-    }
-    IGNORE(align);
-    IGNORE(size);
-    vivpixmap->mVidMemInfo = NULL;
-    vivpixmap->mGpuBusy = FALSE;
-    vivpixmap->mNextGpuBusyPixmap = NULL;
-    vivpixmap->mRef = 0;
-    TRACE_EXIT(vivpixmap);
+	TRACE_ENTER();
+	Viv2DPixmapPtr vivpixmap = NULL;
+	vivpixmap = malloc(sizeof (Viv2DPixmap));
+	if (!vivpixmap) {
+		TRACE_EXIT(NULL);
+	}
+	IGNORE(align);
+	IGNORE(size);
+	vivpixmap->mVidMemInfo = NULL;
+	vivpixmap->mGpuBusy = FALSE;
+	vivpixmap->mNextGpuBusyPixmap = NULL;
+	vivpixmap->mRef = 0;
+	TRACE_EXIT(vivpixmap);
 }
 
 /**
@@ -58,20 +57,20 @@ VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
  */
 void
 VivDestroyPixmap(ScreenPtr pScreen, void *dPriv) {
-    TRACE_ENTER();
-    Viv2DPixmapPtr priv = (Viv2DPixmapPtr) dPriv;
-    VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
-    if (priv && (priv->mVidMemInfo)) {
-        /*Destroy Surface*/
-        if (!DestroySurface(&pViv->mGrCtx, priv)) {
-            TRACE_ERROR("Error on destroying the surface\n");
-        }
-        /*Removing the container*/
-        free(priv);
-        priv = NULL;
-        dPriv = NULL;
-    }
-    TRACE_EXIT();
+	TRACE_ENTER();
+	Viv2DPixmapPtr priv = (Viv2DPixmapPtr) dPriv;
+	VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
+	if (priv && (priv->mVidMemInfo)) {
+		/*Destroy Surface*/
+		if (!DestroySurface(&pViv->mGrCtx, priv)) {
+			TRACE_ERROR("Error on destroying the surface\n");
+		}
+		/*Removing the container*/
+		free(priv);
+		priv = NULL;
+		dPriv = NULL;
+	}
+	TRACE_EXIT();
 }
 
 /**
@@ -89,22 +88,22 @@ VivDestroyPixmap(ScreenPtr pScreen, void *dPriv) {
  */
 Bool
 VivPixmapIsOffscreen(PixmapPtr pPixmap) {
-    TRACE_ENTER();
-    BOOL ret = FALSE;
-    Viv2DPixmapPtr vivpixmap = NULL;
-    ScreenPtr pScreen = pPixmap->drawable.pScreen;
-    vivpixmap = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
+	TRACE_ENTER();
+	BOOL ret = FALSE;
+	Viv2DPixmapPtr vivpixmap = NULL;
+	ScreenPtr pScreen = pPixmap->drawable.pScreen;
+	vivpixmap = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
 
-    /* offscreen means in 'gpu accessible memory', not that it's off the
-     * visible screen.
-     */
-    if (pScreen->GetScreenPixmap(pScreen) == pPixmap) {
-        TRACE_EXIT(TRUE);
-    }
+	/* offscreen means in 'gpu accessible memory', not that it's off the
+	* visible screen.
+	*/
+	if (pScreen->GetScreenPixmap(pScreen) == pPixmap) {
+		TRACE_EXIT(TRUE);
+	}
 
-    ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
+	ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
 
-    TRACE_EXIT(ret);
+	TRACE_EXIT(ret);
 }
 
 /**
@@ -114,95 +113,120 @@ VivPixmapIsOffscreen(PixmapPtr pPixmap) {
  */
 Bool
 VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
-        int depth, int bitsPerPixel, int devKind,
-        pointer pPixData) {
-    TRACE_ENTER();
-    Bool ret = FALSE;
+	int depth, int bitsPerPixel, int devKind,
+	pointer pPixData) {
+	TRACE_ENTER();
+	Bool ret = FALSE;
 
-    Bool isChanged = FALSE;
-    int prev_w = pPixmap->drawable.width;
-    int prev_h = pPixmap->drawable.height;
-    int prev_bpp = pPixmap->drawable.bitsPerPixel;
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-    Viv2DPixmapPtr vivPixmap = exaGetPixmapDriverPrivate(pPixmap);
+	Bool isChanged = FALSE;
+	int prev_w = pPixmap->drawable.width;
+	int prev_h = pPixmap->drawable.height;
+	int prev_bpp = pPixmap->drawable.bitsPerPixel;
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+	Viv2DPixmapPtr vivPixmap = exaGetPixmapDriverPrivate(pPixmap);
 
-    if (!pPixmap || !vivPixmap) {
-        TRACE_EXIT(FALSE);
-    }
-    ret = miModifyPixmapHeader(pPixmap, width, height, depth,
-            bitsPerPixel, devKind, pPixData);
-    if (!ret) {
-        return ret;
-    }
+	if (!pPixmap || !vivPixmap) {
+		TRACE_EXIT(FALSE);
+	}
+	ret = miModifyPixmapHeader(pPixmap, width, height, depth, bitsPerPixel, devKind, pPixData);
+	if (!ret) {
+		 return ret;
+	}
 
-    if (depth <= 0) {
-        depth = pPixmap->drawable.depth;
-    }
+	if (depth <= 0) {
+		depth = pPixmap->drawable.depth;
+	}
 
-    if (bitsPerPixel <= 0) {
-        bitsPerPixel = pPixmap->drawable.bitsPerPixel;
-    }
+	if (bitsPerPixel <= 0) {
+		bitsPerPixel = pPixmap->drawable.bitsPerPixel;
+	}
 
-    if (width <= 0) {
-        width = pPixmap->drawable.width;
-    }
+	if (width <= 0) {
+		width = pPixmap->drawable.width;
+	}
 
-    if (height <= 0) {
-        height = pPixmap->drawable.height;
-    }
+	if (height <= 0) {
+		height = pPixmap->drawable.height;
+	}
+
+	if (width <= 0 || height <= 0 || depth <= 0) {
+		TRACE_EXIT(FALSE);
+
+	}
+
+	isChanged = (!vivPixmap->mVidMemInfo || prev_h != height || prev_w != width || (prev_bpp != bitsPerPixel && bitsPerPixel > 16));
 
 
-    if (width <= 0 || height <= 0 || depth <= 0) {
-        TRACE_EXIT(FALSE);
-    }
+	/* What is the start of screen (and offscreen) memory and its size. */
 
-    isChanged = (!vivPixmap->mVidMemInfo || prev_h != height || prev_w != width || (prev_bpp != bitsPerPixel && bitsPerPixel > 16));
+	CARD8* screenMemoryBegin =
 
-    /* What is the start of screen (and offscreen) memory and its size. */
-    CARD8* screenMemoryBegin =
-            (CARD8*) (pViv->mFakeExa.mExaDriver->memoryBase);
-    CARD8* screenMemoryEnd =
-            screenMemoryBegin + pViv->mFakeExa.mExaDriver->memorySize;
+	(CARD8*) (pViv->mFakeExa.mExaDriver->memoryBase);
 
-    if ((screenMemoryBegin <= (CARD8*) (pPixData)) &&
-            ((CARD8*) (pPixData) < screenMemoryEnd)) {
-        /* Compute address relative to begin of FB memory. */
-        const unsigned long offset =
-                (CARD8*) (pPixData) - screenMemoryBegin;
+	CARD8* screenMemoryEnd =screenMemoryBegin + pViv->mFakeExa.mExaDriver->memorySize;
 
-        /* Store GPU address. */
-        const unsigned long physical = pViv->mFB.memPhysBase + offset;
+	if ((screenMemoryBegin <= (CARD8*) (pPixData)) &&
+		((CARD8*) (pPixData) < screenMemoryEnd)) {
 
-        if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
-            TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
-            TRACE_EXIT(FALSE);
-        }
-        TRACE_EXIT(TRUE);
-    } else if (pPixData) {
-        TRACE_ERROR("NO ACCERELATION\n");
-        /*No acceleration is avalaible*/
-        pPixmap->devPrivate.ptr = pPixData;
-        pPixmap->devKind = devKind;
-        /*we never want to see this again*/
-        if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
-            TRACE_ERROR("ERROR : DestroySurface\n");
-        }
-        vivPixmap->mVidMemInfo = NULL;
-        TRACE_EXIT(FALSE);
-    } else {
-        if (isChanged) {
-            if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
-                TRACE_ERROR("ERROR : Destroying the surface\n");
-                TRACE_EXIT(FALSE);
-            }
-            if (!CreateSurface(&pViv->mGrCtx, pPixmap, vivPixmap)) {
-                TRACE_ERROR("ERROR : Creating the surface\n");
-                TRACE_EXIT(FALSE);
-            }
-            pPixmap->devKind = GetStride(vivPixmap);
-        }
-    }
-    TRACE_EXIT(TRUE);
+		/* Compute address relative to begin of FB memory. */
+
+		const unsigned long offset =(CARD8*) (pPixData) - screenMemoryBegin;
+
+		/* Store GPU address. */
+		const unsigned long physical = pViv->mFB.memPhysBase + offset;
+		if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
+
+			TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
+			TRACE_EXIT(FALSE);
+		}
+
+		TRACE_EXIT(TRUE);
+
+	} else if (pPixData) {
+
+		TRACE_ERROR("NO ACCERELATION\n");
+
+		/*No acceleration is avalaible*/
+
+		pPixmap->devPrivate.ptr = pPixData;
+
+		pPixmap->devKind = devKind;
+
+		/*we never want to see this again*/
+
+		if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
+
+			TRACE_ERROR("ERROR : DestroySurface\n");
+		}
+
+		vivPixmap->mVidMemInfo = NULL;
+		TRACE_EXIT(FALSE);
+
+	} else {
+
+		if (isChanged) {
+			if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
+				TRACE_ERROR("ERROR : Destroying the surface\n");
+				TRACE_EXIT(FALSE);
+			}
+			if (!CreateSurface(&pViv->mGrCtx, pPixmap, vivPixmap)) {
+				TRACE_ERROR("ERROR : Creating the surface\n");
+				TRACE_EXIT(FALSE);
+			}
+
+			pPixmap->devKind = GetStride(vivPixmap);
+
+			/* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
+			if(VivPrepareSolid(pPixmap,(int)GXcopy,(Pixel)0xFFFFFFFF,(Pixel)0)){
+				VivSolid(pPixmap,0,0,pPixmap->drawable.width,pPixmap->drawable.height);
+				VivDoneCopy(pPixmap);
+			}
+
+		}
+
+	}
+
+	TRACE_EXIT(TRUE);
 }
 
 /**
@@ -240,23 +264,24 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
  */
 Bool
 VivPrepareAccess(PixmapPtr pPix, int index) {
-    TRACE_ENTER();
-    Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
+	TRACE_ENTER();
+	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
 
+	if (vivpixmap->mRef == 0) {
+		pPix->devPrivate.ptr = MapSurface(vivpixmap);
+	}
 
+	vivpixmap->mRef++;
 
-    if (vivpixmap->mRef == 0) {
-        pPix->devPrivate.ptr = MapSurface(vivpixmap);
-    }
-    vivpixmap->mRef++;
-    if (pPix->devPrivate.ptr == NULL) {
-        TRACE_ERROR("Logical Address is not set\n");
-        TRACE_EXIT(FALSE);
-    }
+	if (pPix->devPrivate.ptr == NULL) {
 
+		TRACE_ERROR("Logical Address is not set\n");
+		TRACE_EXIT(FALSE);
 
-    TRACE_EXIT(TRUE);
+	}
+
+	TRACE_EXIT(TRUE);
 }
 
 /**
@@ -271,17 +296,19 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
  */
 void
 VivFinishAccess(PixmapPtr pPix, int index) {
-    TRACE_ENTER();
-    Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
-    IGNORE(index);
+	TRACE_ENTER();
+	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
+	IGNORE(index);
 
 
-    if (vivpixmap->mRef == 1) {
-        pPix->devPrivate.ptr = NULL;
-    }
-    vivpixmap->mRef--;
-    TRACE_EXIT();
+	if (vivpixmap->mRef == 1) {
+
+		pPix->devPrivate.ptr = NULL;
+
+	}
+	vivpixmap->mRef--;
+	TRACE_EXIT();
 }
 
 
