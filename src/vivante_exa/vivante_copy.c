@@ -62,6 +62,8 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	Viv2DPixmapPtr psrc = exaGetPixmapDriverPrivate(pSrcPixmap);
 	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDstPixmap);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+	int fgop = 0xCC;
+	int bgop = 0xCC;
 
 #if VIV_EXA_COPY_SIZE_CHECK_ENABLE
 	if (pSrcPixmap->drawable.width * pSrcPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_COPY
@@ -82,6 +84,8 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 		TRACE_EXIT(FALSE);
 	}
 
+	ConvertXAluToOPS(pDstPixmap, alu, planemask, &fgop,&bgop);
+
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pDstPixmap->drawable.height;
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pDstPixmap->drawable.width;
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pDstPixmap->devKind;
@@ -93,9 +97,13 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv = psrc;
 
 
-	pViv->mGrCtx.mBlitInfo.mBgRop = 0xCC;
-	pViv->mGrCtx.mBlitInfo.mFgRop = 0xCC;
-	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
+	pViv->mGrCtx.mBlitInfo.mBgRop = fgop;
+	pViv->mGrCtx.mBlitInfo.mFgRop = bgop;
+
+	if ( alu == GXcopy )
+		pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSIMCOPY;
+	else
+		pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
 
 	if (0) {
 		if (!SetDestinationSurface(&pViv->mGrCtx)) {
@@ -109,7 +117,7 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 		}
 	}
 
-    TRACE_EXIT(TRUE);
+	TRACE_EXIT(TRUE);
 }
 
 /**
@@ -137,79 +145,252 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
  * This call is required if PrepareCopy ever succeeds.
  *
 **/
- #define MAX_SUB_COPY_SIZE 2500
- static void VivSWCopy(VivPtr pViv,int bytesperpixel) {
+
+#define MAX_SUB_COPY_SIZE    (700*1024)
+
+
+ /* ported from pixman, we can perhaps use pixman function directly*/
+ /* vectors are stored in 64-bit floating-point registers */
+ typedef double __m64;
+ #define force_inline __inline__ __attribute__ ((__always_inline__))
+
+ /* Elemental unaligned loads */
+ static force_inline __m64 ldq_u(__m64 *p)
+{
+	struct __una_u64 { __m64 x __attribute__((packed)); };
+	const struct __una_u64 *ptr = (const struct __una_u64 *) p;
+	return (__m64) ptr->x;
+}
+
+static force_inline uint32_t ldl_u(const uint32_t *p)
+{
+	struct __una_u32 { uint32_t x __attribute__((packed)); };
+	const struct __una_u32 *ptr = (const struct __una_u32 *) p;
+	return ptr->x;
+}
+
+ static Bool
+ Blt_64Bits(uint32_t *src_bits,
+			uint32_t *dst_bits,
+			int       src_stride,
+			int       dst_stride,
+			int       src_bpp,
+			int       dst_bpp,
+			int       src_x,
+			int       src_y,
+			int       dest_x,
+			int       dest_y,
+			int       width,
+			int       height)
+{
+
+	uint8_t *   src_bytes;
+	uint8_t *   dst_bytes;
+	int byte_width;
+
+	if (src_bpp != dst_bpp)
+		return FALSE;
+
+	if (src_bpp == 16)
+	{
+		src_stride = src_stride * (int) sizeof (uint32_t) / 2;
+		dst_stride = dst_stride * (int) sizeof (uint32_t) / 2;
+		src_bytes = (uint8_t *)(((uint16_t *)src_bits) + src_stride * (src_y) + (src_x));
+		dst_bytes = (uint8_t *)(((uint16_t *)dst_bits) + dst_stride * (dest_y) + (dest_x));
+		byte_width = 2 * width;
+		src_stride *= 2;
+		dst_stride *= 2;
+	}
+	else if (src_bpp == 32)
+	{
+		src_stride = src_stride * (int) sizeof (uint32_t) / 4;
+		dst_stride = dst_stride * (int) sizeof (uint32_t) / 4;
+		src_bytes = (uint8_t *)(((uint32_t *)src_bits) + src_stride * (src_y) + (src_x));
+		dst_bytes = (uint8_t *)(((uint32_t *)dst_bits) + dst_stride * (dest_y) + (dest_x));
+		byte_width = 4 * width;
+		src_stride *= 4;
+		dst_stride *= 4;
+	}
+	else
+	{
+		return FALSE;
+	}
+
+	while (height--)
+	{
+		int w;
+		uint8_t *s = src_bytes;
+		uint8_t *d = dst_bytes;
+		src_bytes += src_stride;
+		dst_bytes += dst_stride;
+		w = byte_width;
+
+		if (w >= 1 && ((unsigned long)d & 1))
+		{
+			*(uint8_t *)d = *(uint8_t *)s;
+			w -= 1;
+			s += 1;
+			d += 1;
+		}
+
+		if (w >= 2 && ((unsigned long)d & 3))
+		{
+			*(uint16_t *)d = *(uint16_t *)s;
+			w -= 2;
+			s += 2;
+			d += 2;
+		}
+
+		while (w >= 4 && ((unsigned long)d & 7))
+		{
+			*(uint32_t *)d = ldl_u ((uint32_t *)s);
+
+			w -= 4;
+			s += 4;
+			d += 4;
+		}
+
+		while (w >= 64)
+		{
+
+			__m64 v0 = ldq_u ((__m64 *)(s + 0));
+			__m64 v1 = ldq_u ((__m64 *)(s + 8));
+			__m64 v2 = ldq_u ((__m64 *)(s + 16));
+			__m64 v3 = ldq_u ((__m64 *)(s + 24));
+			__m64 v4 = ldq_u ((__m64 *)(s + 32));
+			__m64 v5 = ldq_u ((__m64 *)(s + 40));
+			__m64 v6 = ldq_u ((__m64 *)(s + 48));
+			__m64 v7 = ldq_u ((__m64 *)(s + 56));
+			*(__m64 *)(d + 0)  = v0;
+			*(__m64 *)(d + 8)  = v1;
+			*(__m64 *)(d + 16) = v2;
+			*(__m64 *)(d + 24) = v3;
+			*(__m64 *)(d + 32) = v4;
+			*(__m64 *)(d + 40) = v5;
+			*(__m64 *)(d + 48) = v6;
+			*(__m64 *)(d + 56) = v7;
+
+
+			w -= 64;
+			s += 64;
+			d += 64;
+		}
+		while (w >= 4)
+		{
+			*(uint32_t *)d = ldl_u ((uint32_t *)s);
+
+			w -= 4;
+			s += 4;
+			d += 4;
+		}
+		if (w >= 2)
+		{
+			*(uint16_t *)d = *(uint16_t *)s;
+			w -= 2;
+			s += 2;
+			d += 2;
+		}
+	}
+
+	return TRUE;
+}
+ static void VivSWCopy(VivPtr pViv) {
     VIV2DBLITINFOPTR pBlt = &(pViv->mGrCtx.mBlitInfo);
 	char				*lgsrcaddr=NULL;
 	char				*lgdstaddr=NULL;
 	int				srcX,srcY,dstX,dstY;
-	int				width,srcwidth,dstwidth;
-	int				height,srcheight,dstheight;
+	int				width;
+	int				height;
 	int				dirx=1;
 	int				diry=1;
 	int				i,j,k;
-	GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
-	GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
-	lgsrcaddr=(char *)srcsurf->mLogicalAddr;
-	lgdstaddr=(char *)dstsurf->mLogicalAddr;
-	dstX=pViv->mGrCtx.mBlitInfo.mDstBox.x1;
-	dstY=pViv->mGrCtx.mBlitInfo.mDstBox.y1;
-	width=pViv->mGrCtx.mBlitInfo.mDstBox.x2 -pViv->mGrCtx.mBlitInfo.mDstBox.x1;
-	height=pViv->mGrCtx.mBlitInfo.mDstBox.y2 -pViv->mGrCtx.mBlitInfo.mDstBox.y1;
+	int				temx;
+	int				temy;
+	int				*lgisrcaddr=NULL;
+	int				*lgidstaddr=NULL;
+	int				ioff;
+	int				inum;
 
-	srcX=pViv->mGrCtx.mBlitInfo.mSrcBox.x1;
-	srcY=pViv->mGrCtx.mBlitInfo.mSrcBox.y1;
+	int				srcstride;
+	int				dststride;
+	int				bytesperpixel;
 
-	srcwidth=pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth;
-	dstwidth=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth;
 
-	srcheight=pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight;
-	dstheight=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight;
+	lgsrcaddr = MapViv2DPixmap(pBlt->mSrcSurfInfo.mPriv);
+	lgdstaddr = MapViv2DPixmap(pBlt->mDstSurfInfo.mPriv);
+
+	dstX = pViv->mGrCtx.mBlitInfo.mDstBox.x1;
+	dstY = pViv->mGrCtx.mBlitInfo.mDstBox.y1;
+
+	srcX = pViv->mGrCtx.mBlitInfo.mSrcBox.x1;
+	srcY = pViv->mGrCtx.mBlitInfo.mSrcBox.y1;
+
+	temx = V_MIN(pViv->mGrCtx.mBlitInfo.mDstBox.x2, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth);
+	width = temx - pViv->mGrCtx.mBlitInfo.mDstBox.x1;
+	temx = V_MIN(pViv->mGrCtx.mBlitInfo.mSrcBox.x2, pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth);
+	width = V_MIN(width,temx - pViv->mGrCtx.mBlitInfo.mSrcBox.x1);
+
+	temy = V_MIN(pViv->mGrCtx.mBlitInfo.mDstBox.y2, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight);
+	height = temy - pViv->mGrCtx.mBlitInfo.mDstBox.y1;
+	temy = V_MIN(pViv->mGrCtx.mBlitInfo.mSrcBox.y2, pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight);
+	height = V_MIN(height,temy - pViv->mGrCtx.mBlitInfo.mSrcBox.y1);
+
+
+
+	bytesperpixel = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp / 8;
 
 	if (srcY<dstY || ((srcY==dstY)&&(srcX<dstX)) )
 	{
-		srcX=pViv->mGrCtx.mBlitInfo.mSrcBox.x2-1;
-		srcY=pViv->mGrCtx.mBlitInfo.mSrcBox.y2-1;
-		dstX=pViv->mGrCtx.mBlitInfo.mDstBox.x2-1;
-		dstY=pViv->mGrCtx.mBlitInfo.mDstBox.y2-1;
+		srcX=pViv->mGrCtx.mBlitInfo.mSrcBox.x1+width-1;
+		srcY=pViv->mGrCtx.mBlitInfo.mSrcBox.y1+height-1;
+		dstX=pViv->mGrCtx.mBlitInfo.mDstBox.x1+width-1;
+		dstY=pViv->mGrCtx.mBlitInfo.mDstBox.y1+height-1;
 		dirx=-1;
 		diry=-1;
 	}
 
-	lgsrcaddr+=(srcY*srcsurf->mStride+srcX*bytesperpixel);
+	lgsrcaddr+=(srcY*pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride+srcX*bytesperpixel);
 	/* move to the last byte */
 	if (dirx<0)
 		lgsrcaddr+=(bytesperpixel-1);
 
-	lgdstaddr+=(dstY*dstsurf->mStride+dstX*bytesperpixel);
+	lgdstaddr+=(dstY*pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride+dstX*bytesperpixel);
 	/* move to the last byte */
 	if (diry<0)
 		lgdstaddr+=(bytesperpixel-1);
 
-	for(i=0;i<height;i++) {
-		/* Y dir--clipping judgement*/
-		if ( (srcY+i*diry)<srcheight && (srcY+i*diry)>=0
-			&&(dstY+i*diry)<dstheight && (dstY+i*diry)>=0) {
-			for(j=0;j<((width)*bytesperpixel);j++){
-				k=j/bytesperpixel;
-				/* X dir--clipping judgement */
-				if ( (srcX+k*dirx)<srcwidth && (srcX+k*dirx)>=0
-					&&(dstX+k*dirx)<dstwidth && (dstX+k*dirx)>=0)
-				{
-					lgdstaddr[dirx*j]=lgsrcaddr[dirx*j];
-				}
-			}
+	dststride = diry*pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride;
+	srcstride = dirx*pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride;
+	k = (width)*bytesperpixel;
 
+
+	if (dirx > 0) {
+		for(i=0;i<height;i++) {
+			memcpy(lgdstaddr,lgsrcaddr,k);
+			lgdstaddr+=dststride;
+			lgsrcaddr+=srcstride;
 		}
-		lgdstaddr+=(diry*dstsurf->mStride);
-		lgsrcaddr+=(dirx*srcsurf->mStride);
+	} else {
+		for(i=0;i<height;i++) {
+			memcpy(lgdstaddr-k+1,lgsrcaddr-k+1,k);
+			lgdstaddr+=dststride;
+			lgsrcaddr+=srcstride;
+		}
 	}
+
   }
+
 void
 VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	int dstX, int dstY, int width, int height) {
 	TRACE_ENTER();
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+
+	Viv2DPixmapPtr psrc = NULL;
+	Viv2DPixmapPtr pdst = NULL;
+
+	pdst = pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv;
+	psrc = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv;
 	/*Setting up the rectangle*/
 	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
 	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
@@ -220,17 +401,33 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
 	pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
 	pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
-	pViv->mGrCtx.mBlitInfo.swcpy=FALSE;
+	pViv->mGrCtx.mBlitInfo.mSwcpy=FALSE;
 
-	if (1){
-		if (pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp==pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp) {
-			if ((width*height)<MAX_SUB_COPY_SIZE){
-				pViv->mGrCtx.mBlitInfo.swcpy=TRUE;
-				VivSWCopy(pViv,pDstPixmap->drawable.bitsPerPixel/8);
+
+	if ( 1 ) {
+		if ( ( (width*height) < MAX_SUB_COPY_SIZE )
+			&& pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY
+			&& ( pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp == pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp ) ){
+				pViv->mGrCtx.mBlitInfo.mSwcpy = TRUE;
+				VivSWCopy(pViv);
+
+				pdst->mCpuBusy = TRUE;
+				psrc->mCpuBusy = TRUE;
+
 				TRACE_EXIT();
-			}
 		}
 	}
+
+	if (psrc->mCpuBusy) {
+		VIV2DCacheOperation(&pViv->mGrCtx, psrc, FLUSH);
+		psrc->mCpuBusy = FALSE;
+	}
+
+	if (pdst->mCpuBusy) {
+		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
+		pdst->mCpuBusy = FALSE;
+	}
+
 
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
@@ -264,18 +461,17 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
  */
 void
 VivDoneCopy(PixmapPtr pDstPixmap) {
+
 	TRACE_ENTER();
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
-	if (pViv && pViv->mGrCtx.mBlitInfo.swcpy) {
-		pViv->mGrCtx.mBlitInfo.swcpy=FALSE;
+	if (pViv && pViv->mGrCtx.mBlitInfo.mSwcpy) {
+		pViv->mGrCtx.mBlitInfo.mSwcpy=FALSE;
 		TRACE_EXIT();
 	}
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-
 #if VIV_EXA_FLUSH_2D_CMD_ENABLE
-	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+	VIV2DGPUBlitComplete(&pViv->mGrCtx,TRUE);
 #endif
-
 	TRACE_EXIT();
 }

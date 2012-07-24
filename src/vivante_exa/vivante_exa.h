@@ -39,7 +39,7 @@ extern "C" {
 #define VIV_EXA_SOLID_SIZE_CHECK_ENABLE     1
 #define VIV_EXA_COPY_SIZE_CHECK_ENABLE      1
 
-#define	IMX_EXA_MIN_PIXEL_AREA_SOLID        10000
+#define	IMX_EXA_MIN_PIXEL_AREA_SOLID        422500
 #define	IMX_EXA_MIN_PIXEL_AREA_COPY         14400
 #define	IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    150
 
@@ -141,6 +141,7 @@ extern "C" {
      * UTILITY FUNCTIONS  (START)
      ************************************************************************/
     Bool CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask);
+    void ConvertXAluToOPS(PixmapPtr pPixmap, int alu, Pixel planemask, int *fg, int *bg);
     PixmapPtr GetDrawablePixmap(DrawablePtr pDrawable);
     /************************************************************************
      * UTILITY FUNCTIONS (END)

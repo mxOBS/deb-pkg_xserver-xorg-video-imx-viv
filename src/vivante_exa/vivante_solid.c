@@ -21,7 +21,7 @@
 
 #include "vivante_exa.h"
 #include "vivante.h"
-#include "../vivante_gal/vivante_priv.h"
+
 
 /**
  * PrepareSolid() sets up the driver for doing a solid fill.
@@ -49,6 +49,8 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	TRACE_ENTER();
 	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+	int fgop = 0xF0;
+	int bgop = 0xF0;
 
 #if VIV_EXA_SOLID_SIZE_CHECK_ENABLE
 	if (pPixmap->drawable.width * pPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_SOLID) {
@@ -67,8 +69,8 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pPixmap->drawable.width;
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pPixmap->devKind;
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
-	pViv->mGrCtx.mBlitInfo.mFgRop = 0xF0;
-	pViv->mGrCtx.mBlitInfo.mBgRop = 0xF0;
+	pViv->mGrCtx.mBlitInfo.mFgRop = fgop;
+	pViv->mGrCtx.mBlitInfo.mBgRop = bgop;
 	pViv->mGrCtx.mBlitInfo.mColorARGB32 = fg;
 	pViv->mGrCtx.mBlitInfo.mColorConvert = FALSE;
 	pViv->mGrCtx.mBlitInfo.mPlaneMask = planemask;
@@ -88,7 +90,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 		}
 	}
 
-    TRACE_EXIT(TRUE);
+	TRACE_EXIT(TRUE);
 }
 
 /**
@@ -110,6 +112,8 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  *
  * This call is required if PrepareSolid() ever succeeds.
  */
+
+ #define  MAX_SUB_SOLID_SIZE 10000
  static void VivSWSolid(VivPtr pViv,int bytesperpixel){
 	int					x1,x2,y1,y2,x,y,k,w,w1;
 	char					*lgdstaddr=NULL;
@@ -117,9 +121,9 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int					color32;
 	Pixel					color= pViv->mGrCtx.mBlitInfo.mColorARGB32;
 	VIV2DBLITINFOPTR	pBlt = &(pViv->mGrCtx.mBlitInfo);
-	GenericSurfacePtr		dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
 
-	lgdstaddr=(char *)dstsurf->mLogicalAddr;
+
+	lgdstaddr=(char *)MapViv2DPixmap(pBlt->mDstSurfInfo.mPriv);
 	pcolor1=(char *)&color;
 	pcolor=pcolor1;
 	x1=pViv->mGrCtx.mBlitInfo.mDstBox.x1;
@@ -138,7 +142,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 
 	lgdstaddr+=(y1*pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride+x1*bytesperpixel);
 	w=(x2-x1)*bytesperpixel;
-	switch (bytesperpixel) {
+	switch ( bytesperpixel ) {
 	case 1:
 		for(y=y1;y<y2;y++){
 			for(x=0;x<w;){
@@ -232,25 +236,32 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	default: return ;
 	}
  }
-
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	TRACE_ENTER();
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 	/*Setting up the rectangle*/
 	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
 	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
 	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
 	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
-	pViv->mGrCtx.mBlitInfo.swsolid=FALSE;
+	pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
 
 	if (1) {
-		if ( ((y2-y1)*(x2-x1))<IMX_EXA_MIN_PIXEL_AREA_SOLID ) {
-			pViv->mGrCtx.mBlitInfo.swsolid=TRUE;
+		if ( ((y2-y1)*(x2-x1)) < MAX_SUB_SOLID_SIZE ) {
+			pViv->mGrCtx.mBlitInfo.mSwsolid=TRUE;
 			VivSWSolid(pViv,pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp/8);
+			pdst->mCpuBusy = TRUE;
 			TRACE_EXIT();
 		}
 	}
+
+	if (pdst->mCpuBusy) {
+		VIV2DCacheOperation(&pViv->mGrCtx, pdst,FLUSH);
+		pdst->mCpuBusy = FALSE;
+	}
+
 
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
@@ -285,11 +296,11 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 void
 VivDoneSolid(PixmapPtr pPixmap) {
 	TRACE_ENTER();
+
+	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-	if (pViv && pViv->mGrCtx.mBlitInfo.swsolid){
-		pViv->mGrCtx.mBlitInfo.swsolid=FALSE;
-		TRACE_EXIT();
-	}
+
+
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
 #if VIV_EXA_FLUSH_2D_CMD_ENABLE

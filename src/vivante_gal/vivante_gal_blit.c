@@ -394,54 +394,91 @@ Bool DisableAlphaBlending(GALINFOPTR galInfo) {
  * @return
  */
 static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    gceSTATUS status = gcvSTATUS_OK;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
-    VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
-    VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
-    gcsRECT mSrcClip = {srcbox->x1, srcbox->y1, srcbox->x1 + opbox->width, srcbox->y1 + opbox->height};
-    gcsRECT mDstClip = {dstbox->x1, dstbox->y1, dstbox->x1 + opbox->width, dstbox->y1 + opbox->height};
-    /*setting the source surface*/
-    if (!SetSourceSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*Setting the dest surface*/
-    if (!SetDestinationSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING DST SURFACE\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*setting the clipping for dest*/
-    if (!SetClipping(galInfo)) {
-        TRACE_ERROR("ERROR SETTING DST CLIPPING\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*Enabling the alpha blending*/
-    if (!EnableAlphaBlending(galInfo)) {
-        TRACE_ERROR("Alpha Blending Factor\n");
-        TRACE_EXIT(FALSE);
-    }
-    status = gco2D_BatchBlit(
-            gpuctx->mDriver->m2DEngine,
-            1,
-            &mSrcClip,
-            &mDstClip,
-            0xCC,
-            0xCC,
-            galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt
-            );
+	TRACE_ENTER();
+	gceSTATUS status = gcvSTATUS_OK;
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+	GenericSurfacePtr surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
+	VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
+	VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
+	VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
+	Bool nstflag = TRUE;
 
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Copy Blit Failed");
-        TRACE_EXIT(FALSE);
-    }
+	gcsRECT mSrcClip = {srcbox->x1, srcbox->y1, srcbox->x2, srcbox->y2};
+	gcsRECT mDstClip = {dstbox->x1, dstbox->y1, dstbox->x2, dstbox->y2};
 
-    if (!DisableAlphaBlending(galInfo)) {
-        TRACE_ERROR("Disabling Alpha Blend Failed\n");
-        TRACE_EXIT(FALSE);
-    }
+	gcsRECT mOSrcClip = {osrcbox->x1, osrcbox->y1, osrcbox->x2, osrcbox->y2};
+	gcsRECT mODstClip = {odstbox->x1, odstbox->y1, odstbox->x2, odstbox->y2};
 
-    TRACE_EXIT(TRUE);
+	/*setting the source surface*/
+	if (!SetSourceSurface(galInfo)) {
+		TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*Setting the dest surface*/
+	if (!SetDestinationSurface(galInfo)) {
+		TRACE_ERROR("ERROR SETTING DST SURFACE\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*setting the clipping for dest*/
+	if (!SetClipping(galInfo)) {
+		TRACE_ERROR("ERROR SETTING DST CLIPPING\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*Enabling the alpha blending*/
+	if (!EnableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Alpha Blending Factor\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/* No stretching */
+	if ( pBlt->mIsNotStretched )
+	{
+		status = gco2D_BatchBlit(
+		gpuctx->mDriver->m2DEngine,
+		1,
+		&mSrcClip,
+		&mDstClip,
+		0xCC,
+		0xCC,
+		galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt
+		);
+	}
+	else {
+
+		status = gco2D_SetStretchRectFactors(gpuctx->mDriver->m2DEngine,&mOSrcClip,&mODstClip);
+
+		status = gco2D_SetSource(gpuctx->mDriver->m2DEngine, &mSrcClip);
+
+		if (status != gcvSTATUS_OK) {
+			TRACE_ERROR("gco2D_SetSource failed ");
+			TRACE_EXIT(FALSE);
+		}
+
+		status = gco2D_StretchBlit(gpuctx->mDriver->m2DEngine, 1, &mDstClip, 0xCC, 0xCC, galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt);
+
+		if (status != gcvSTATUS_OK) {
+			TRACE_ERROR("gco2D_StretchBlit failed ");
+			TRACE_EXIT(FALSE);
+		}
+
+	}
+
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Copy Blit Failed");
+		TRACE_EXIT(FALSE);
+	}
+
+	if (!DisableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Disabling Alpha Blend Failed\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	TRACE_EXIT(TRUE);
 }
 
 /**
@@ -451,47 +488,900 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
  * @return
  */
 static Bool composite_stretch_blit_onebyonepixel(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    gceSTATUS status = gcvSTATUS_OK;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
-    gcsRECT srcRect = {0, 0, 1, 1};
-    gcsRECT dstRect = {galInfo->mBlitInfo.mDstBox.x1, galInfo->mBlitInfo.mDstBox.y1, galInfo->mBlitInfo.mDstBox.x1 + opbox->width, galInfo->mBlitInfo.mDstBox.y1 + opbox->height};
-    /*setting the source surface*/
-    if (!SetSourceSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*setting the required area*/
-    status = gco2D_SetSource(gpuctx->mDriver->m2DEngine, &srcRect);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("gco2D_SetSource failed\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*Setting the dest surface*/
-    if (!SetDestinationSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING DST SURFACE\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*setting the clipping to the dst window for preventing the spill out*/
-    status = gco2D_SetClipping(gpuctx-> mDriver->m2DEngine, &dstRect);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("gco2D_SetClipping failed\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*Enabling the alpha blending*/
-    if (!EnableAlphaBlending(galInfo)) {
-        TRACE_ERROR("Alpha Blending Factor\n");
-        TRACE_EXIT(FALSE);
-    }
-    status = gco2D_StretchBlit(gpuctx-> mDriver->m2DEngine, 1, &dstRect, 0xCC, 0xCC, galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Copy Blit Failed");
-        TRACE_EXIT(FALSE);
-    }
-    if (!DisableAlphaBlending(galInfo)) {
-        TRACE_ERROR("Disabling Alpha Blend Failed\n");
+	gceSTATUS status = gcvSTATUS_OK;
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+	GenericSurfacePtr surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+
+	gcsRECT srcRect = {0, 0, 1, 1};
+	gcsRECT dstRect;
+
+	/*setting the source surface*/
+	dstRect.left = galInfo->mBlitInfo.mDstBox.x1;
+	dstRect.top = galInfo->mBlitInfo.mDstBox.y1;
+	dstRect.right = galInfo->mBlitInfo.mDstBox.x2;
+	dstRect.bottom = galInfo->mBlitInfo.mDstBox.y2;
+
+	if (!SetSourceSurface(galInfo)) {
+		TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*setting the required area*/
+	status = gco2D_SetSource(gpuctx->mDriver->m2DEngine, &srcRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetSource failed\n");
+		TRACE_EXIT(FALSE);
+	}
+	/*Setting the dest surface*/
+	if (!SetDestinationSurface(galInfo)) {
+		TRACE_ERROR("ERROR SETTING DST SURFACE\n");
+		TRACE_EXIT(FALSE);
+	}
+	/*setting the clipping to the dst window for preventing the spill out*/
+	status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetClipping failed\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	status = gco2D_SetStretchRectFactors(gpuctx->mDriver->m2DEngine,&srcRect,&dstRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetStretchRectFactors failed\n");
+		TRACE_EXIT(FALSE);
+	}
+	/*Enabling the alpha blending*/
+	if (!EnableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Alpha Blending Factor\n");
+		TRACE_EXIT(FALSE);
+	}
+	status = gco2D_StretchBlit(gpuctx->mDriver->m2DEngine, 1, &dstRect, 0xCC, 0xCC, galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Copy Blit Failed");
+		TRACE_EXIT(FALSE);
+	}
+	if (!DisableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Disabling Alpha Blend Failed\n");
+		TRACE_EXIT(FALSE);
+	}
+	TRACE_EXIT(TRUE);
+}
+
+typedef struct  _trans_node {
+	PictTransform *porg;
+	PictTransform idst;
+	gceSURF_ROTATION rt;
+	Bool stretchflag;
+}TRANS_NODE;
+static TRANS_NODE _v_dst = {0};
+
+#define INSTALL_MATRIX(ptransform) do { pixman_transform_init_identity(&_v_dst.idst); \
+										pixman_transform_invert(&_v_dst.idst,(struct pixman_transform *)ptransform); \
+										_v_dst.porg = ptransform; \
+									} while ( 0)
+
+/**
+ * Check if the current transform is supported
+ * Only support 90,180,270 rotation
+ * @param ptransform
+  * @param stretchflag
+ * return TRUE if supported , otherwise FALSE
+ */
+Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag)
+{
+	struct pixman_vector   srcp1;
+	struct pixman_vector   srcp2;
+
+	srcp2.vector[0] = 512;
+	srcp2.vector[1] = 0;
+	srcp2.vector[2] = 0;
+
+	srcp1.vector[0] = 0;
+	srcp1.vector[1] = 0;
+	srcp1.vector[2] = 0;
+
+	INSTALL_MATRIX(ptransform);
+
+	pixman_transform_point(&_v_dst.idst,&srcp1);
+	pixman_transform_point(&_v_dst.idst,&srcp2);
+
+	srcp2.vector[0] = srcp2.vector[0] - srcp1.vector[0];
+	srcp2.vector[1] = srcp2.vector[1] - srcp1.vector[1];
+	srcp2.vector[2] = srcp2.vector[2] - srcp1.vector[2];
+
+	if ( srcp2.vector[0] !=0 && srcp2.vector[1] !=0 )
+		return FALSE;
+
+	_v_dst.stretchflag = FALSE;
+	if ( srcp2.vector[0] != 512 && srcp2.vector[0] != 0 )
+	{
+		*stretchflag = TRUE;
+		_v_dst.stretchflag = TRUE;
+		return TRUE;
+	}
+
+	if ( srcp2.vector[1] != 512 && srcp2.vector[1] != 0 )
+	{
+		*stretchflag = TRUE;
+		_v_dst.stretchflag = TRUE;
+		return TRUE;
+	}
+
+}
+
+gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
+{
+	gceSURF_ROTATION rt=gcvSURF_0_DEGREE;
+
+	struct pixman_vector   srcp1;
+	struct pixman_vector   srcp2;
+
+	srcp2.vector[0] = 512;
+	srcp2.vector[1] = 0;
+	srcp2.vector[2] = 0;
+
+	srcp1.vector[0] = 0;
+	srcp1.vector[1] = 0;
+	srcp1.vector[2] = 0;
+
+	if (_v_dst.porg != ptransform) {
+		INSTALL_MATRIX(ptransform);
+	}
+
+	pixman_transform_point(&_v_dst.idst,&srcp1);
+	pixman_transform_point(&_v_dst.idst,&srcp2);
+
+	srcp2.vector[0] = srcp2.vector[0] - srcp1.vector[0];
+	srcp2.vector[1] = srcp2.vector[1] - srcp1.vector[1];
+	srcp2.vector[2] = srcp2.vector[2] - srcp1.vector[2];
+
+	if ( srcp2.vector[0] > 0 && srcp2.vector[1] == 0 )
+		rt = gcvSURF_0_DEGREE;
+
+	if ( srcp2.vector[1] <0 && srcp2.vector[0] == 0 )
+		rt = gcvSURF_90_DEGREE;
+
+	if ( srcp2.vector[0] < 0 && srcp2.vector[1] == 0 )
+		rt = gcvSURF_180_DEGREE;
+
+	if ( srcp2.vector[1] >0 && srcp2.vector[0] == 0 )
+		rt = gcvSURF_270_DEGREE;
+
+	_v_dst.rt = rt;
+
+	return rt;
+
+}
+
+void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 desheight, gctUINT32 *srcwidth, gctUINT32 *srcheight )
+{
+	gceSURF_ROTATION rt=gcvSURF_0_DEGREE;
+	Bool stretchflag;
+	struct pixman_vector   srcp1x;
+	struct pixman_vector   srcp2x;
+
+
+	srcp1x.vector[0] = 0;
+	srcp1x.vector[1] = 0;
+	srcp1x.vector[2] = 0;
+
+	srcp2x.vector[0] = deswidth;
+	srcp2x.vector[1] = desheight;
+	srcp2x.vector[2] = 0;
+
+
+	if (_v_dst.porg != ptransform) {
+		INSTALL_MATRIX(ptransform);
+		VIVTransformSupported(ptransform,&stretchflag);
+		VIVGetRotation(ptransform);
+	}
+
+	pixman_transform_point(&_v_dst.idst,&srcp1x);
+	pixman_transform_point(&_v_dst.idst,&srcp2x);
+
+	srcp2x.vector[0] = srcp2x.vector[0] - srcp1x.vector[0];
+	srcp2x.vector[1] = srcp2x.vector[1] - srcp1x.vector[1];
+	srcp2x.vector[2] = srcp2x.vector[2] - srcp1x.vector[2];
+
+	switch ( _v_dst.rt ) {
+		case gcvSURF_0_DEGREE:
+		case gcvSURF_180_DEGREE:
+			*srcwidth = abs(srcp2x.vector[0]);
+			*srcheight = abs(srcp2x.vector[1]);
+			break;
+		case gcvSURF_90_DEGREE:
+		case gcvSURF_270_DEGREE:
+			*srcwidth = abs(srcp2x.vector[1]);
+			*srcheight = abs(srcp2x.vector[0]);
+			break;
+	}
+
+	return ;
+}
+
+
+static gctUINT8 VBITMASK[9]={0xFF,0x1,0x3,0x7,0xF,0x1F,0x3F,0x7F,0xFF};
+
+#define VIVMONOWIDTH(width) ( ( ( width ) + 31 ) / 32 )
+
+#define VIVMONOSIZE(width,height) ( ( VIVMONOWIDTH(width) ) * sizeof(gctUINT32) * (height) )
+
+/* pdate should be type of (char *) */
+#define VFASTSET1BIT(pdata,i,value) ( ( *( (pdata) + (i) ) ) |= (value) )
+#define VFASTSET0BIT(pdata,i,value) ( ( *( (pdata) + (i) ) ) &= ( ~(value) ) )
+
+#define XPOSINBITS(i,bitlen) ((i)*(bitlen)/8)
+#define XOFFINBITS(i,bitlen) ((i)*(bitlen)%8)
+
+#define VGETBITVALUE(pdata,x,off,bitlen) ( ( (*((pdata)+(x))) >> (off) & VBITMASK[(bitlen)] ) )
+
+static void VIVInitIndexTable(gctUINT8 *pindex, gctUINT32 indexwidth)
+{
+	gctUINT32 i = 0;
+
+	for ( i = 0; i < indexwidth ; i ++ )
+		pindex[i] = 0x1 << ( (i) % 8 );
+}
+
+static gctUINT32 *VIVCreateGalMonoData(VIV2DBLITINFOPTR pBlt, VivBoxPtr opbox, gctUINT32 *alignedwidth, gctUINT32 *alignedheight)
+{
+
+	static gctUINT32 *pmonodata = NULL;
+	static gctUINT32 monosize = 0;
+	static gctUINT8 *pindex=NULL;
+	static gctUINT32 indexwidth=1024;
+	gctUINT32 temp = 0;
+	char *psrc = NULL;
+	char *pdes = NULL;
+	gctUINT32 srcstride = 0;
+	gctUINT32 RGBAMASK = 0xFF;
+	gctUINT32 srcpixel = 0;
+	char *psrcpixel = (char *)&srcpixel;
+	gctUINT32 i , j , k;
+	gctUINT32 deswidth;
+	gctUINT32 subdeswidth;
+	gctUINT32 monox;
+	gctUINT32 bitssize;
+	gctUINT32 sx, sy, sx1, sx2,sxoff,sxoff2;
+	gctUINT8 bitvalue;
+	char 	*pcmonodata = NULL;
+
+	GenericSurfacePtr msksurf = (GenericSurfacePtr) (pBlt->mMskSurfInfo.mPriv->mVidMemInfo);
+
+	subdeswidth = VIVMONOWIDTH(opbox->width);
+	deswidth = VIVMONOWIDTH(pBlt->mMskSurfInfo.mWidth);
+
+	sx = pBlt->mMskBox.x1;
+	sy = pBlt->mMskBox.y1;
+
+	if (1) {
+		/* Fast to check if createing monodata is a must */
+		if ( sx ==0 && sy == 0 && ( ( (msksurf->mStride*8) % 32 ) == 0 ) ) {
+			opbox->width = subdeswidth<<5;
+			*alignedwidth = (msksurf->mStride*8);
+			*alignedheight = pBlt->mMskSurfInfo.mHeight;
+			return ( gctUINT32 *)msksurf->mLogicalAddr;
+		}
+
+	}
+
+	if ( pindex == NULL || indexwidth < pBlt->mMskSurfInfo.mWidth )
+	{
+		if ( pindex )
+			free(pindex);
+
+		if ( indexwidth < pBlt->mMskSurfInfo.mWidth )
+			indexwidth = pBlt->mMskSurfInfo.mWidth;
+
+		pindex = (gctUINT8 *)malloc(sizeof(gctUINT8) * indexwidth);
+		VIVInitIndexTable(pindex,indexwidth);
+
+	}
+
+	if ( ( temp = VIVMONOSIZE(pBlt->mMskSurfInfo.mWidth, pBlt->mMskSurfInfo.mHeight) ) > monosize )
+	{
+		monosize = temp;
+		if ( pmonodata )
+			free( pmonodata );
+		pmonodata = (gctUINT32 *)malloc( monosize );
+	}
+
+	psrc = (char *)msksurf->mLogicalAddr;
+	srcstride = msksurf->mStride;
+
+	/* According to picformat, set RGBAMASK */
+	switch(pBlt->mMskSurfInfo.mFormat.mExaFmt)
+	{
+		default :
+			;
+	}
+
+	//memset(pmonodata,0,monosize);
+
+
+	pcmonodata = (char *)pmonodata;
+	switch( pBlt->mMskSurfInfo.mFormat.mBpp)
+	{
+		case 1:
+			monox = deswidth*4;
+			psrc += (sy*srcstride);
+			pdes = (char *)pcmonodata;
+			sx1 = XPOSINBITS((sx),1);
+			temp = sx1;
+			sxoff = XOFFINBITS((sx),1);
+			sx2 = XPOSINBITS((opbox->width-1+sx),1);
+			sxoff2 = XOFFINBITS((opbox->width-1+sx),1);
+
+			psrc += sx1;
+			for ( j = 0; j < opbox->height; j++) {
+				sx1 = temp;
+				if (sxoff == 0) {
+					i = 0;
+					if (sx1 < sx2 ) {
+						while ( sx1 < sx2 ) {
+							pdes[i] = psrc[i];
+							i++;
+							sx1++;
+						}
+					}
+					pdes[i] = psrc[i] & VBITMASK[sxoff2+1];
+				} else {
+					i = 0;
+					if ( sx1 < sx2 ){
+						pdes[0] = psrc[0]>>sxoff;
+						sx1++;
+						i = 1;
+						while ( sx1 <= sx2 ) {
+							pdes[i-1] = pdes[i-1] | ( psrc[i] << (8-sxoff) );
+							pdes[i] = psrc[i]>>(sxoff);
+							i++;
+							sx1++;
+						}
+						/* recalculate the last one */
+						pdes[i-2] &= VBITMASK[8-sxoff-1];
+						pdes[i-2] = pdes[i-2] | ( ( psrc[i-1] & VBITMASK[sxoff2+1] ) << (8-sxoff) );
+						pdes[i-1] = ( psrc[i-1] & VBITMASK[sxoff2+1] ) >>(sxoff);
+
+					} else {
+						pdes[i] = psrc[i]>>sxoff;
+						pdes[i] = pdes[i] & VBITMASK[sxoff2+1-sxoff];
+					}
+				}
+				psrc += srcstride;
+				pdes += monox;
+			}
+			break;
+		case 4:
+			psrc += (sy*srcstride);
+			monox = deswidth*4;
+			for ( j = 0; j < opbox->height; j++) {
+				for ( i = 0; i < opbox->width; i++) {
+					sx1 = XPOSINBITS((i+sx),4);
+					sxoff = XOFFINBITS((i+sx),4);
+					bitvalue = VGETBITVALUE(psrc,sx1,sxoff,4);
+					if ( bitvalue )
+							VFASTSET1BIT(pcmonodata,i>>3,pindex[i]);
+						else
+							VFASTSET0BIT(pcmonodata,i>>3,pindex[i]);
+				}
+				psrc += srcstride;
+				pcmonodata +=monox;
+			}
+			break;
+			break;
+		case 8:
+			psrc += (sy*srcstride);
+			monox = deswidth*4;
+			for ( j = 0; j < opbox->height; j ++ ) {
+				for ( i = 0; i <= opbox->width ; i++) {
+					if ( psrc[i+sx] )
+						VFASTSET1BIT(pcmonodata,i>>3,pindex[i]);
+					else
+						VFASTSET0BIT(pcmonodata,i>>3,pindex[i]);
+				}
+				psrc += srcstride;
+				pcmonodata +=monox;
+			}
+			break;
+		case 16:
+			psrc += (sy*srcstride);
+			monox = deswidth*4;
+			for ( j = 0; j < opbox->height; j ++ ) {
+				for ( i = 0; i < opbox->width ; i ++) {
+					k = 2*(i+sx);
+					psrcpixel[0] = psrc[k];
+					psrcpixel[1] = psrc[k+1];
+					if ( srcpixel & RGBAMASK )
+						VFASTSET1BIT(pcmonodata,i>>3,pindex[i]);
+					else
+						VFASTSET0BIT(pcmonodata,i>>3,pindex[i]);
+					srcpixel = 0;
+				}
+				psrc += srcstride;
+				pcmonodata +=monox;
+			}
+			break;
+		case 24:
+			psrc += (sy*srcstride);
+			monox = deswidth*4;
+			for ( j = 0; j < opbox->height; j ++ ) {
+				for ( i = 0; i < opbox->width ; i++) {
+					k = 3*(i+sx);
+					psrcpixel[0] = psrc[k];
+					psrcpixel[1] = psrc[k+1];
+					psrcpixel[2] = psrc[k+2];
+					if ( srcpixel & RGBAMASK )
+						VFASTSET1BIT(pcmonodata,i>>3,pindex[i]);
+					else
+						VFASTSET0BIT(pcmonodata,i>>3,pindex[i]);
+					srcpixel = 0;
+				}
+				psrc += srcstride;
+				pcmonodata +=monox;
+			}
+			break;
+		case 32:
+			psrc += (sy*srcstride);
+			monox = deswidth*4;
+			for ( j = 0; j < opbox->height ; j ++ ) {
+				for ( i = 0; i < opbox->width; i++ ) {
+					k = 4*(i+sx);
+					psrcpixel = &psrc[k];
+					if ( *((gctUINT32 *)psrcpixel) & RGBAMASK )
+						VFASTSET1BIT(pcmonodata,i>>3,pindex[i]);
+					else
+						VFASTSET0BIT(pcmonodata,i>>3,pindex[i]);
+					//srcpixel = 0;
+				}
+				psrc += srcstride;
+				pcmonodata +=monox;
+			}
+			break;
+		default :
+			;
+	}
+
+	opbox->width = subdeswidth<<5;
+	*alignedwidth = deswidth<<5;
+	*alignedheight = pBlt->mMskSurfInfo.mHeight;
+
+	return pmonodata;
+
+}
+
+/**
+ * only for 1x1 source for filling destination surface with src repeat mode
+ * @param galInfo
+ * @param opbox
+ * @return TRUE if successful otherwise FALSE
+ */
+static Bool BlendWithMonoBlit(GALINFOPTR galInfo, VivBoxPtr opbox)
+{
+	gceSURF_MONOPACK srcType = gcvSURF_UNPACKED;
+	gceSURF_MONOPACK desType = gcvSURF_UNPACKED;
+	gctUINT32 bgColor = 0, fgColor=0;
+	gcsRECT dstRect = {0, 0, 0, 0};
+	gcsRECT srcRect = {0, 0, 0, 0};
+	gctUINT32 i = 0;
+	char		*pdata = NULL;
+	char		*dpdata = NULL;
+	gcsRECT streamRect;
+	gcsPOINT streamSize;
+	gceSTATUS status;
+	Bool 	ret = FALSE;
+	gctUINT32	*pmonodata = NULL;
+	gctUINT32	mwidth;
+	gctUINT32	mheight;
+
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+
+	GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr msksurf = (GenericSurfacePtr) (pBlt->mMskSurfInfo.mPriv->mVidMemInfo);
+
+	/*Enabling the alpha blending*/
+	if (!EnableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Alpha Blending Factor\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	srcType = gcvSURF_UNPACKED;
+
+
+	desType = gcvSURF_UNPACKED;
+
+	pdata = (char *)srcsurf->mLogicalAddr;
+	dpdata = (char *)&fgColor;
+	dpdata[0] = pdata[0];
+	for( i=0; i<pBlt->mSrcSurfInfo.mFormat.mBpp/8; i++)
+		dpdata[i] = pdata[i];
+	bgColor = fgColor;
+
+	status = gco2D_SetMonochromeSource(gpuctx->mDriver->m2DEngine,
+									pBlt->mColorConvert,
+									0,
+									srcType,
+									gcvFALSE,
+									gcvSURF_SOURCE_MASK,
+									fgColor,
+									bgColor);
+	if (status != gcvSTATUS_OK)
+	{
+		goto ERROR;
+	}
+
+	gcmVERIFY_OK(gco2D_SetSource(gpuctx->mDriver->m2DEngine, &srcRect));
+	pBlt->mRotation=gcvSURF_90_DEGREE;
+	gcmVERIFY_OK(gco2D_SetTarget(gpuctx->mDriver->m2DEngine,dstsurf->mVideoNode.mPhysicalAddr,dstsurf->mStride, pBlt->mRotation, dstsurf->mAlignedWidth));
+
+	dstRect.left = 0;
+	dstRect.top = 0;
+
+	switch ( pBlt->mRotation) {
+		case gcvSURF_0_DEGREE:
+		case gcvSURF_180_DEGREE:
+			dstRect.right = pBlt->mDstBox.x1+opbox->width;
+			dstRect.bottom = pBlt->mDstBox.y1+opbox->height;
+			break;
+		case gcvSURF_90_DEGREE:
+		case gcvSURF_270_DEGREE:
+			dstRect.right = pBlt->mDstBox.x1+opbox->height;
+			dstRect.bottom = pBlt->mDstBox.y1+opbox->width;
+			break;
+		default :
+			break;
+	}
+
+	status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetClipping failed\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	pmonodata = VIVCreateGalMonoData(pBlt,opbox,&mwidth,&mheight);
+
+	dstRect.left = pBlt->mDstBox.x1;
+	dstRect.top = pBlt->mDstBox.y1;
+
+	/* opbox perhaps changes */
+	switch ( pBlt->mRotation) {
+		case gcvSURF_0_DEGREE:
+		case gcvSURF_180_DEGREE:
+			dstRect.right = dstRect.left+ opbox->width;
+			dstRect.bottom = dstRect.top+ opbox->height;
+			break;
+		case gcvSURF_90_DEGREE:
+		case gcvSURF_270_DEGREE:
+			dstRect.right = dstRect.left+ opbox->height;
+			dstRect.bottom = dstRect.top+ opbox->width;
+			break;
+		default :
+			break;
+	}
+
+	streamRect.left = 0;
+	streamRect.top = 0;
+
+
+
+	streamRect.right = streamRect.left+ opbox->width;
+	streamRect.bottom = streamRect.top+ opbox->height;
+
+	streamSize.x = mwidth;
+	streamSize.y = mheight;
+
+	gcmVERIFY_OK(gco2D_MonoBlit(gpuctx->mDriver->m2DEngine, pmonodata, &streamSize, &streamRect, srcType, desType,
+		&dstRect, 0xCC, 0xAA, pBlt->mDstSurfInfo.mFormat.mVivFmt));
+
+	ret=TRUE;
+
+ERROR:
+
+	if (!DisableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Disabling Alpha Blend Failed\n");
+		ret=FALSE;
+	}
+
+	TRACE_EXIT(ret);
+
+}
+
+static Bool BlendSurfaceWithBrush(GALINFOPTR galInfo, VivBoxPtr opbox)
+{
+
+
+
+}
+
+static Bool BlendMaskedConstPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
+
+	TRACE_ENTER();
+
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+
+	GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr msksurf = (GenericSurfacePtr) (pBlt->mMskSurfInfo.mPriv->mVidMemInfo);
+
+	if ( ( pBlt->mSrcSurfInfo.mHeight * pBlt->mSrcSurfInfo.mWidth ) == 1 ){
+			return BlendWithMonoBlit(galInfo,opbox);
+	}
+
+	/* Perhaps something else to do here */
+
+	TRACE_EXIT(FALSE);
+}
+
+static Bool BlendMaskedArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
+    TRACE_ENTER();
+    TRACE_EXIT(TRUE);
+}
+
+static Bool BlendMaskedSimpleRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
+	TRACE_ENTER();
+	gcsRECT streamRect;
+	gcsPOINT streamSize;
+	int srcSize = 0;
+	gctUINT32	*pmonodata = NULL;
+	gctUINT32	mwidth;
+	gctUINT32	mheight;
+	int i;
+	gceSTATUS status = gcvSTATUS_OK;
+
+	gctUINT8_PTR monodata = gcvNULL;
+
+	gceSURF_MONOPACK srcType = gcvSURF_UNPACKED;
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+
+	GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr msksurf = (GenericSurfacePtr) (pBlt->mMskSurfInfo.mPriv->mVidMemInfo);
+
+	gcsRECT mSrcRect = {pBlt->mSrcBox.x1, pBlt->mSrcBox.y1, pBlt->mSrcBox.x1 + opbox->width, pBlt->mSrcBox.y1 + opbox->height};
+	gcsRECT mDstRect = {pBlt->mDstBox.x1, pBlt->mDstBox.y1, pBlt->mDstBox.x1 + opbox->width, pBlt->mDstBox.y1 + opbox->height};
+
+	mDstRect.left = pBlt->mDstBox.x1;
+	mDstRect.top= pBlt->mDstBox.y1;
+
+	switch ( pBlt->mRotation) {
+		case gcvSURF_0_DEGREE:
+		case gcvSURF_180_DEGREE:
+			mDstRect.right = mDstRect.left+opbox->width;
+			mDstRect.bottom = mDstRect.top+opbox->height;
+			break;
+		case gcvSURF_90_DEGREE:
+		case gcvSURF_270_DEGREE:
+			mDstRect.right = mDstRect.left+opbox->height;
+			mDstRect.bottom = mDstRect.top+opbox->width;
+			break;
+		default :
+			break;
+	}
+
+	status = gco2D_SetMaskedSource(gpuctx->mDriver->m2DEngine,
+		srcsurf->mVideoNode.mPhysicalAddr,
+		srcsurf->mStride,
+		pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+		gcvFALSE,
+		srcType);
+
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Error on setting the masked source\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	status = gco2D_SetSource(gpuctx->mDriver->m2DEngine, &mSrcRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Error on setting the rect for source\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*setting the destination*/
+	status = gco2D_SetTarget(gpuctx->mDriver->m2DEngine, dstsurf->mVideoNode.mPhysicalAddr, dstsurf->mStride, pBlt->mRotation, dstsurf->mAlignedWidth);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Set Target Failed\n");
+		TRACE_EXIT(FALSE);
+	}
+	/*setting the clipping for dest*/
+	status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &mDstRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetClipping failed\n");
+		TRACE_EXIT(FALSE);
+	}
+	/*Enabling the alpha blending*/
+	if (!EnableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Alpha Blending Factor\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	pmonodata = VIVCreateGalMonoData(pBlt,opbox,&mwidth,&mheight);
+
+	switch ( pBlt->mRotation) {
+		case gcvSURF_0_DEGREE:
+		case gcvSURF_180_DEGREE:
+			mDstRect.right = mDstRect.left+opbox->width;
+			mDstRect.bottom = mDstRect.top+opbox->height;
+			break;
+		case gcvSURF_90_DEGREE:
+		case gcvSURF_270_DEGREE:
+			mDstRect.right = mDstRect.left+opbox->height;
+			mDstRect.bottom = mDstRect.top+opbox->width;
+			break;
+		default :
+			break;
+	}
+
+	/*rectangle*/
+	streamRect.left = 0;
+	streamRect.top = 0;
+	streamRect.right = opbox->width;
+	streamRect.bottom = opbox->height;
+
+	/*size*/
+	streamSize.x = mwidth;
+	streamSize.y = mheight;
+
+	status = gco2D_MonoBlit(gpuctx->mDriver->m2DEngine,pmonodata /*msksurf->mLogicalAddr*/,
+		&streamSize, &streamRect, srcType, srcType, &mDstRect, 0xCC, 0xAA, pBlt->mDstSurfInfo.mFormat.mVivFmt);
+
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Error on mono blit\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	if (!DisableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Error on disabling alpha\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	TRACE_EXIT(TRUE);
+}
+
+/**
+ * 1x1 source blending
+ * @param galInfo
+ * @param opbox
+ * @return
+ */
+static Bool BlendConstPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
+    TRACE_ENTER();
+    if (!composite_stretch_blit_onebyonepixel(galInfo, opbox)) {
+        TRACE_ERROR("1x1 no mask composite failed\n");
         TRACE_EXIT(FALSE);
     }
     TRACE_EXIT(TRUE);
+}
+
+/**
+ * Blends for an arbitrary size of rectangle using small rectangles
+ *
+ * @param galInfo
+ * @param opbox
+ * @return
+ */
+static void
+CalOverAndSrcBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dstrectxnums, int dstrectynums)
+{
+	int i,j;
+	int subwidth;
+	int subheight;
+	int x1;
+	int y1;
+	int x2;
+	int y2;
+
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
+	VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
+	VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
+	VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
+
+	subwidth = srcbox->x2-srcbox->x1;
+	subheight = srcbox->y2-srcbox->y1;
+
+	x1 = srcbox->x1;
+	x2 = srcbox->x2;
+
+	y1 = srcbox->y1;
+	y2 = srcbox->y2;
+
+	for ( j = 0 ; j<dstrectynums; j++)
+	{
+		for ( i = 0 ; i<dstrectxnums; i++)
+		{
+				psrcrect[i].left = x1;
+				psrcrect[i].top = y1;
+				psrcrect[i].right = x2;
+				psrcrect[i].bottom = y2;
+
+				pdstrect[i].left = dstbox->x1 + subwidth*i;
+				pdstrect[i].top = dstbox->y1 + subheight*j;
+				pdstrect[i].right = pdstrect[i].left + subwidth;
+
+				if ( j == (dstrectynums - 1 ) ) {
+					pdstrect[i].bottom = V_MIN((pdstrect[i].top + subheight), dstbox->y2);
+					psrcrect[i].bottom = psrcrect[i].top + pdstrect[i].bottom - pdstrect[i].top;
+				} else {
+					pdstrect[i].bottom = pdstrect[i].top + subheight;
+				}
+
+				if ( pdstrect[i].top == srcbox->y1 ) {
+					x1 = 0;
+					y1 = srcbox->y1;
+					x2 = subwidth;
+					y2 = subheight;
+				} else {
+					x1 = 0;
+					y1 = 0;
+					x2 = subwidth;
+					y2 = subheight;
+				}
+
+		}
+
+		pdstrect[i-1].right = V_MIN(pdstrect[i-1].right, dstbox->x2);
+		psrcrect[i-1].right = psrcrect[i].left + pdstrect[i-1].right - pdstrect[i-1].left;
+
+		pdstrect += dstrectxnums;
+		psrcrect +=dstrectxnums;
+
+		x1 = srcbox->x1;
+		y1 = 0;
+		x2 = subwidth;
+		y2 = subheight;
+
+	}
+
+}
+
+static void
+CalNormalBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dstrectxnums, int dstrectynums)
+{
+
+	int i,j;
+	int subwidth;
+	int subheight;
+
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
+	VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
+
+	subwidth = srcbox->x2-srcbox->x1;
+	subheight = srcbox->y2-srcbox->y1;
+
+	for ( j = 0 ; j<dstrectynums; j++)
+	{
+		for ( i = 0 ; i<dstrectxnums; i++)
+		{
+				psrcrect[i].left = srcbox->x1;
+				psrcrect[i].top = srcbox->y1;
+				psrcrect[i].right = srcbox->x2;
+				psrcrect[i].bottom = srcbox->y2;
+
+				pdstrect[i].left = dstbox->x1 + subwidth*i;
+				pdstrect[i].top = dstbox->y1 + subheight*j;
+				pdstrect[i].right = pdstrect[i].left + subwidth;
+
+				if ( j == (dstrectynums - 1 ) ) {
+					pdstrect[i].bottom = V_MIN((pdstrect[i].top + subheight), dstbox->y2);
+					psrcrect[i].bottom = psrcrect[i].top + pdstrect[i].bottom - pdstrect[i].top;
+				} else {
+					pdstrect[i].bottom = pdstrect[i].top + subheight;
+				}
+
+		}
+
+		pdstrect[i-1].right = V_MIN(pdstrect[i-1].right, dstbox->x2);
+		psrcrect[i-1].right = psrcrect[i].left + pdstrect[i-1].right - pdstrect[i-1].left;
+
+		pdstrect += dstrectxnums;
+		psrcrect +=dstrectxnums;
+
+	}
+
 }
 
 /**
@@ -629,215 +1519,99 @@ static Bool composite_one_pass_special(GALINFOPTR galInfo, VivBoxPtr opbox) {
     TRACE_EXIT(TRUE);
 }
 
-/**
- * Checks for the operation box is out of bounds
- * @param opbox
- * @param dstbox
- * @return
- */
-static Bool isOutOfBounds(VivBoxPtr opbox, VivBoxPtr dstbox) {
-    TRACE_ENTER();
-    opbox->x1 += opbox->width;
-    if (opbox->x1 >= dstbox->x1 + dstbox->width) {
-        opbox->x1 = dstbox->x1;
-        opbox->y1 += opbox->height;
-        if (opbox->y1 >= dstbox->y1 + dstbox->height) {
-            TRACE_EXIT(TRUE);
-        }
-    }
-    TRACE_EXIT(FALSE);
-}
-
-static Bool BlendMaskedConstPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    TRACE_EXIT(TRUE);
-}
-
-static Bool BlendMaskedArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    TRACE_EXIT(TRUE);
-}
-
-static Bool BlendMaskedSimpleRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    gcsRECT streamRect;
-    gcsPOINT streamSize;
-    int srcSize = 0;
-    int i;
-    gceSTATUS status = gcvSTATUS_OK;
-
-#define TEST 1
-#if TEST
-    gctUINT8_PTR monodata = gcvNULL;
-#else
-    gctUINT32_PTR monodata = gcvNULL;
-#endif
-    gceSURF_MONOPACK srcType = gcvSURF_UNPACKED;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
-    VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
-
-    GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
-    GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
-    GenericSurfacePtr msksurf = (GenericSurfacePtr) (pBlt->mMskSurfInfo.mPriv->mVidMemInfo);
-
-#if TEST
-    gcsRECT mSrcRect = {pBlt->mSrcBox.x1, pBlt->mSrcBox.y1, pBlt->mSrcBox.x1 + opbox->width, pBlt->mSrcBox.y1 + opbox->height};
-    gcsRECT mDstRect = {pBlt->mDstBox.x1, pBlt->mDstBox.y1, pBlt->mDstBox.x1 + opbox->width, pBlt->mDstBox.y1 + opbox->height};
-#else
-    gcsRECT mSrcRect = {0, 0, 0, 0};
-    gcsRECT mDstRect = {0, 0, 320, 200};
-#endif
-    status = gco2D_SetMaskedSource(gpuctx->mDriver->m2DEngine,
-            srcsurf->mVideoNode.mPhysicalAddr,
-            srcsurf->mStride,
-            pBlt->mSrcSurfInfo.mFormat.mVivFmt,
-            gcvFALSE,
-            srcType);
-
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Error on setting the masked source\n");
-        TRACE_EXIT(FALSE);
-    }
-    status = gco2D_SetSource(gpuctx->mDriver->m2DEngine, &mSrcRect);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Error on setting the rect for source\n");
-        TRACE_EXIT(FALSE);
-    }
-
-    /*setting the destination*/
-    status = gco2D_SetTarget(gpuctx->mDriver->m2DEngine, dstsurf->mVideoNode.mPhysicalAddr, dstsurf->mStride, gcvFALSE, dstsurf->mAlignedWidth);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Set Target Failed\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*setting the clipping for dest*/
-    status = gco2D_SetClipping(gpuctx-> mDriver->m2DEngine, &mDstRect);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("gco2D_SetClipping failed\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*Enabling the alpha blending*/
-    if (!EnableAlphaBlending(galInfo)) {
-        TRACE_ERROR("Alpha Blending Factor\n");
-        TRACE_EXIT(FALSE);
-    }
-
-#if TEST
-
-    /*rectangle*/
-    streamRect.left = pBlt->mMskBox.x1;
-    streamRect.top = pBlt->mMskBox.y1;
-    streamRect.right = pBlt->mMskBox.x1 + opbox->width;
-    streamRect.bottom = pBlt->mMskBox.y1 + opbox->height;
-
-    /*size*/
-    streamSize.x = msksurf->mAlignedWidth;
-    streamSize.y = msksurf->mAlignedHeight;
-#else
-
-    /*rectangle*/
-    streamRect.left = 0;
-    streamRect.top = 0;
-    streamRect.right = 320;
-    streamRect.bottom = 200;
-
-    /*size*/
-    streamSize.x = 320;
-    streamSize.y = 200;
-#endif
-
-
-
-
-
-#if TEST
-
-
-#else
-    srcSize = 320 * 200 >> 5;
-    monodata = (gctUINT32*) malloc(srcSize * sizeof (gctUINT32));
-    for (i = 0; i < srcSize; i++) {
-        *(monodata + i) = CONVERT_BYTE(i);
-    }
-
-    status = gco2D_MonoBlit(gpuctx->mDriver->m2DEngine, monodata,
-            &streamSize, &streamRect, srcType, srcType, &mDstRect, 0xCC, 0x33, pBlt->mDstSurfInfo.mFormat.mVivFmt);
-#endif
-
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Error on mono blit\n");
-        TRACE_EXIT(FALSE);
-    }
-
-
-
-    if (!DisableAlphaBlending(galInfo)) {
-        TRACE_ERROR("Error on disabling alpha\n");
-        TRACE_EXIT(FALSE);
-    }
-
-
-
-    TRACE_EXIT(TRUE);
-}
-
-/**
- * 1x1 source blending
- * @param galInfo
- * @param opbox
- * @return
- */
-static Bool BlendConstPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    if (!composite_stretch_blit_onebyonepixel(galInfo, opbox)) {
-        TRACE_ERROR("1x1 no mask composite failed\n");
-        TRACE_EXIT(FALSE);
-    }
-    TRACE_EXIT(TRUE);
-}
-
-/**
- * Blends for an arbitrary size of rectangle using small rectangles
- *
- * @param galInfo
- * @param opbox
- * @return
- */
 static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    int op = galInfo->mBlitInfo.mBlendOp.mOp;
-    Bool isFinished = FALSE;
-    Bool isOverOrSrc = (op == PictOpOver || op == PictOpSrc);
-    int mSrcWidth = galInfo->mBlitInfo.mSrcSurfInfo.mWidth;
-    int mSrcHeight = galInfo->mBlitInfo.mSrcSurfInfo.mHeight;
+	TRACE_ENTER();
+	gceSTATUS status = gcvSTATUS_OK;
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
+	VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
 
-    if (isOverOrSrc) {
-        opbox->width = galInfo->mBlitInfo.mDstBox.width;
-        opbox->height = galInfo->mBlitInfo.mDstBox.height;
-        if (!composite_one_pass_special(galInfo, opbox)) {
+	gcsRECT *pdstrect=NULL;
+	gcsRECT *psrcrect=NULL;
 
-            TRACE_ERROR("VIVCOMPOSITE_SIMPLE - one_pass_special FAILED\n");
-            TRACE_EXIT(FALSE);
-        }
-    } else {
-        if (mSrcWidth < opbox->width) {
-            opbox->width = mSrcWidth;
-        }
-        if (mSrcHeight < opbox->height) {
-            opbox->height = mSrcHeight;
-        }
-        while (!isFinished) {
-            if (!composite_one_pass(galInfo, opbox)) {
+	gcsRECT *podstrect=NULL;
+	gcsRECT *posrcrect=NULL;
 
-                TRACE_ERROR("VIVCOMPOSITE_SIMPLE - NON MULTIPASS FAILED\n");
-                TRACE_EXIT(FALSE);
-            }
-            isFinished = isOutOfBounds(opbox, &galInfo->mBlitInfo.mDstBox);
-        }
-    }
+	int dstrectxnums;
+	int dstrectynums;
+	int i,j;
+	int subwidth;
+	int subheight;
+
+	subwidth = srcbox->x2-srcbox->x1;
+	subheight = srcbox->y2-srcbox->y1;
+
+	dstrectxnums = ( dstbox->x2-dstbox->x1 + subwidth-1) / (subwidth);
+	dstrectynums = ( dstbox->y2-dstbox->y1 + subheight-1) / (subheight);
+
+	pdstrect = (gcsRECT *)malloc( sizeof( gcsRECT )*dstrectxnums*dstrectynums);
+	psrcrect = (gcsRECT *)malloc( sizeof( gcsRECT )*dstrectxnums*dstrectynums);
+
+	podstrect = pdstrect;
+	posrcrect = psrcrect;
+
+	if ( galInfo->mBlitInfo.mBlendOp.mOp == PictOpOver || galInfo->mBlitInfo.mBlendOp.mOp == PictOpSrc )
+	{
+		/* composite_one_pass_special will be replaced by CalOverAndSrcBoxes, especially when rotation is on */
+		//CalOverAndSrcBoxes(galInfo,psrcrect,pdstrect,dstrectxnums,dstrectynums);
+		composite_one_pass_special(galInfo,opbox);
+		goto ENDFLAG;
+
+	} else {
+		CalNormalBoxes( galInfo, psrcrect, pdstrect, dstrectxnums, dstrectynums);
+	}
+
+	/*setting the source surface*/
+	if (!SetSourceSurface(galInfo)) {
+		TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*Setting the dest surface*/
+	if (!SetDestinationSurface(galInfo)) {
+		TRACE_ERROR("ERROR SETTING DST SURFACE\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*setting the clipping for dest*/
+	if (!SetClipping(galInfo)) {
+		TRACE_ERROR("ERROR SETTING DST CLIPPING\n");
+		TRACE_EXIT(FALSE);
+	}
+
+	/*Enabling the alpha blending*/
+	if (!EnableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Alpha Blending Factor\n");
+		TRACE_EXIT(FALSE);
+	}
 
 
-    TRACE_EXIT(TRUE);
+	status = gco2D_BatchBlit(
+	gpuctx->mDriver->m2DEngine,
+	dstrectxnums*dstrectynums,
+	posrcrect,
+	podstrect,
+	0xCC,
+	0xCC,
+	galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt
+	);
+
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Copy Blit Failed");
+		TRACE_EXIT(FALSE);
+	}
+
+	if (!DisableAlphaBlending(galInfo)) {
+		TRACE_ERROR("Disabling Alpha Blend Failed\n");
+		TRACE_EXIT(FALSE);
+	}
+
+ENDFLAG:
+
+	free((void *)posrcrect);
+	free((void *)podstrect);
+
+	TRACE_EXIT(TRUE);
 }
 
 /**
@@ -848,59 +1622,299 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
  */
 static Bool BlendSimpleRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
     TRACE_ENTER();
-    int op = galInfo->mBlitInfo.mBlendOp.mOp;
-    Bool isOverOrSrc = (op == PictOpOver || op == PictOpSrc);
-    int mSrcWidth = galInfo->mBlitInfo.mSrcSurfInfo.mWidth;
-    int mSrcHeight = galInfo->mBlitInfo.mSrcSurfInfo.mHeight;
-    int srcX = galInfo->mBlitInfo.mSrcBox.x1;
-    int srcY = galInfo->mBlitInfo.mSrcBox.y1;
-    /*Fitting the box*/
-    if (isOverOrSrc) {
-        if (((srcX >= 0 && srcY >= mSrcHeight) ||
-                (srcY >= 0 && srcX >= mSrcWidth))) {
-            if (op == PictOpOver) {
-                TRACE_EXIT(TRUE); /*Nothing to do*/
-            } else {
-                /*It is a Clear Op Equivalent*/
-                GetBlendingFactors(PictOpClear, &galInfo->mBlitInfo.mBlendOp);
-                opbox->width = galInfo->mBlitInfo.mDstBox.width;
-                opbox->height = galInfo->mBlitInfo.mDstBox.height;
-            }
-        } else if (srcX >= 0 && srcY >= 0) {
-            if (mSrcWidth - srcX < opbox->width) {
-                opbox->width = mSrcWidth - srcX;
-            }
-            if (mSrcHeight - srcY < opbox->height) {
-                opbox->height = mSrcHeight - srcY;
-            }
-        } else if (srcX < 0 || srcY < 0) {
-            /*@TODO : have a look at this*/
-            TRACE_ERROR("Doesn't make sense\n");
-            TRACE_EXIT(FALSE);
-        } else {
-            goto other;
-        }
-    } else {
-other:
-        if (mSrcWidth < opbox->width) {
-            opbox->width = mSrcWidth;
-        }
-        if (mSrcHeight < opbox->height) {
-            opbox->height = mSrcHeight;
-        }
-    }
-    /*End of fitting the box*/
 
-    /*Alpha Blend*/
     if (!composite_one_pass(galInfo, opbox)) {
-
         TRACE_ERROR("VIVCOMPOSITE_SIMPLE - NON MULTIPASS FAILED\n");
         TRACE_EXIT(FALSE);
     }
-    /*End of Alpha Blend*/
-
 
     TRACE_EXIT(TRUE);
+}
+
+static uint32_t
+real_reader (const void *src, int size)
+{
+	switch (size)
+	{
+		case 1:
+			return *(uint8_t *)src;
+		case 2:
+			return *(uint16_t *)src;
+		case 3:
+			return (*(uint32_t *)src) & 0x00FFFFFF;
+		case 4:
+			return *(uint32_t *)src;
+		default:
+			assert (0);
+		return 0; /* silence MSVC */
+	}
+}
+
+static void
+real_writer (void *src, uint32_t value, int size)
+{
+	switch (size)
+	{
+		case 1:
+			*(uint8_t *)src = value;
+			break;
+		case 2:
+			*(uint16_t *)src = value;
+			break;
+		case 3:
+			(*(uint16_t *)src) = value & 0xFFFF;
+			(*( ( (uint8_t *)src )+1) ) = value>>16;
+			break;
+		case 4:
+			*(uint32_t *)src = value;
+		break;
+		default:
+			assert (0);
+			break;
+	}
+}
+
+
+void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
+	int dstX, int dstY, int width, int height) {
+
+	pixman_image_t *srcimage;
+	pixman_image_t *dstimage;
+	Viv2DPixmapPtr psrc;
+	Viv2DPixmapPtr pdst;
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pxDst);
+	VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
+	GenericSurfacePtr srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	GenericSurfacePtr dstsurf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
+
+	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
+	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
+
+	if ( srcsurf->mData == NULL ) {
+		srcimage = pixman_image_create_bits((pixman_format_code_t) pBlt->mSrcSurfInfo.mFormat.mExaFmt,
+					srcsurf->mAlignedWidth,
+					srcsurf->mAlignedHeight, (uint32_t *) srcsurf->mLogicalAddr,
+					srcsurf->mStride);
+		srcsurf->mData = (gctPOINTER)srcimage;
+		//if ( pBlt->mSrcSurfInfo.mFormat.mBpp != 32 )
+			//pixman_image_set_accessors(srcimage, real_reader, real_writer);
+	} else {
+		srcimage = (pixman_image_t *)srcsurf->mData;
+	}
+
+	if ( pBlt->mTransform )
+		pixman_image_set_transform( srcimage, pBlt->mTransform);
+
+	if ( pBlt->mSrcSurfInfo.repeat )
+		pixman_image_set_repeat( srcimage, pBlt->mSrcSurfInfo.repeatType);
+
+	if ( dstsurf->mData == NULL ) {
+		dstimage = pixman_image_create_bits((pixman_format_code_t) pBlt->mDstSurfInfo.mFormat.mExaFmt,
+					dstsurf->mAlignedWidth,
+					dstsurf->mAlignedHeight, (uint32_t *) dstsurf->mLogicalAddr,
+					dstsurf->mStride);
+		dstsurf->mData = (gctPOINTER)dstimage;
+		//if ( pBlt->mDstSurfInfo.mFormat.mBpp != 32 )
+			//pixman_image_set_accessors(dstimage, real_reader, real_writer);
+	} else {
+		dstimage = (pixman_image_t *)dstsurf->mData;
+	}
+
+	pixman_image_composite(pBlt->mBlendOp.mOp, srcimage, NULL, dstimage, srcX, srcY, 0, 0, dstX, dstY, width, height);
+
+	psrc->mCpuBusy = TRUE;
+	pdst->mCpuBusy = TRUE;
+
+}
+
+static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurfacePtr *pinfo)
+{
+	GenericSurfacePtr srcsurf;
+	gceSTATUS status = gcvSTATUS_OK;
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+	VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
+	VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
+	VivBoxPtr srcbox = &galInfo->mBlitInfo.mOSrcBox;
+	VivBoxPtr dstbox = &galInfo->mBlitInfo.mODstBox;
+	Bool retvsurf;
+	gctUINT32 physicaladdr;
+	gctUINT32 linearaddr;
+	gctUINT32 aligned_height;
+	gctUINT32 aligned_width;
+	gctUINT32 aligned_pitch;
+	gctUINT32 tx;
+
+
+	gcsRECT srcrectx = {0, 0, osrcbox->x2, osrcbox->y2};
+
+
+
+	gcsRECT dstRect = {0, 0, 0, 0};
+
+	gctUINT32 maxsize;
+
+	if ( pBlt->mRotation == gcvSURF_0_DEGREE)
+		return ;
+
+	/* neccessary ?, fix me ?
+	if ( osrcbox->x1 == 0
+		&& osrcbox->y1 == 0
+		&& odstbox->x1 == 0
+		&& odstbox->y1 == 0)
+		return ;
+	*/
+
+	srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	maxsize = V_MAX(srcsurf->mAlignedWidth, srcsurf->mAlignedHeight);
+
+	*pinfo = (GenericSurfacePtr)malloc(sizeof(GenericSurface));
+	memcpy((void *)(*pinfo), (void *)srcsurf, sizeof(GenericSurface));
+
+
+	switch ( pBlt->mSrcSurfInfo.mFormat.mBpp )
+	{
+
+		case 16:
+			retvsurf = VGetSurfAddrBy16(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch);
+		case 32:
+			retvsurf = VGetSurfAddrBy32(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch);
+		default:
+			return ;
+	}
+
+	if ( retvsurf == FALSE ) return ;
+
+
+	status = gco2D_SetGenericSource
+	(
+		gpuctx->mDriver->m2DEngine,
+		&srcsurf->mVideoNode.mPhysicalAddr,
+		1,
+		&srcsurf->mStride,
+		1,
+		srcsurf->mTiling,
+		pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+		pBlt->mRotation,
+		srcsurf->mAlignedWidth,
+		srcsurf->mAlignedHeight
+	);
+
+	if ( status != gcvSTATUS_OK ) {
+		TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
+		TRACE_EXIT();
+	}
+
+	status = gco2D_SetGenericTarget
+	(
+		gpuctx->mDriver->m2DEngine,
+		&physicaladdr,
+		1,
+		&aligned_pitch,
+		1,
+		srcsurf->mTiling,
+		pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+		gcvSURF_0_DEGREE,
+		aligned_width,
+		aligned_height
+	);
+
+	if ( status != gcvSTATUS_OK ) {
+		TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
+		TRACE_EXIT();
+	}
+
+	dstRect.right = maxsize;
+	dstRect.bottom = maxsize;
+
+	status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetClipping failed\n");
+		TRACE_EXIT();
+	}
+
+	/*setting the required area*/
+	status = gco2D_SetSource(gpuctx->mDriver->m2DEngine, &srcrectx);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("gco2D_SetSource failed\n");
+		TRACE_EXIT();
+	}
+
+	switch ( pBlt->mRotation ) {
+		case gcvSURF_0_DEGREE:
+		case gcvSURF_180_DEGREE:
+			dstRect.right = srcrectx.right;
+			dstRect.bottom = srcrectx.bottom;
+			break;
+		case gcvSURF_90_DEGREE:
+		case gcvSURF_270_DEGREE:
+			dstRect.right = srcrectx.bottom;
+			dstRect.bottom = srcrectx.right;
+			break;
+		default :
+			;
+	}
+
+	status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBlt->mFgRop, pBlt->mBgRop, pBlt->mDstSurfInfo.mFormat.mVivFmt);
+	if (status != gcvSTATUS_OK) {
+		TRACE_ERROR("Blit failed\n");
+		TRACE_EXIT();
+	}
+
+	srcsurf->mAlignedWidth = aligned_width;
+	srcsurf->mAlignedHeight = aligned_height;
+	srcsurf->mLogicalAddr = (gctPOINTER)linearaddr;
+	srcsurf->mStride = aligned_pitch;
+	srcsurf->mVideoNode.mPhysicalAddr = physicaladdr;
+	srcsurf->mRotation = gcvSURF_0_DEGREE;
+
+	/* update source box */
+
+	switch ( pBlt->mRotation ) {
+
+		case gcvSURF_90_DEGREE:
+			tx = srcbox->y1;
+			srcbox->y1 = srcbox->x2;
+			srcbox->x1 = tx;
+			tx = srcbox->y2;
+			srcbox->y2 = srcbox->x1;
+			srcbox->x2 = tx;
+			break;
+		case gcvSURF_180_DEGREE:
+			srcbox->x2 = srcbox->x2 - srcbox->x1;
+			srcbox->y2 = srcbox->y2 - srcbox->y1;
+			srcbox->x1 = 0;
+			srcbox->y1 = 0;
+			break;
+		case gcvSURF_270_DEGREE:
+			tx = srcbox->x2;
+			srcbox->x2 = srcbox->y2 - srcbox->y1;
+			srcbox->y2 = tx - srcbox->x1;
+			srcbox->x1 = 0;
+			srcbox->y1 = 0;
+			break;
+		default :
+			;
+	}
+
+}
+
+static void ReleaseTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurfacePtr *pinfo)
+{
+	GenericSurfacePtr srcsurf;
+	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+	VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
+
+	if (pBlt->mRotation == gcvSURF_0_DEGREE)
+		return ;
+
+	if (*pinfo == NULL ) return ;
+
+	srcsurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+	memcpy((void *)(srcsurf), (void *)(*pinfo), sizeof(GenericSurface));
+
+	free(*pinfo);
+
 }
 
 /**
@@ -910,34 +1924,45 @@ other:
  * @return true if success
  */
 Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    TRACE_ENTER();
-    Bool ret = TRUE;
-    /* Perform rectangle render based on setup in PrepareComposite */
-    switch (galInfo->mBlitInfo.mOperationCode) {
-        case VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN:
-            ret = BlendMaskedConstPatternRect(galInfo, opbox);
-            break;
-        case VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN:
-            ret = BlendMaskedArbitraryPatternRect(galInfo, opbox);
-            break;
-        case VIVCOMPOSITE_MASKED_SIMPLE:
-            ret = BlendMaskedSimpleRect(galInfo, opbox);
-            break;
-        case VIVCOMPOSITE_SRC_REPEAT_PIXEL_ONLY_PATTERN:
-            ret = BlendConstPatternRect(galInfo, opbox);
-            break;
-        case VIVCOMPOSITE_SRC_REPEAT_ARBITRARY_SIZE_PATTERN:
-            ret = BlendArbitraryPatternRect(galInfo, opbox);
-            break;
-        case VIVCOMPOSITE_SIMPLE:
-            ret = BlendSimpleRect(galInfo, opbox);
-            break;
-        default:
-            ret = FALSE;
+	TRACE_ENTER();
+	Bool ret = TRUE;
+	GenericSurfacePtr psurfinfo;
 
-            break;
-    }
-    TRACE_EXIT(ret);
+	/* if rotation happens, set temp surf , currently it is not debugged To fix it, when rotation is on*/
+	SetTempSurfForRT(galInfo,opbox,&psurfinfo);
+
+	/* Perform rectangle render based on setup in PrepareComposite */
+	switch (galInfo->mBlitInfo.mOperationCode) {
+
+	#if ENABLE_MASK_OP
+		case VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN:
+			ret = BlendMaskedConstPatternRect(galInfo, opbox);
+			break;
+		case VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN:
+			ret = BlendMaskedArbitraryPatternRect(galInfo, opbox);
+			break;
+		case VIVCOMPOSITE_MASKED_SIMPLE:
+			ret = BlendMaskedSimpleRect(galInfo, opbox);
+			break;
+	#endif
+
+		case VIVCOMPOSITE_SRC_REPEAT_PIXEL_ONLY_PATTERN:
+			ret = BlendConstPatternRect(galInfo, opbox);
+			break;
+		case VIVCOMPOSITE_SRC_REPEAT_ARBITRARY_SIZE_PATTERN:
+			ret = BlendArbitraryPatternRect(galInfo, opbox);
+			break;
+		case VIVCOMPOSITE_SIMPLE:
+			ret = BlendSimpleRect(galInfo, opbox);
+			break;
+		default:
+			xf86DrvMsg(0, X_INFO,"VivComposite can't handle mask and do nothing in %s\n",__FUNCTION__);
+			ret = FALSE;
+		break;
+	}
+
+	ReleaseTempSurfForRT(galInfo,opbox, &psurfinfo);
+	TRACE_EXIT(ret);
 }
 
 /************************************************************************
@@ -947,6 +1972,11 @@ Bool GetBlendingFactors(int op, VivBlendOpPtr vivBlendOp) {
     TRACE_ENTER();
     int i;
     Bool isFound = FALSE;
+
+    /* Disable op= PIXMAN_OP_SRC, currently hw path can't defeat sw path */
+    if ( op == PIXMAN_OP_SRC )
+        TRACE_EXIT(FALSE);
+
     for (i = 0; i < ARRAY_SIZE(blendingOps) && !isFound; i++) {
         if (blendingOps[i].mOp == op) {
 
@@ -1017,6 +2047,7 @@ Bool GetDefaultFormat(int bpp, VivPictFmtPtr format) {
     }
     TRACE_EXIT(TRUE);
 }
+
 /************************************************************************
  *EXA RELATED UTILITY (END)
  ************************************************************************/

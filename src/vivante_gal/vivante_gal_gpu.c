@@ -74,6 +74,7 @@ static gctBOOL SetupDriver
         TRACE_EXIT(gcvFALSE);
     }
 
+
     /* Query the amount of video memory. */
     status = gcoHAL_QueryVideoMemory
             (pDrvHandle->mHal,
@@ -390,6 +391,10 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = (GenericSurfacePtr) (ppix->mVidMemInfo);
     VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+
+    if ( surf == NULL )
+        TRACE_EXIT(TRUE);
+
     TRACE_INFO("FLUSH INFO => LOGICAL = %d PHYSICAL = %d STRIDE = %d  ALIGNED HEIGHT = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mStride, surf->mAlignedHeight);
 
     switch (flush_type) {

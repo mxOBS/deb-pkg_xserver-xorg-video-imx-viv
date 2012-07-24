@@ -33,6 +33,12 @@
 extern "C" {
 #endif
 
+#include "HAL/gc_hal.h"
+
+#include "HAL/gc_hal_raster.h"
+
+#include "HAL/gc_hal_base.h"
+
     /*******************************************************************************
      *
      * Utility Macros (START)
@@ -71,6 +77,7 @@ extern "C" {
     /*Blit Code*/
     typedef enum _blitOpCode {
         VIVSOLID = 0,
+        VIVSIMCOPY,
         VIVCOPY,
         VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN,
         VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN,
@@ -123,6 +130,8 @@ extern "C" {
         void * mVidMemInfo;
         /* Tracks pixmaps busy with GPU operation since last GPU sync. */
         Bool mGpuBusy;
+        Bool mCpuBusy;
+        Bool mSwAnyWay;
         Viv2DPixmapPtr mNextGpuBusyPixmap;
         /*reference*/
         int mRef;
@@ -135,6 +144,8 @@ extern "C" {
         unsigned int mWidth;
         unsigned int mHeight;
         unsigned int mStride;
+        unsigned int repeat;
+        unsigned int repeatType;
     } VIV2DSURFINFO;
 
     /*Blit Info*/
@@ -162,9 +173,14 @@ extern "C" {
         Bool mColorConvert;
         unsigned long mPlaneMask;
         /*Rotation for source*/
-        int mRotation;
-	Bool swcpy;
-	Bool swsolid;
+        gceSURF_ROTATION mRotation;
+        Bool mSwcpy;
+        Bool mSwsolid;
+        Bool mSwcmp;
+        Bool mIsNotStretched;
+        /* record old srcBox and dstBox */
+        VivBox mOSrcBox;
+        VivBox mODstBox;
     } VIV2DBLITINFO, *VIV2DBLITINFOPTR;
 
     /*Gal Encapsulation*/
@@ -177,6 +193,11 @@ extern "C" {
         void * mGpu;
     } GALINFO, *GALINFOPTR;
 
+
+    /* Format convertor */
+    Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag);
+    gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform);
+    void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 desheight, gctUINT32 *srcwidth, gctUINT32 *srcheight );
     /************************************************************************
      * STRUCTS & ENUMS (END)
      ************************************************************************/
@@ -234,7 +255,7 @@ extern "C" {
     Bool SetDestinationSurface(GALINFOPTR galInfo);
     Bool SetSourceSurface(GALINFOPTR galInfo);
     Bool SetClipping(GALINFOPTR galInfo);
-
+    void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY, int dstX, int dstY, int width, int height);
     Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox);
     Bool DoSolidBlit(GALINFOPTR galInfo);
     Bool DoCopyBlit(GALINFOPTR galInfo);
@@ -242,8 +263,6 @@ extern "C" {
     /************************************************************************
      * 2D Operations (END)
      ************************************************************************/
-
-
 #ifdef __cplusplus
 }
 #endif

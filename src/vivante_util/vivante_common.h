@@ -78,6 +78,10 @@ extern "C" {
 
     /*Debug*/
 #include "vivante_debug.h"
+
+#define V_MIN(a,b) ((a)>(b)?(b):(a))
+#define V_MAX(a,b) ((a)>(b)?(a):(b))
+
 #ifdef __cplusplus
 }
 #endif

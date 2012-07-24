@@ -57,6 +57,7 @@ extern "C" {
         gctPOINTER mLogicalAddr;
         gctUINT32 mStride;
         VideoNode mVideoNode;
+        gctPOINTER mData;
     } GenericSurface, *GenericSurfacePtr;
 
     /************************************************************************

@@ -30,7 +30,7 @@
 #define VIV_PAGE_ALIGN(val) (((val) + (VIV_PAGE_SIZE -1)) & (VIV_PAGE_MASK))
 
 static char VivKernelDriverName[] = "vivante";
-static char VivClientDriverName[] = "vivante_dri";
+static char VivClientDriverName[] = "vivante";
 
 /* TODO: xserver receives driver's swapping event and does something
  *       according the data initialized in this function.
