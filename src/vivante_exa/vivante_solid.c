@@ -64,6 +64,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
 		TRACE_EXIT(FALSE);
 	}
+
 	/*Populating the information*/
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pPixmap->drawable.height;
 	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pPixmap->drawable.width;
@@ -75,20 +76,6 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	pViv->mGrCtx.mBlitInfo.mColorConvert = FALSE;
 	pViv->mGrCtx.mBlitInfo.mPlaneMask = planemask;
 	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSOLID;
-
-	if (0) {
-		if (!SetDestinationSurface(&pViv->mGrCtx)) {
-			TRACE_EXIT(FALSE);
-		}
-
-		if (!SetClipping(&pViv->mGrCtx)) {
-			TRACE_EXIT(FALSE);
-		}
-
-		if (!SetSolidBrush(&pViv->mGrCtx)) {
-			TRACE_EXIT(FALSE);
-		}
-	}
 
 	TRACE_EXIT(TRUE);
 }
@@ -164,12 +151,6 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 			w%=4;
 			for(y=y1;y<y2;y++){
 				for(x=0;x<w1;){
-					/*
-					lgdstaddr[x]=pcolor[0];
-					x+=1;
-					lgdstaddr[x]=pcolor[1];
-					x+=1;
-					*/
 					*((int *)(&(lgdstaddr[x])))=color32;
 					x+=4;
 				}
@@ -213,17 +194,6 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	case 4:
 		for(y=y1;y<y2;y++){
 			for(x=0;x<w;){
-					/*
-					lgdstaddr[x]=pcolor[0];
-					x+=1;
-					lgdstaddr[x]=pcolor[1];
-					x+=1;
-					lgdstaddr[x]=pcolor[2];
-					x+=1;
-					lgdstaddr[x]=pcolor[3];
-					x+=1;
-					*/
-
 					*((int *)(&(lgdstaddr[x])))=*((int *)pcolor);
 					x+=4;
 
@@ -300,11 +270,17 @@ VivDoneSolid(PixmapPtr pPixmap) {
 	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
-
+	/*
+	if (pViv && pViv->mGrCtx.mBlitInfo.mSwsolid){
+		pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
+		TRACE_EXIT();
+	}
+	*/
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
 #if VIV_EXA_FLUSH_2D_CMD_ENABLE
 	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
 #endif
+
 	TRACE_EXIT();
 }

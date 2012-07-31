@@ -63,7 +63,7 @@ VivDestroyPixmap(ScreenPtr pScreen, void *dPriv) {
 	Viv2DPixmapPtr priv = (Viv2DPixmapPtr) dPriv;
 	VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
 	if (priv && (priv->mVidMemInfo)) {
-		/*Destroy Surface*/
+
 		if (!DestroySurface(&pViv->mGrCtx, priv)) {
 			TRACE_ERROR("Error on destroying the surface\n");
 		}
@@ -128,8 +128,6 @@ VivPrepareSolidWithoutSizeCheck(PixmapPtr pPixmap, int alu, Pixel planemask, Pix
 	pViv->mGrCtx.mBlitInfo.mColorConvert = FALSE;
 	pViv->mGrCtx.mBlitInfo.mPlaneMask = planemask;
 	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSOLID;
-
-	
 
 	TRACE_EXIT(TRUE);
 

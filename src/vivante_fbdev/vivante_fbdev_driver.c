@@ -231,20 +231,23 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     pExa->DoneSolid = VivDoneSolid;
 #endif
 
+#ifndef DISABLE_COPY
     pExa->PrepareCopy = VivPrepareCopy;
     pExa->Copy = VivCopy;
     pExa->DoneCopy = VivDoneCopy;
+#endif
 
 #if UPLOAD_FUNC_ENABLED
     pExa->UploadToScreen = VivUploadToScreen;
 #endif
 
 
-
+#ifndef DISABLE_COMPOSITE
     pExa->CheckComposite = VivCheckComposite;
     pExa->PrepareComposite = VivPrepareComposite;
     pExa->Composite = VivComposite;
     pExa->DoneComposite = VivDoneComposite;
+#endif
 
     pExa->CreatePixmap = VivCreatePixmap;
     pExa->DestroyPixmap = VivDestroyPixmap;
