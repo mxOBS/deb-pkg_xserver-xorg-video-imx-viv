@@ -82,6 +82,8 @@ extern "C" {
 #define V_MIN(a,b) ((a)>(b)?(b):(a))
 #define V_MAX(a,b) ((a)>(b)?(a):(b))
 
+#define USE_GPU_FB_MEM_MAP 1
+
 #ifdef __cplusplus
 }
 #endif

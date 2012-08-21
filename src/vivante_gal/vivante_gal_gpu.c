@@ -434,7 +434,7 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
     TRACE_EXIT(TRUE);
 }
 #if USE_GPU_FB_MEM_MAP
-Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void * mappingInfo, unsigned int * gpuAddress) {
+Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     status = gcoHAL_MapUserMemory(
@@ -457,7 +457,7 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
     status =
             gcoHAL_UnmapUserMemory(
             logical,
-            size
+            size,
             mappingInfo,
             gpuAddress
             );

@@ -208,7 +208,7 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     pExa->offScreenBase = pScrn->virtualY * pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 
 #if USE_GPU_FB_MEM_MAP
-    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, pViv->mFB.mMappingInfo, &pViv->mFB.memPhysBase)) {
+    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, &pViv->mFB.memPhysBase)) {
         TRACE_ERROR("ERROR ON MAPPING FB\n");
         TRACE_EXIT(FALSE);
     }
@@ -240,6 +240,7 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
 #if UPLOAD_FUNC_ENABLED
     pExa->UploadToScreen = VivUploadToScreen;
 #endif
+
 
 
 #ifndef DISABLE_COMPOSITE
