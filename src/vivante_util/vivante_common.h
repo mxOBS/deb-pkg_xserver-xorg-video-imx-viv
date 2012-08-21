@@ -84,6 +84,20 @@ extern "C" {
 
 #define USE_GPU_FB_MEM_MAP 1
 
+#define WIDTH_ALIGNMENT 8
+#define HEIGHT_ALIGNMENT 1
+#define BITSTOBYTES(x) (((x)+7)/8)
+
+#define	IMX_EXA_NONCACHESURF_WIDTH 650
+#define	IMX_EXA_NONCACHESURF_HEIGHT 650
+
+#define	SURF_SIZE_FOR_SW(sw,sh) do {	\
+						if ( gcmALIGN(sw, WIDTH_ALIGNMENT) < IMX_EXA_NONCACHESURF_WIDTH	\
+						|| gcmALIGN(sh, HEIGHT_ALIGNMENT) < IMX_EXA_NONCACHESURF_HEIGHT)	\
+						TRACE_EXIT(FALSE);	\
+				} while ( 0 )
+
+
 #ifdef __cplusplus
 }
 #endif

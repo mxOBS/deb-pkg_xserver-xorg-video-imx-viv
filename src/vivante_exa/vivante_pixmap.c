@@ -234,6 +234,8 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 		if (isChanged) {
 
+			if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, vivPixmap) )
+			{
 			if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
 				TRACE_ERROR("ERROR : Destroying the surface\n");
 				fprintf(stderr,"Destroy surface failed\n");
@@ -244,6 +246,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 				TRACE_ERROR("ERROR : Creating the surface\n");
 				fprintf(stderr,"CreateSurface failed\n");
 				TRACE_EXIT(FALSE);
+				}
 			}
 
 			pPixmap->devKind = GetStride(vivPixmap);
@@ -251,11 +254,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 			/* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
 			/* Use VivPrepareSolidWithoutSizeCheck instead of VivPrepareSolid, if VivPrepareSolid failed to test, no path to go */
 			/* So that we can't clear surface */
-			if (1) {
-				if(VivPrepareSolidWithoutSizeCheck(pPixmap,(int)GXcopy,(Pixel)0xFFFFFFFF,(Pixel)0)){
-					VivSolid(pPixmap,0,0,pPixmap->drawable.width,pPixmap->drawable.height);
-					VivDoneSolid(pPixmap);
-				}
+			if(VivPrepareSolidWithoutSizeCheck(pPixmap,(int)GXcopy,(Pixel)0xFFFFFFFF,(Pixel)0)){
+				VivSolid(pPixmap,0,0,pPixmap->drawable.width,pPixmap->drawable.height);
+				VivDoneSolid(pPixmap);
 			}
 
 

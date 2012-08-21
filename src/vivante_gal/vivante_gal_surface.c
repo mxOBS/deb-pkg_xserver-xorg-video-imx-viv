@@ -23,10 +23,6 @@
 #include "vivante_gal.h"
 #include "vivante_priv.h"
 
-#define WIDTH_ALIGNMENT  8
-#define HEIGHT_ALIGNMENT 1
-#define BITSTOBYTES(x) (((x)+7)/8)
-
 /* gcvSURF_CACHEABLE_BITMAP OR gcvSURF_BITMAP */
 #define SURFACE_TYPE gcvSURF_CACHEABLE_BITMAP
 /* Cacheable = TRUE otherwise FALSE*/
@@ -44,6 +40,7 @@ static gceSTATUS AllocVideoNode(
         IN gcoHAL Hal,
         IN OUT gctUINT_PTR Size,
         IN OUT gcePOOL *Pool,
+        IN gceSURF_TYPE surftype,
         OUT gcuVIDMEM_NODE_PTR *Node) {
     gcsHAL_INTERFACE iface;
     gceSTATUS status;
@@ -56,7 +53,7 @@ static gceSTATUS AllocVideoNode(
     iface.u.AllocateLinearVideoMemory.bytes = *Size;
     iface.u.AllocateLinearVideoMemory.alignment = 64;
     iface.u.AllocateLinearVideoMemory.pool = *Pool;
-    iface.u.AllocateLinearVideoMemory.type = SURFACE_TYPE;
+    iface.u.AllocateLinearVideoMemory.type = surftype;
 
     /* Call kernel API. */
     gcmONERROR(gcoHAL_Call(Hal, &iface));
@@ -102,6 +99,7 @@ static gceSTATUS FreeVideoNode(
 static gceSTATUS LockVideoNode(
         IN gcoHAL Hal,
         IN gcuVIDMEM_NODE_PTR Node,
+        IN Bool cacheable,
         OUT gctUINT32 *Address,
         OUT gctPOINTER *Memory) {
     gceSTATUS status;
@@ -113,7 +111,7 @@ static gceSTATUS LockVideoNode(
 
     iface.command = gcvHAL_LOCK_VIDEO_MEMORY;
     iface.u.LockVideoMemory.node = Node;
-    iface.u.LockVideoMemory.cacheable = SURFACE_CACHEABLE;
+    iface.u.LockVideoMemory.cacheable = cacheable;
     /* Call kernel API. */
     gcmONERROR(gcoHAL_Call(Hal, &iface));
 
@@ -134,7 +132,8 @@ OnError:
  */
 static gceSTATUS UnlockVideoNode(
 	IN gcoHAL Hal,
-	IN gcuVIDMEM_NODE_PTR Node) {
+	IN gcuVIDMEM_NODE_PTR Node,
+	IN gceSURF_TYPE surftype) {
 
 	gcsHAL_INTERFACE iface;
 	gceSTATUS status;
@@ -143,7 +142,7 @@ static gceSTATUS UnlockVideoNode(
 
 	iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
 	iface.u.UnlockVideoMemory.node = Node;
-	iface.u.UnlockVideoMemory.type = SURFACE_TYPE;
+	iface.u.UnlockVideoMemory.type = surftype;
 	iface.u.UnlockVideoMemory.asynchroneous = gcvTRUE;
 
 	/* Call the kernel. */
@@ -170,6 +169,265 @@ OnError:
 
 }
 
+#define AL_WIDTH IMX_EXA_NONCACHESURF_WIDTH
+#define AL_HEIGHT IMX_EXA_NONCACHESURF_HEIGHT
+#define AL_SWIDTH 500
+#define AL_SHEIGHT 500
+typedef struct _gsurfpool {
+struct _gsurfpool *pnext;
+struct _gsurfpool *prev;
+GenericSurfacePtr surface;
+} GSURFPOOL,*PGSURFPOOL;
+
+typedef struct _gpoolhead {
+gctUINT num;
+PGSURFPOOL pfirst;
+PGSURFPOOL plast;
+}GPOOLHEAD;
+
+static GPOOLHEAD __gsmallpoolhead = {0, NULL, NULL};
+static GPOOLHEAD __gmidpoolhead = {0, NULL, NULL};
+static GPOOLHEAD __gbigpoolhead = {0, NULL, NULL};
+
+static GPOOLHEAD *__gpoolhead = &__gsmallpoolhead;
+
+//#define TEST_POOL 1
+
+#define MAX_BNODE 3
+#define MAX_MNODE 3
+#define MAX_SNODE 3
+
+
+static gctUINT MAX_NODE = MAX_SNODE;
+
+#define SETPOOL(alwidth,alheight,bytesPerPixel) do {	\
+											if (( alwidth * alheight * bytesPerPixel ) >= ( AL_WIDTH * AL_HEIGHT *bytesPerPixel))	\
+											{							\
+												__gpoolhead = &__gbigpoolhead;	\
+												MAX_NODE = MAX_BNODE;	\
+												break;							\
+											}								\
+											if ( ( alwidth * alheight * bytesPerPixel ) <= ( AL_SWIDTH * AL_SHEIGHT * bytesPerPixel ) ) \
+											{	\
+												__gpoolhead = &__gsmallpoolhead; \
+												MAX_NODE = MAX_SNODE;	\
+												break ;						\
+											}	\
+											__gpoolhead = &__gmidpoolhead; \
+											MAX_NODE = MAX_MNODE; \
+										} while( 0 )
+
+
+static Bool SurfaceInPool(GenericSurfacePtr psurface)
+{
+	PGSURFPOOL poolnode = NULL;
+
+	if (psurface == NULL )
+		TRACE_EXIT(gcvFALSE);
+
+	SETPOOL((psurface->mAlignedWidth), (psurface->mAlignedHeight), (psurface->mBytesPerPixel));
+	if ( __gpoolhead->pfirst == NULL)	TRACE_EXIT(gcvFALSE);
+
+	poolnode = __gpoolhead->pfirst;
+
+	while ( poolnode )
+	{
+
+		if ( poolnode->surface == psurface )
+			TRACE_EXIT(gcvTRUE);
+
+		poolnode = poolnode->pnext;
+
+	}
+
+
+	TRACE_EXIT(gcvFALSE);
+}
+
+/* only for debug */
+static Bool TestSurfPool()
+{
+
+	gctUINT num = 0;
+	PGSURFPOOL poolnode = NULL;
+
+	if ( __gpoolhead->pfirst == NULL )
+	{
+		if ( __gpoolhead->num == 0)
+			TRACE_EXIT(gcvTRUE);
+
+		TRACE_EXIT(gcvFALSE);
+	}
+
+	poolnode = __gpoolhead->pfirst;
+
+	while ( poolnode ) {
+		num++;
+		poolnode = poolnode->pnext;
+	}
+
+	if ( num != __gpoolhead->num)
+		TRACE_EXIT(gcvFALSE);
+
+	TRACE_EXIT(gcvTRUE);
+
+}
+
+/* When surface will be destroyed, call this to add it into pool */
+/* Return non-null, which means the user has to destroy the ret surf */
+/* Return null, which means the user has not to do the next destroy procedure */
+static GenericSurfacePtr AddGSurfIntoPool(GenericSurfacePtr psurface)
+{
+	PGSURFPOOL poolnode = NULL;
+	PGSURFPOOL pnextnode = NULL;
+	GenericSurfacePtr pretsurf = NULL;
+
+	if ( psurface == NULL) return NULL;
+
+
+	SETPOOL((psurface->mAlignedWidth), (psurface->mAlignedHeight), (psurface->mBytesPerPixel));
+
+	gcmASSERT(__gpoolhead->num <= MAX_NODE);
+	gcmASSERT( 3 <= MAX_NODE);
+
+	if ( __gpoolhead->num == MAX_NODE )
+	{
+		if ( __gpoolhead->plast->surface->mVideoNode.mSizeInBytes >= psurface->mVideoNode.mSizeInBytes )
+			return psurface;
+
+		poolnode = __gpoolhead->plast;
+
+		pretsurf = poolnode->surface;
+
+		__gpoolhead->plast->prev->pnext = NULL;
+		__gpoolhead->plast = __gpoolhead->plast->prev;
+		__gpoolhead->num--;
+
+		free(poolnode);
+	}
+
+	poolnode = (PGSURFPOOL)malloc(sizeof(GSURFPOOL));
+	poolnode->surface = psurface;
+	poolnode->pnext = NULL;
+	poolnode->prev= NULL;
+
+	if ( __gpoolhead->pfirst == NULL) {
+
+		poolnode->prev = poolnode;
+		__gpoolhead->pfirst = poolnode;
+		__gpoolhead->plast = poolnode;
+		__gpoolhead->num = 1;
+		return NULL;
+	}
+
+	/* if pfirst is not NULL, plast must be non-null */
+	pnextnode = __gpoolhead->pfirst;
+
+	while ( pnextnode )
+	{
+		if ( pnextnode->surface->mVideoNode.mSizeInBytes > psurface->mVideoNode.mSizeInBytes )
+		{
+			pnextnode = pnextnode->pnext;
+			continue;
+		}
+		break;
+	}
+
+	if ( pnextnode == NULL )
+	{
+		poolnode->prev= __gpoolhead->plast;
+		__gpoolhead->plast->pnext = poolnode;
+		__gpoolhead->plast =poolnode;
+	} else {
+		if ( pnextnode == __gpoolhead->pfirst )
+		{
+			poolnode->pnext = pnextnode;
+			pnextnode->prev = poolnode;
+			__gpoolhead->pfirst = poolnode;
+			poolnode->prev = __gpoolhead->pfirst;
+		} else {
+			poolnode->pnext = pnextnode;
+			poolnode->prev = pnextnode->prev;
+			pnextnode->prev->pnext = poolnode;
+			pnextnode->prev = poolnode;
+		}
+	}
+
+	__gpoolhead->num++;
+
+
+#ifdef TEST_POOL
+	if ( !TestSurfPool() )
+		fprintf(stderr,"Surf Pool Gets ERR when adding node \n");
+#endif
+
+	return pretsurf;
+
+}
+
+/* Grab a surf from the pool, if return null, You have to allocate the new surface */
+/* Otherwise you get surface from the pool, you have not to allocate the surface */
+static GenericSurfacePtr GrabSurfFromPool(gctUINT alignedwidth, gctUINT alignedheight, gctUINT bytesPerPixel)
+{
+	PGSURFPOOL pnextnode = NULL;
+	GenericSurfacePtr pret = NULL;
+	gctUINT size = 0;
+
+
+	SETPOOL(alignedwidth, alignedheight, bytesPerPixel);
+
+	if ( __gpoolhead->pfirst == NULL )
+	{
+		gcmASSERT( __gpoolhead->num == 0 );
+		return NULL;
+	}
+
+	size = alignedwidth * alignedheight * bytesPerPixel;
+
+	pnextnode = __gpoolhead->pfirst;
+	while ( pnextnode )
+	{
+		if ( pnextnode->surface->mVideoNode.mSizeInBytes >= size )
+		{
+			if ( pnextnode->pnext )
+				pnextnode->pnext->prev = pnextnode->prev;
+
+			pnextnode->prev->pnext = pnextnode->pnext;
+
+			if ( pnextnode == __gpoolhead->pfirst)
+			{
+				__gpoolhead->pfirst = pnextnode->pnext;
+				if ( pnextnode->pnext)
+				pnextnode->pnext->prev = __gpoolhead->pfirst;
+			}
+
+			if (pnextnode == __gpoolhead->plast )
+				if ( __gpoolhead->pfirst == NULL)
+					__gpoolhead->plast = NULL;
+				else
+					__gpoolhead->plast = pnextnode->prev;
+
+			pret = pnextnode->surface;
+
+			__gpoolhead->num--;
+
+			free(pnextnode);
+			break;
+		}
+
+		pnextnode = pnextnode->pnext;
+
+	}
+
+#ifdef TEST_POOL
+	if ( !TestSurfPool() )
+		fprintf(stderr,"Surf Pool Gets ERR when grabbing node \n");
+#endif
+
+	return pret;
+
+}
+
 /************************************************************************
  * PIXMAP RELATED (START)
  ************************************************************************/
@@ -177,20 +435,40 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = gcvNULL;
+    gceSURF_TYPE surftype;
+    Bool cacheable;
+
     surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
     if (surf->mIsWrapped) {
         goto delete_wrapper;
     }
     TRACE_INFO("DESTROYED SURFACE ADDRESS = %x - %x\n", surf, ppriv->mVidMemInfo);
 
+    surf = AddGSurfIntoPool(surf);
+
+    if ( surf ==NULL )
+    {
+        ppriv->mVidMemInfo = NULL;
+        TRACE_EXIT(gcvTRUE);
+    }
+
     if ( surf->mData )
         pixman_image_unref( (pixman_image_t *)surf->mData );
 
     surf->mData = gcvNULL;
 
+    if ( surf->mAlignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && surf->mAlignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
+    {
+        surftype = gcvSURF_BITMAP;
+        cacheable = FALSE;
+    } else {
+        surftype = SURFACE_TYPE;
+        cacheable = SURFACE_CACHEABLE;
+    }
+
     if (surf->mVideoNode.mNode != gcvNULL) {
         if (surf->mVideoNode.mLogicalAddr != gcvNULL) {
-            status = UnlockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode);
+            status = UnlockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, surftype);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Unable to UnLock video node\n");
                 TRACE_EXIT(gcvFALSE);
@@ -218,43 +496,97 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = gcvNULL;
     gctPOINTER mHandle = gcvNULL;
+	gceSURF_TYPE surftype;
+	Bool cacheable;
+	surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
+
+	if ( surf ==NULL )
+	{
+
     status = gcoOS_Allocate(gcvNULL, sizeof (GenericSurface), &mHandle);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Unable to allocate generic surface\n");
         TRACE_EXIT(FALSE);
     }
+
     memset(mHandle, 0, sizeof (GenericSurface));
     surf = (GenericSurfacePtr) mHandle;
 
     surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
-
     surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
 
-    status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, &surf->mVideoNode.mNode);
+		if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
+		{
+			surftype = gcvSURF_BITMAP;
+			cacheable = FALSE;
+		} else {
+			surftype = SURFACE_TYPE;
+			cacheable = SURFACE_CACHEABLE;
+		}
+
+		status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, &surf->mVideoNode.mNode);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Unable to allocate video node\n");
         TRACE_EXIT(FALSE);
     }
 
-    status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
+		status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
     if (status != gcvSTATUS_OK) {
-
         TRACE_ERROR("Unable to Lock video node\n");
         TRACE_EXIT(FALSE);
     }
 
     TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
+	}
 
     surf->mTiling = gcvLINEAR;
     surf->mAlignedWidth = alignedWidth;
     surf->mAlignedHeight = alignedHeight;
+	surf->mBytesPerPixel = bytesPerPixel;
     surf->mStride = alignedWidth * bytesPerPixel;
     surf->mRotation = gcvSURF_0_DEGREE;
     surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
     surf->mIsWrapped = gcvFALSE;
     surf->mData = gcvNULL;
     *surface = surf;
+
+	TRACE_EXIT(TRUE);
+}
+
+Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix)
+{
+
+	GenericSurfacePtr surf = gcvNULL;
+	gctUINT alignedWidth, alignedHeight;
+	gctUINT bytesPerPixel;
+	alignedWidth = gcmALIGN(pPixmap->drawable.width, WIDTH_ALIGNMENT);
+	alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
+	bytesPerPixel = BITSTOBYTES(pPixmap->drawable.bitsPerPixel);
+
+	/* The same as CreatSurface */
+	if (bytesPerPixel < 2) {
+		bytesPerPixel = 2;
+	}
+
+	surf = (GenericSurfacePtr)toBeUpdatedpPix->mVidMemInfo;
+	if ( surf && surf->mVideoNode.mSizeInBytes >= (alignedWidth * alignedHeight * bytesPerPixel))
+	{
+		surf->mTiling = gcvLINEAR;
+		surf->mAlignedWidth = alignedWidth;
+		surf->mAlignedHeight = alignedHeight;
+		surf->mStride = alignedWidth * bytesPerPixel;
+		surf->mRotation = gcvSURF_0_DEGREE;
+		surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
+		surf->mIsWrapped = gcvFALSE;
+
+		if ( surf->mData )
+			pixman_image_unref( (pixman_image_t *)surf->mData );
+
+		surf->mData = gcvNULL;
     TRACE_EXIT(TRUE);
+}
+
+	TRACE_EXIT(FALSE);
 }
 
 /*Creating and Destroying Functions*/
@@ -305,6 +637,7 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     surf->mVideoNode.mPhysicalAddr = physical;
     surf->mVideoNode.mLogicalAddr = (gctPOINTER) logical;
 
+    surf->mBytesPerPixel = bytesPerPixel;
     surf->mTiling = gcvLINEAR;
     surf->mAlignedWidth = alignedWidth;
     surf->mAlignedHeight = alignedHeight;

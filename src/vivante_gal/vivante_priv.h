@@ -54,6 +54,7 @@ extern "C" {
         gceTILING mTiling;
         gctUINT32 mAlignedWidth;
         gctUINT32 mAlignedHeight;
+        gctUINT32 mBytesPerPixel;
         gctPOINTER mLogicalAddr;
         gctUINT32 mStride;
         VideoNode mVideoNode;

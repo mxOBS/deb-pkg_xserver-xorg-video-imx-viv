@@ -715,87 +715,6 @@ static Bool BlendConstPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
     TRACE_EXIT(TRUE);
 }
 
-/**
- * Blends for an arbitrary size of rectangle using small rectangles
- *
- * @param galInfo
- * @param opbox
- * @return
- */
-static void
-CalOverAndSrcBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dstrectxnums, int dstrectynums)
-{
-	int i,j;
-	int subwidth;
-	int subheight;
-	int x1;
-	int y1;
-	int x2;
-	int y2;
-
-	VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
-	VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
-	VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
-	VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
-	VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
-
-	subwidth = srcbox->x2-srcbox->x1;
-	subheight = srcbox->y2-srcbox->y1;
-
-	x1 = srcbox->x1;
-	x2 = srcbox->x2;
-
-	y1 = srcbox->y1;
-	y2 = srcbox->y2;
-
-	for ( j = 0 ; j<dstrectynums; j++)
-	{
-		for ( i = 0 ; i<dstrectxnums; i++)
-		{
-				psrcrect[i].left = x1;
-				psrcrect[i].top = y1;
-				psrcrect[i].right = x2;
-				psrcrect[i].bottom = y2;
-
-				pdstrect[i].left = dstbox->x1 + subwidth*i;
-				pdstrect[i].top = dstbox->y1 + subheight*j;
-				pdstrect[i].right = pdstrect[i].left + subwidth;
-
-				if ( j == (dstrectynums - 1 ) ) {
-					pdstrect[i].bottom = V_MIN((pdstrect[i].top + subheight), dstbox->y2);
-					psrcrect[i].bottom = psrcrect[i].top + pdstrect[i].bottom - pdstrect[i].top;
-				} else {
-					pdstrect[i].bottom = pdstrect[i].top + subheight;
-				}
-
-				if ( pdstrect[i].top == srcbox->y1 ) {
-					x1 = 0;
-					y1 = srcbox->y1;
-					x2 = subwidth;
-					y2 = subheight;
-				} else {
-					x1 = 0;
-					y1 = 0;
-					x2 = subwidth;
-					y2 = subheight;
-				}
-
-		}
-
-		pdstrect[i-1].right = V_MIN(pdstrect[i-1].right, dstbox->x2);
-		psrcrect[i-1].right = psrcrect[i].left + pdstrect[i-1].right - pdstrect[i-1].left;
-
-		pdstrect += dstrectxnums;
-		psrcrect +=dstrectxnums;
-
-		x1 = srcbox->x1;
-		y1 = 0;
-		x2 = subwidth;
-		y2 = subheight;
-
-	}
-
-}
 
 static void
 CalNormalBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dstrectxnums, int dstrectynums)
@@ -835,7 +754,7 @@ CalNormalBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dst
 		}
 
 		pdstrect[i-1].right = V_MIN(pdstrect[i-1].right, dstbox->x2);
-		psrcrect[i-1].right = psrcrect[i].left + pdstrect[i-1].right - pdstrect[i-1].left;
+ 		psrcrect[i-1].right = psrcrect[i-1].left + pdstrect[i-1].right - pdstrect[i-1].left;
 
 		pdstrect += dstrectxnums;
 		psrcrect +=dstrectxnums;
@@ -844,140 +763,6 @@ CalNormalBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dst
 
 }
 
-/**
- *
- * @param galInfo
- * @param opbox
- * @return
- */
-static Bool composite_one_pass_special(GALINFOPTR galInfo, VivBoxPtr opbox) {
-    gceSTATUS status = gcvSTATUS_OK;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
-    Bool isFinished = FALSE;
-    VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
-    VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
-    int mSrcWidth = galInfo->mBlitInfo.mSrcSurfInfo.mWidth;
-    int mSrcHeight = galInfo->mBlitInfo.mSrcSurfInfo.mHeight;
-    int width, height, stx, sty;
-    gcsRECT mSrcClip;
-    gcsRECT mDstClip;
-
-    stx = dstbox->x1;
-    sty = dstbox->y1;
-
-    /* Make sure srcX and srcY are in source region */
-    srcbox->x1 = ((srcbox->x1 % (int) mSrcWidth) + (int) mSrcWidth)
-            % (int) mSrcWidth;
-    srcbox->y1 = ((srcbox->y1 % (int) mSrcHeight) + (int) mSrcHeight)
-            % (int) mSrcHeight;
-
-    width = mSrcWidth - srcbox->x1;
-    height = mSrcHeight - srcbox->y1;
-
-
-
-    if (opbox->width < width) {
-        width = opbox->width;
-    }
-
-    if (opbox->height < height) {
-        height = opbox->height;
-    }
-
-    mSrcClip.left = srcbox->x1;
-    mSrcClip.top = srcbox->y1;
-    mSrcClip.right = srcbox->x1 + width;
-    mSrcClip.bottom = srcbox->y1 + height;
-
-    /*setting the source surface*/
-    if (!SetSourceSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*Setting the dest surface*/
-    if (!SetDestinationSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING DST SURFACE\n");
-        TRACE_EXIT(FALSE);
-    }
-    /*setting the clipping for dest*/
-    if (!SetClipping(galInfo)) {
-        TRACE_ERROR("ERROR SETTING DST CLIPPING\n");
-        TRACE_EXIT(FALSE);
-    }
-
-
-    while (!isFinished) {
-        /**/
-        mDstClip.left = stx;
-        mDstClip.top = sty;
-        mDstClip.right = stx + width;
-        mDstClip.bottom = sty + height;
-        /*Enabling the alpha blending*/
-        if (!EnableAlphaBlending(galInfo)) {
-            TRACE_ERROR("Alpha Blending Factor\n");
-            TRACE_EXIT(FALSE);
-        }
-        status = gco2D_BatchBlit(
-                gpuctx->mDriver->m2DEngine,
-                1,
-                &mSrcClip,
-                &mDstClip,
-                0xCC,
-                0xCC,
-                galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt
-                );
-
-        if (status != gcvSTATUS_OK) {
-            TRACE_ERROR("Copy Blit Failed");
-            TRACE_EXIT(FALSE);
-        }
-        if (!DisableAlphaBlending(galInfo)) {
-            TRACE_ERROR("Disabling Alpha Blend Failed\n");
-            TRACE_EXIT(FALSE);
-        }
-
-        stx += width;
-        if (stx >= dstbox->x1 + opbox->width) {
-            stx = dstbox->x1;
-            sty += height;
-            if (sty >= dstbox->y1 + opbox->height) {
-                isFinished = TRUE;
-            }
-        }
-
-        if (stx == dstbox->x1) {
-            mSrcClip.left = srcbox->x1;
-            mSrcClip.top = 0;
-            width = ((dstbox->x1 + opbox->width) - stx) > (mSrcWidth - srcbox->x1)
-                    ? (mSrcWidth - srcbox->x1) : ((dstbox->x1 + opbox->width) - stx);
-            height = ((dstbox->y1 + opbox->height) - sty) > mSrcHeight
-                    ? mSrcHeight : ((dstbox->y1 + opbox->height) - sty);
-            mSrcClip.right = mSrcClip.left + width;
-            mSrcClip.bottom = mSrcClip.top + height;
-        } else if (sty == opbox->y1) {
-            mSrcClip.left = 0;
-            mSrcClip.top = srcbox->y1;
-            width = ((dstbox->x1 + opbox->width) - stx) > mSrcWidth
-                    ? mSrcWidth : ((dstbox->x1 + opbox->width) - stx);
-            height = ((dstbox->y1 + opbox->height) - sty) > (mSrcHeight -
-                    srcbox->y1) ? (mSrcHeight - srcbox->y1) : ((dstbox->y1 + opbox->height) - sty);
-            mSrcClip.right = mSrcClip.left + width;
-            mSrcClip.bottom = mSrcClip.top + height;
-        } else {
-            mSrcClip.left = 0;
-            mSrcClip.top = 0;
-            width = ((dstbox->x1 + opbox->width) - stx) > mSrcWidth
-                    ? mSrcWidth : ((dstbox->x1 + opbox->width) - stx);
-            height = ((dstbox->y1 + opbox->height) - sty) > mSrcHeight
-                    ? mSrcHeight : ((dstbox->y1 + opbox->height) - sty);
-            mSrcClip.right = mSrcClip.left + width;
-            mSrcClip.bottom = mSrcClip.top + height;
-        }
-    }
-
-
-    TRACE_EXIT(TRUE);
-}
 
 static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
 	TRACE_ENTER();
@@ -1010,16 +795,8 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
 	podstrect = pdstrect;
 	posrcrect = psrcrect;
 
-	if ( galInfo->mBlitInfo.mBlendOp.mOp == PictOpOver || galInfo->mBlitInfo.mBlendOp.mOp == PictOpSrc )
-	{
-		/* composite_one_pass_special will be replaced by CalOverAndSrcBoxes, especially when rotation is on */
-		//CalOverAndSrcBoxes(galInfo,psrcrect,pdstrect,dstrectxnums,dstrectynums);
-		composite_one_pass_special(galInfo,opbox);
-		goto ENDFLAG;
+	CalNormalBoxes( galInfo, psrcrect, pdstrect, dstrectxnums, dstrectynums);
 
-	} else {
-		CalNormalBoxes( galInfo, psrcrect, pdstrect, dstrectxnums, dstrectynums);
-	}
 
 	/*setting the source surface*/
 	if (!SetSourceSurface(galInfo)) {
@@ -1052,7 +829,7 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
 	posrcrect,
 	podstrect,
 	0xCC,
-	0xCC,
+	0xAA,
 	galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt
 	);
 
@@ -1066,7 +843,6 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
 		TRACE_EXIT(FALSE);
 	}
 
-ENDFLAG:
 
 	free((void *)posrcrect);
 	free((void *)podstrect);

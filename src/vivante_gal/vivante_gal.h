@@ -208,6 +208,7 @@ extern "C" {
     /*Creating and Destroying Functions*/
     Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr toBeUpdatedpPix);
+    Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
     unsigned int GetStride(Viv2DPixmapPtr pixmap);
     /*Mapping Functions*/

@@ -126,6 +126,19 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 	pViv = VIVPTR_FROM_PIXMAP(pxDst);
 	pBlt = &pViv->mGrCtx.mBlitInfo;
 
+	/*Nothing*/
+	if (pxDst == NULL) {
+		TRACE_EXIT(FALSE);
+	}
+
+	if (pxSrc == NULL) {
+		TRACE_EXIT(FALSE);
+	}
+
+	/*MIN AREA CHECK*/
+	//SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
+	SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
+
 	/*Not supported op*/
 	if (!GetBlendingFactors(op, &pBlt->mBlendOp)) {
 		TRACE_EXIT(FALSE);
@@ -149,18 +162,6 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 
 	/*For forward compatibility*/
 	if (op > PictOpSaturate) {
-		TRACE_EXIT(FALSE);
-	}
-
-	/*Nothing*/
-	if (pxDst == NULL) {
-		TRACE_EXIT(FALSE);
-	}
-
-	/*MIN AREA CHECK*/
-	unsigned pixmapAreaDst =
-		pxDst->drawable.width * pxDst->drawable.height;
-	if (pixmapAreaDst < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE) {
 		TRACE_EXIT(FALSE);
 	}
 
@@ -191,21 +192,6 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 	}
 
 	pBlt->mIsNotStretched = !stretchflag;
-
-	if (pxSrc == NULL) {
-		TRACE_EXIT(FALSE);
-	}
-
-	/*MIN AREA CHECK*/
-	if (!pSrc->repeat) {
-		unsigned pixmapArea =
-			pxSrc->drawable.width *
-			pxSrc->drawable.height;
-
-		if (pixmapArea < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE) {
-			TRACE_EXIT(FALSE);
-		}
-	}
 
 	/*Mask Related Checks*/
 	if ((NULL != pMsk)) {
@@ -529,15 +515,17 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
 
 	if ( pBlt->mOperationCode == VIVCOMPOSITE_SRC_REPEAT_ARBITRARY_SIZE_PATTERN )
 	{
+		gcmASSERT(dstbox->x1 <= pBlt->mDstSurfInfo.mWidth);
+		gcmASSERT(dstbox->y1 <= pBlt->mDstSurfInfo.mHeight);
+		gcmASSERT(dstbox->x2 <= pBlt->mDstSurfInfo.mWidth);
+		gcmASSERT(dstbox->y2 <= pBlt->mDstSurfInfo.mHeight);
 		/* To enable it, Currently disable it */
 		/* When enabling it, how to consider to do this when stretched ??? */
 		dstbox->x2 = V_MIN(dstbox->x2, pBlt->mDstSurfInfo.mWidth);
 		dstbox->y2 = V_MIN(dstbox->y2, pBlt->mDstSurfInfo.mHeight);
-		//srcbox->x2 = V_MIN(srcbox->x2, pBlt->mSrcSurfInfo.mWidth);
-		//srcbox->y2 = V_MIN(srcbox->y2, pBlt->mSrcSurfInfo.mHeight);
+
 		srcbox->x1 %= pBlt->mSrcSurfInfo.mWidth;
 		srcbox->y1 %= pBlt->mSrcSurfInfo.mHeight;
-
 		srcbox->x2 = pBlt->mSrcSurfInfo.mWidth;
 		srcbox->y2 = pBlt->mSrcSurfInfo.mHeight;
 		TRACE_EXIT();
@@ -658,18 +646,6 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 		|| pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SIMPLE;
 
 	pBlt->mSwcmp = FALSE;
-	/* Currenlty if mask on, it will not fall into this path ,otherwise consider mask */
-	if (1) {
-		if ( ( width * height ) < MAX_COMPOSITE_SUB_SIZE && pBlt->mBlendOp.mOp != PIXMAN_OP_OVER)
-		{
-			pBlt->mSwcmp = TRUE;
-			/* VIVSWComposite will call pixman_composite to do composition */
-			/* For OVER, pixman_composite can't work properly */
-			/* Let's disable it currently, enable until solution is done*/
-			VIVSWComposite(pxDst, srcX, srcY, maskX, maskY, dstX, dstY, width, height);
-			return ;
-		}
-	}
 
 	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
 	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
@@ -678,12 +654,12 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 		VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH);
 		psrc->mCpuBusy = FALSE;
 	}
-
+	/*
 	if ( pdst->mCpuBusy ) {
 		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
 		pdst->mCpuBusy = FALSE;
 	}
-
+	*/
 
 	if ( isMasked )
 		CalOrgBoxInfoWithMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
@@ -717,7 +693,6 @@ void
 VivDoneComposite(PixmapPtr pDst) {
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
-    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
     TRACE_EXIT();

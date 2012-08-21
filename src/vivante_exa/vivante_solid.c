@@ -52,11 +52,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int fgop = 0xF0;
 	int bgop = 0xF0;
 
-#if VIV_EXA_SOLID_SIZE_CHECK_ENABLE
-	if (pPixmap->drawable.width * pPixmap->drawable.height <= IMX_EXA_MIN_PIXEL_AREA_SOLID) {
-		TRACE_EXIT(FALSE);
-	}
-#endif
+ 	SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
 
 	if (!CheckBltvalidity(pPixmap, alu, planemask)) {
 		TRACE_EXIT(FALSE);
@@ -99,113 +95,6 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  *
  * This call is required if PrepareSolid() ever succeeds.
  */
-
- #define  MAX_SUB_SOLID_SIZE 10000
- static void VivSWSolid(VivPtr pViv,int bytesperpixel){
-	int					x1,x2,y1,y2,x,y,k,w,w1;
-	char					*lgdstaddr=NULL;
-	char					*pcolor,*pcolor1;
-	int					color32;
-	Pixel					color= pViv->mGrCtx.mBlitInfo.mColorARGB32;
-	VIV2DBLITINFOPTR	pBlt = &(pViv->mGrCtx.mBlitInfo);
-
-
-	lgdstaddr=(char *)MapViv2DPixmap(pBlt->mDstSurfInfo.mPriv);
-	pcolor1=(char *)&color;
-	pcolor=pcolor1;
-	x1=pViv->mGrCtx.mBlitInfo.mDstBox.x1;
-	y1=pViv->mGrCtx.mBlitInfo.mDstBox.y1;
-	x2=pViv->mGrCtx.mBlitInfo.mDstBox.x2;
-	y2=pViv->mGrCtx.mBlitInfo.mDstBox.y2;
-
-	if (x1<0) x1=0;
-	if (y1<0) y1=0;
-	if (x1>pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth) 	x1=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth;
-	if (y1>pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight) y1=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight;
-	if (x2<0) x2=0;
-	if (y2<0) y2=0;
-	if (x2>pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth) 	x2=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth;
-	if (y2>pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight) 	y2=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight;
-
-	lgdstaddr+=(y1*pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride+x1*bytesperpixel);
-	w=(x2-x1)*bytesperpixel;
-	switch ( bytesperpixel ) {
-	case 1:
-		for(y=y1;y<y2;y++){
-			for(x=0;x<w;){
-					lgdstaddr[x]=pcolor[0];
-			}
-			lgdstaddr+=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride;
-
-		}
-		break;
-	case 2:
-		if (w>4) {
-			pcolor=(char *)(&color32);
-			pcolor[0]=pcolor1[0];
-			pcolor[1]=pcolor1[1];
-			pcolor[2]=pcolor1[0];
-			pcolor[3]=pcolor1[1];
-			w1=w/4;
-			w1*=4;
-			w%=4;
-			for(y=y1;y<y2;y++){
-				for(x=0;x<w1;){
-					*((int *)(&(lgdstaddr[x])))=color32;
-					x+=4;
-				}
-				if (w==2){
-					lgdstaddr[x]=pcolor1[0];
-					lgdstaddr[x+1]=pcolor[1];
-				}
-				lgdstaddr+=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride;
-
-			}
-		} else {
-
-			for(y=y1;y<y2;y++){
-				for(x=0;x<w;){
-					lgdstaddr[x]=pcolor[0];
-					x+=1;
-					lgdstaddr[x]=pcolor[1];
-					x+=1;
-				}
-
-				lgdstaddr+=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride;
-
-			}
-
-		}
-		break;
-	case 3:
-		for(y=y1;y<y2;y++){
-			for(x=0;x<w;){
-					lgdstaddr[x]=pcolor[0];
-					x+=1;
-					lgdstaddr[x]=pcolor[1];
-					x+=1;
-					lgdstaddr[x]=pcolor[2];
-					x+=1;
-			}
-			lgdstaddr+=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride;
-
-		}
-		break;
-	case 4:
-		for(y=y1;y<y2;y++){
-			for(x=0;x<w;){
-					*((int *)(&(lgdstaddr[x])))=*((int *)pcolor);
-					x+=4;
-
-			}
-
-			lgdstaddr+=pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride;
-
-		}
-		break;
-	default: return ;
-	}
- }
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	TRACE_ENTER();
@@ -217,22 +106,12 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
 	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
 	pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
-
-	if (1) {
-		if ( ((y2-y1)*(x2-x1)) < MAX_SUB_SOLID_SIZE ) {
-			pViv->mGrCtx.mBlitInfo.mSwsolid=TRUE;
-			VivSWSolid(pViv,pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp/8);
-			pdst->mCpuBusy = TRUE;
-			TRACE_EXIT();
-		}
-	}
-
+/*
 	if (pdst->mCpuBusy) {
 		VIV2DCacheOperation(&pViv->mGrCtx, pdst,FLUSH);
 		pdst->mCpuBusy = FALSE;
 	}
-
-
+*/
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
 	}
@@ -267,15 +146,7 @@ void
 VivDoneSolid(PixmapPtr pPixmap) {
 	TRACE_ENTER();
 
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-
-	/*
-	if (pViv && pViv->mGrCtx.mBlitInfo.mSwsolid){
-		pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
-		TRACE_EXIT();
-	}
-	*/
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
 #if VIV_EXA_FLUSH_2D_CMD_ENABLE
