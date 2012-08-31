@@ -19,13 +19,6 @@
 *****************************************************************************/
 
 
-/*
- * File:   vivante_debug.h
- * Author: vivante
- *
- * Created on December 24, 2011, 12:50 PM
- */
-
 #ifndef VIVANTE_DEBUG_H
 #define VIVANTE_DEBUG_H
 
@@ -57,11 +50,11 @@ x, __FILE__, __FUNCTION__ ,__LINE__, ## args)
 #define TRACE_ERROR(x, args ...) \
     do {  fprintf(stderr, "[ERROR : %s(), %s:%u]\n\n" x, __FILE__, __FUNCTION__ ,__LINE__, ## args); } while (0)
 #else
-#define TRACE_ENTER() 
+#define TRACE_ENTER()
 #define TRACE_EXIT(val) \
     do { return val;  } while (0)
-#define TRACE_INFO(x, args ...) 
-#define TRACE_ERROR(x, args ...) 
+#define TRACE_INFO(x, args ...)
+#define TRACE_ERROR(x, args ...)
 #endif
 
 

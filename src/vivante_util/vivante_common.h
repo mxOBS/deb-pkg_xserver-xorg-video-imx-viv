@@ -19,13 +19,6 @@
 *****************************************************************************/
 
 
-/*
- * File:   vivante_common.h
- * Author: vivante
- *
- * Created on February 18, 2012, 7:15 PM
- */
-
 #ifndef VIVANTE_COMMON_H
 #define	VIVANTE_COMMON_H
 

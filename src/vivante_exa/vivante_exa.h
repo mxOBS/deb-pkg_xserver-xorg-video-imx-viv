@@ -19,13 +19,6 @@
 *****************************************************************************/
 
 
-/*
- * File:   vivante_exa.h
- * Author: vivante
- *
- * Created on February 23, 2012, 11:10 AM
- */
-
 #ifndef VIVANTE_EXA_H
 #define	VIVANTE_EXA_H
 

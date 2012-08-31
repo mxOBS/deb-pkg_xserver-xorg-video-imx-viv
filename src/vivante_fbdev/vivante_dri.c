@@ -20,6 +20,8 @@
 
 
 
+#ifndef DISABLE_VIVANTE_DRI
+
 #include "vivante_common.h"
 #include "vivante.h"
 #include "vivante_dri.h"
@@ -195,3 +197,4 @@ void VivDRICloseScreen(ScreenPtr pScreen) {
     }
 }
 
+#endif

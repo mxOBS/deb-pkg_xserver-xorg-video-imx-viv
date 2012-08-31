@@ -19,13 +19,6 @@
 *****************************************************************************/
 
 
-/*
- * File:   vivante.h
- * Author: vivante
- *
- * Created on November 9, 2011, 6:58 PM
- */
-
 #ifndef VIVANTE_H
 #define	VIVANTE_H
 

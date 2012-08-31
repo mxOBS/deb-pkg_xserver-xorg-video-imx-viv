@@ -19,13 +19,6 @@
 *****************************************************************************/
 
 
-/*
- * File:   vivante_gal.h
- * Author: vivante
- *
- * Created on February 23, 2012, 11:58 AM
- */
-
 #ifndef VIVANTE_GAL_H
 #define	VIVANTE_GAL_H
 

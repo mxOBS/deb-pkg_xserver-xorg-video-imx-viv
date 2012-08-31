@@ -227,10 +227,10 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 					TRACE_EXIT(FALSE);
 			}
 		} else {/* Simple source blend */
-			
+
 			if (pBlt->mIsNotStretched)
 				TRACE_EXIT(FALSE);
-			
+
 		}
 
 	}
@@ -665,20 +665,20 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
 	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
 
-	if ( psrc->mCpuBusy ) 
+	if ( psrc->mCpuBusy )
 	{
 		VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH);
 		psrc->mCpuBusy = FALSE;
 	}
 
 #if ALL_NONCACHE_BIGSURFACE
-	if ( pdst->mCpuBusy && SURF_SIZE_FOR_SW_COND(pxDst->drawable.width, pxDst->drawable.height)) 
+	if ( pdst->mCpuBusy && SURF_SIZE_FOR_SW_COND(pxDst->drawable.width, pxDst->drawable.height))
 	{
 		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
 		pdst->mCpuBusy = FALSE;
 	}
 #else
-	if ( pdst->mCpuBusy ) 
+	if ( pdst->mCpuBusy )
 	{
 		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
 		pdst->mCpuBusy = FALSE;

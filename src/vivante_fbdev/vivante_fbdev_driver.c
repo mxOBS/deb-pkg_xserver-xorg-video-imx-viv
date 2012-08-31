@@ -19,7 +19,6 @@
 *****************************************************************************/
 
 
-
 #include "vivante_common.h"
 #include "vivante.h"
 #include "vivante_exa.h"
@@ -766,9 +765,11 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
         }
     }
 
+#ifndef DISABLE_VIVANTE_DRI
     if (VivDRIScreenInit(pScreen)) {
         VivDRIFinishScreenInit(pScreen);
     }
+#endif
 
     TRACE_EXIT(TRUE);
 }
@@ -780,7 +781,9 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
     Bool ret = FALSE;
     TRACE_ENTER();
 
+#ifndef DISABLE_VIVANTE_DRI
     VivDRICloseScreen(pScreen);
+#endif
 
     if (fPtr->mFakeExa.mUseExaFlag) {
         DEBUGP("UnLoading EXA");

@@ -20,9 +20,7 @@
 
 
 #include "vivante_exa.h"
-
 #include "vivante.h"
-
 #include "vivante_priv.h"
 
 /**
@@ -211,7 +209,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 			if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, vivPixmap) )
 			{
-				
+
 				if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
 					TRACE_ERROR("ERROR : Destroying the surface\n");
 					fprintf(stderr,"Destroy surface failed\n");

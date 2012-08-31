@@ -521,10 +521,10 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
 
 		memset(mHandle, 0, sizeof (GenericSurface));
 		surf = (GenericSurfacePtr) mHandle;
-	
+
 		surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
 		surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-		
+
 #if		ALL_NONCACHE_BIGSURFACE
 		if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
 		{
@@ -631,7 +631,7 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     GenericSurfacePtr surf = NULL;
 
-    if ( pPix == NULL ) 
+    if ( pPix == NULL )
         TRACE_EXIT(FALSE);
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 

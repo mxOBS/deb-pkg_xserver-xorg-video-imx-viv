@@ -19,13 +19,6 @@
 *****************************************************************************/
 
 
-/*
- * File:   vivante_priv.h
- * Author: vivante
- *
- * Created on February 23, 2012, 12:33 PM
- */
-
 #ifndef VIVANTE_PRIV_H
 #define	VIVANTE_PRIV_H
 
