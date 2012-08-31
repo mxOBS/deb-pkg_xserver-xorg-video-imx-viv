@@ -433,7 +433,7 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
     }
     TRACE_EXIT(TRUE);
 }
-#if USE_GPU_FB_MEM_MAP
+
 Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
@@ -467,7 +467,7 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
     }
     TRACE_EXIT(TRUE);
 }
-#endif
+
 /************************************************************************
  * GPU RELATED (END)
  ************************************************************************/

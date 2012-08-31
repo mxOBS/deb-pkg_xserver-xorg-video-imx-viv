@@ -207,6 +207,7 @@ extern "C" {
      ************************************************************************/
     /*Creating and Destroying Functions*/
     Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
+    Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix);
     Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
@@ -239,10 +240,8 @@ extern "C" {
     Bool VIV2DGPUCtxInit(GALINFOPTR galInfo);
     Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo);
     Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type);
-#if USE_GPU_FB_MEM_MAP
     Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress);
     Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, unsigned int gpuAddress);
-#endif
     Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     /************************************************************************

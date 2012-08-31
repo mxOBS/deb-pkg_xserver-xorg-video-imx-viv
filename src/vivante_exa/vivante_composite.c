@@ -135,9 +135,8 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 		TRACE_EXIT(FALSE);
 	}
 
-	/*MIN AREA CHECK*/
-	//SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
-	SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
+	if ( (pxDst->drawable.width * pxDst->drawable.height) < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE )
+		TRACE_EXIT(FALSE);
 
 	/*Not supported op*/
 	if (!GetBlendingFactors(op, &pBlt->mBlendOp)) {
@@ -211,7 +210,7 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 	} else {
 
 		/* The same as what prepare does */
-		if ( (0 == PICT_FORMAT_A(pSrc->format) ) && IsSourceAlphaRequired(op)) {
+		if ( (0 == PICT_FORMAT_A(pSrc->format) ) &&  !IsSourceAlphaRequired(op)) {
 			TRACE_EXIT(FALSE);
 		}
 
@@ -228,7 +227,10 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 					TRACE_EXIT(FALSE);
 			}
 		} else {/* Simple source blend */
-			TRACE_EXIT(TRUE);
+			
+			if (pBlt->mIsNotStretched)
+				TRACE_EXIT(FALSE);
+			
 		}
 
 	}
@@ -628,7 +630,7 @@ ReCalBoxByStretchInfoWithMask(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
 }
 
 
-#define MAX_COMPOSITE_SUB_SIZE (50*10)
+#define MAX_COMPOSITE_SUB_SIZE IMX_EXA_MIN_PIXEL_AREA_COMPOSITE
 void
 VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 	int dstX, int dstY, int width, int height) {
@@ -646,33 +648,47 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 		|| pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SIMPLE;
 
 	pBlt->mSwcmp = FALSE;
+	/* Currenlty if mask on, it will not fall into this path ,otherwise consider mask */
+	/* IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT is small, enable this */
+	/* otherwise disable it, it is not meaningful when the size is big */
+	if ( ( width * height ) < MAX_COMPOSITE_SUB_SIZE && pBlt->mBlendOp.mOp != PIXMAN_OP_OVER)
+	{
+		pBlt->mSwcmp = TRUE;
+		/* VIVSWComposite will call pixman_composite to do composition */
+		/* For OVER, pixman_composite can't work properly */
+		/* Let's disable it currently, enable until solution is done*/
+		VIVSWComposite(pxDst, srcX, srcY, maskX, maskY, dstX, dstY, width, height);
+		return ;
+	}
+
 
 	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
 	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
 
-	if ( psrc->mCpuBusy ) {
+	if ( psrc->mCpuBusy ) 
+	{
 		VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH);
 		psrc->mCpuBusy = FALSE;
 	}
-	/*
-	if ( pdst->mCpuBusy ) {
+
+#if ALL_NONCACHE_BIGSURFACE
+	if ( pdst->mCpuBusy && SURF_SIZE_FOR_SW_COND(pxDst->drawable.width, pxDst->drawable.height)) 
+	{
 		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
 		pdst->mCpuBusy = FALSE;
 	}
-	*/
+#else
+	if ( pdst->mCpuBusy ) 
+	{
+		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
+		pdst->mCpuBusy = FALSE;
+	}
+#endif
 
 	if ( isMasked )
 		CalOrgBoxInfoWithMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
 	else
 		CalOrgBoxInfoWithoutMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
-
-	/*
-	if ( srcX >= pBlt->mSrcSurfInfo.mWidth
-		|| srcY >= pBlt->mSrcSurfInfo.mHeight
-		|| dstX >= pBlt->mDstSurfInfo.mWidth
-		|| dstY >= pBlt->mDstSurfInfo.mHeight )
-		TRACE_EXIT();
-	*/
 
 	/*fitting the operation box */
 	/* Currently when mask is on, it goes sw, it shouldn't go into this */
@@ -693,6 +709,14 @@ void
 VivDoneComposite(PixmapPtr pDst) {
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
+
+    if ( pBlt && pBlt->mSwcmp )
+    {
+        pBlt->mSwcmp = FALSE;
+        TRACE_EXIT();
+    }
+
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
     TRACE_EXIT();

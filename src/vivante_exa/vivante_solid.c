@@ -52,6 +52,8 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int fgop = 0xF0;
 	int bgop = 0xF0;
 
+	TRACE_EXIT(FALSE);
+
  	SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
 
 	if (!CheckBltvalidity(pPixmap, alu, planemask)) {
@@ -106,12 +108,12 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
 	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
 	pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
-/*
+
 	if (pdst->mCpuBusy) {
 		VIV2DCacheOperation(&pViv->mGrCtx, pdst,FLUSH);
 		pdst->mCpuBusy = FALSE;
 	}
-*/
+
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
 	}

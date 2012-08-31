@@ -108,31 +108,6 @@ VivPixmapIsOffscreen(PixmapPtr pPixmap) {
 	TRACE_EXIT(ret);
 }
 
-static Bool
-VivPrepareSolidWithoutSizeCheck(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
-	TRACE_ENTER();
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-
-	if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
-		TRACE_EXIT(FALSE);
-	}
-	/*Populating the information*/
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pPixmap->drawable.height;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pPixmap->drawable.width;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pPixmap->devKind;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
-	pViv->mGrCtx.mBlitInfo.mFgRop = 0xF0;
-	pViv->mGrCtx.mBlitInfo.mBgRop = 0xF0;
-	pViv->mGrCtx.mBlitInfo.mColorARGB32 = fg;
-	pViv->mGrCtx.mBlitInfo.mColorConvert = FALSE;
-	pViv->mGrCtx.mBlitInfo.mPlaneMask = planemask;
-	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSOLID;
-
-	TRACE_EXIT(TRUE);
-
-}
-
 /**
  * Returning a pixmap with non-NULL devPrivate.ptr implies a pixmap which is
  * not offscreen, which will never be accelerated and Prepare/FinishAccess won't
@@ -219,8 +194,8 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 		pPixmap->devKind = devKind;
 
-		VIV2DCacheOperation(&pViv->mGrCtx, vivPixmap,FLUSH);
-		VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+		//VIV2DCacheOperation(&pViv->mGrCtx, vivPixmap,FLUSH);
+		//VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
 		/*we never want to see this again*/
 		if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
 
@@ -236,27 +211,26 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 			if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, vivPixmap) )
 			{
-			if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
-				TRACE_ERROR("ERROR : Destroying the surface\n");
-				fprintf(stderr,"Destroy surface failed\n");
-				TRACE_EXIT(FALSE);
-			}
+				
+				if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
+					TRACE_ERROR("ERROR : Destroying the surface\n");
+					fprintf(stderr,"Destroy surface failed\n");
+					TRACE_EXIT(FALSE);
+				}
 
-			if (!CreateSurface(&pViv->mGrCtx, pPixmap, vivPixmap)) {
-				TRACE_ERROR("ERROR : Creating the surface\n");
-				fprintf(stderr,"CreateSurface failed\n");
-				TRACE_EXIT(FALSE);
+				if (!CreateSurface(&pViv->mGrCtx, pPixmap, vivPixmap)) {
+					TRACE_ERROR("ERROR : Creating the surface\n");
+					fprintf(stderr,"CreateSurface failed\n");
+					TRACE_EXIT(FALSE);
 				}
 			}
 
 			pPixmap->devKind = GetStride(vivPixmap);
 
 			/* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
-			/* Use VivPrepareSolidWithoutSizeCheck instead of VivPrepareSolid, if VivPrepareSolid failed to test, no path to go */
-			/* So that we can't clear surface */
-			if(VivPrepareSolidWithoutSizeCheck(pPixmap,(int)GXcopy,(Pixel)0xFFFFFFFF,(Pixel)0)){
-				VivSolid(pPixmap,0,0,pPixmap->drawable.width,pPixmap->drawable.height);
-				VivDoneSolid(pPixmap);
+			if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
+			{
+				CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
 			}
 
 
@@ -340,12 +314,12 @@ VivFinishAccess(PixmapPtr pPix, int index) {
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
 	IGNORE(index);
 
-
 	if (vivpixmap->mRef == 1) {
 
 		pPix->devPrivate.ptr = NULL;
 
 	}
+
 	vivpixmap->mRef--;
 	TRACE_EXIT();
 }

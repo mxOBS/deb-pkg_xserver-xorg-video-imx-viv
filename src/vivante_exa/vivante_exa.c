@@ -311,7 +311,7 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
 /*
     if (pdst->mCpuBusy) {
-       VIV2DCacheOperation(&pViv->mGrCtx,pdst,FLUSH);
+       VIV2DCacheOperation(&pViv->mGrCtx,pdst,CLEAN);
     }
 */
     if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
@@ -407,6 +407,7 @@ static FUPSCREENTYPE ftype = /*DONE_BY_SWCPY*/DONE_BY_VSURF;
 Bool
 VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
 	int h, char *src, int src_pitch) {
+
 
 	if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
 		ftype = DONE_BY_SWCPY;

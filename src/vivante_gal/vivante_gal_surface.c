@@ -165,7 +165,7 @@ static gceSTATUS UnlockVideoNode(
 
 OnError:
     /* Call kernel API. */
-    return gcvSTATUS_FALSE;
+    return status;
 
 }
 
@@ -193,9 +193,9 @@ static GPOOLHEAD *__gpoolhead = &__gsmallpoolhead;
 
 //#define TEST_POOL 1
 
-#define MAX_BNODE 3
-#define MAX_MNODE 3
-#define MAX_SNODE 3
+#define MAX_BNODE 6
+#define MAX_MNODE 6
+#define MAX_SNODE 6
 
 
 static gctUINT MAX_NODE = MAX_SNODE;
@@ -303,10 +303,12 @@ static GenericSurfacePtr AddGSurfIntoPool(GenericSurfacePtr psurface)
 		__gpoolhead->plast = __gpoolhead->plast->prev;
 		__gpoolhead->num--;
 
-		free(poolnode);
+		//free(poolnode);
 	}
 
-	poolnode = (PGSURFPOOL)malloc(sizeof(GSURFPOOL));
+	if ( poolnode == NULL )
+		poolnode = (PGSURFPOOL)malloc(sizeof(GSURFPOOL));
+
 	poolnode->surface = psurface;
 	poolnode->pnext = NULL;
 	poolnode->prev= NULL;
@@ -457,11 +459,14 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
 
     surf->mData = gcvNULL;
 
+#if ALL_NONCACHE_BIGSURFACE
     if ( surf->mAlignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && surf->mAlignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
     {
         surftype = gcvSURF_BITMAP;
         cacheable = FALSE;
-    } else {
+    } else
+#endif
+    {
         surftype = SURFACE_TYPE;
         cacheable = SURFACE_CACHEABLE;
     }
@@ -487,68 +492,76 @@ delete_wrapper:
         }
         ppriv->mVidMemInfo = NULL;
     }
+
     TRACE_EXIT(gcvTRUE);
 }
 
+
+
+
 static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
-        gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
-    TRACE_ENTER();
-    gceSTATUS status = gcvSTATUS_OK;
-    GenericSurfacePtr surf = gcvNULL;
-    gctPOINTER mHandle = gcvNULL;
+	gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
+	TRACE_ENTER();
+	gceSTATUS status = gcvSTATUS_OK;
+	GenericSurfacePtr surf = gcvNULL;
+	gctPOINTER mHandle = gcvNULL;
 	gceSURF_TYPE surftype;
 	Bool cacheable;
+
 	surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
 
-	if ( surf ==NULL )
+	if ( surf == NULL )
 	{
 
-    status = gcoOS_Allocate(gcvNULL, sizeof (GenericSurface), &mHandle);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Unable to allocate generic surface\n");
-        TRACE_EXIT(FALSE);
-    }
+		status = gcoOS_Allocate(gcvNULL, sizeof(GenericSurface), &mHandle);
+		if (status != gcvSTATUS_OK) {
+			TRACE_ERROR("Unable to allocate generic surface\n");
+			TRACE_EXIT(FALSE);
+		}
 
-    memset(mHandle, 0, sizeof (GenericSurface));
-    surf = (GenericSurfacePtr) mHandle;
-
-    surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
-    surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-
+		memset(mHandle, 0, sizeof (GenericSurface));
+		surf = (GenericSurfacePtr) mHandle;
+	
+		surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
+		surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
+		
+#if		ALL_NONCACHE_BIGSURFACE
 		if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
 		{
 			surftype = gcvSURF_BITMAP;
 			cacheable = FALSE;
-		} else {
+		} else
+
+#endif
+		{
 			surftype = SURFACE_TYPE;
 			cacheable = SURFACE_CACHEABLE;
 		}
 
 		status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, &surf->mVideoNode.mNode);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Unable to allocate video node\n");
-        TRACE_EXIT(FALSE);
-    }
+		if (status != gcvSTATUS_OK) {
+			TRACE_ERROR("Unable to allocate video node\n");
+			TRACE_EXIT(FALSE);
+		}
 
 		status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Unable to Lock video node\n");
-        TRACE_EXIT(FALSE);
-    }
-
-    TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
+		if (status != gcvSTATUS_OK) {
+			TRACE_ERROR("Unable to Lock video node\n");
+			TRACE_EXIT(FALSE);
+		}
+		TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
 	}
 
-    surf->mTiling = gcvLINEAR;
-    surf->mAlignedWidth = alignedWidth;
-    surf->mAlignedHeight = alignedHeight;
+	surf->mTiling = gcvLINEAR;
+	surf->mAlignedWidth = alignedWidth;
+	surf->mAlignedHeight = alignedHeight;
 	surf->mBytesPerPixel = bytesPerPixel;
-    surf->mStride = alignedWidth * bytesPerPixel;
-    surf->mRotation = gcvSURF_0_DEGREE;
-    surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
-    surf->mIsWrapped = gcvFALSE;
-    surf->mData = gcvNULL;
-    *surface = surf;
+	surf->mStride = alignedWidth * bytesPerPixel;
+	surf->mRotation = gcvSURF_0_DEGREE;
+	surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
+	surf->mIsWrapped = gcvFALSE;
+	surf->mData = gcvNULL;
+	*surface = surf;
 
 	TRACE_EXIT(TRUE);
 }
@@ -583,8 +596,8 @@ Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpda
 			pixman_image_unref( (pixman_image_t *)surf->mData );
 
 		surf->mData = gcvNULL;
-    TRACE_EXIT(TRUE);
-}
+		TRACE_EXIT(TRUE);
+	}
 
 	TRACE_EXIT(FALSE);
 }
@@ -611,6 +624,21 @@ Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix) {
 
     pPix->mVidMemInfo = surf;
     TRACE_EXIT(TRUE);
+}
+
+Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix)
+{
+    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+    GenericSurfacePtr surf = NULL;
+
+    if ( pPix == NULL ) 
+        TRACE_EXIT(FALSE);
+    surf = (GenericSurfacePtr)pPix->mVidMemInfo;
+
+    pPix->mCpuBusy = TRUE;
+    memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
+    TRACE_EXIT(TRUE);
+
 }
 
 Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix) {
@@ -799,7 +827,7 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 
 	gceSTATUS status = gcvSTATUS_OK;
 
-    	VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+   	VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
 
 	if (maxsize <MAX_WIDTH)
 		maxsize=MAX_WIDTH;

@@ -174,8 +174,6 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
  * X Window System Registration (START)
  ************************************************************************/
 
-#define UPLOAD_FUNC_ENABLED 1
-
 static Bool InitExaLayer(ScreenPtr pScreen) {
     ExaDriverPtr pExa;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
@@ -207,13 +205,10 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     pExa->memorySize = pScrn->videoRam;
     pExa->offScreenBase = pScrn->virtualY * pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 
-#if USE_GPU_FB_MEM_MAP
     if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, &pViv->mFB.memPhysBase)) {
         TRACE_ERROR("ERROR ON MAPPING FB\n");
         TRACE_EXIT(FALSE);
     }
-#endif
-
 
     /*flags*/
     pExa->flags = EXA_HANDLES_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX | EXA_OFFSCREEN_PIXMAPS;
@@ -225,30 +220,20 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
 
     pExa->WaitMarker = VivEXASync;
 
-#ifndef DISABLE_SOLID
     pExa->PrepareSolid = VivPrepareSolid;
     pExa->Solid = VivSolid;
     pExa->DoneSolid = VivDoneSolid;
-#endif
 
-#ifndef DISABLE_COPY
     pExa->PrepareCopy = VivPrepareCopy;
     pExa->Copy = VivCopy;
     pExa->DoneCopy = VivDoneCopy;
-#endif
 
-#if UPLOAD_FUNC_ENABLED
     pExa->UploadToScreen = VivUploadToScreen;
-#endif
 
-
-
-#ifndef DISABLE_COMPOSITE
     pExa->CheckComposite = VivCheckComposite;
     pExa->PrepareComposite = VivPrepareComposite;
     pExa->Composite = VivComposite;
     pExa->DoneComposite = VivDoneComposite;
-#endif
 
     pExa->CreatePixmap = VivCreatePixmap;
     pExa->DestroyPixmap = VivDestroyPixmap;
@@ -278,12 +263,11 @@ static Bool DestroyExaLayer(ScreenPtr pScreen) {
     VivPtr pViv = GET_VIV_PTR(pScrn);
     TRACE_ENTER();
     xf86DrvMsg(pScreen->myNum, X_INFO, "Shutdown EXA\n");
-#if USE_GPU_FB_MEM_MAP
+
     ExaDriverPtr pExa = pViv->mFakeExa.mExaDriver;
     if (!VIV2DGPUUserMemUnMap((char*) pExa->memoryBase, pExa->memorySize, pViv->mFB.mMappingInfo, pViv->mFB.memPhysBase)) {
         TRACE_ERROR("Unmapping User memory Failed\n");
     }
-#endif
 
     exaDriverFini(pScreen);
 
@@ -521,7 +505,6 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     memcpy(fPtr->mSupportedOptions, VivOptions, sizeof (VivOptions));
     xf86ProcessOptions(pScrn->scrnIndex, fPtr->mEntity->device->options, fPtr->mSupportedOptions);
 
-
     fPtr->mFakeExa.mNoAccelFlag = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_NOACCEL, FALSE);
 
     if (fPtr->mFakeExa.mNoAccelFlag) {
@@ -573,7 +556,6 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
         TRACE_EXIT(FALSE);
     }
 
-
     /* Load EXA acceleration if needed */
     if (fPtr->mFakeExa.mUseExaFlag) {
         if (!xf86LoadSubModule(pScrn, "exa")) {
@@ -582,7 +564,6 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
             TRACE_EXIT(FALSE);
         }
     }
-
 
     TRACE_EXIT(TRUE);
 }
@@ -641,7 +622,6 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
     /*Setting the physcal addr*/
     fPtr->mFB.memPhysBase = pScrn->memPhysBase;
 
-
     /*Save Configuration*/
     fbdevHWSave(pScrn);
 
@@ -652,8 +632,6 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
     }
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
     fbdevHWAdjustFrame(scrnIndex, 0, 0, 0);
-
-
 
     /* mi layer */
     miClearVisualTypes();
@@ -678,7 +656,6 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
         xf86DrvMsg(scrnIndex, X_ERROR, "pixmap depth setup failed\n");
         return FALSE;
     }
-
 
     /*Pitch*/
     pScrn->displayWidth = fbdevHWGetLineLength(pScrn) /
@@ -746,7 +723,6 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
         }
     }
 
-
     xf86SetBlackWhitePixels(pScreen);
     miInitializeBackingStore(pScreen);
     xf86SetBackingStore(pScreen);
@@ -755,7 +731,6 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
 
     /* software cursor */
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
-
 
     /* colormap */
     if (!miCreateDefColormap(pScreen)) {

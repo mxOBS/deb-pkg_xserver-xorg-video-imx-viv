@@ -64,7 +64,9 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	int fgop = 0xCC;
 	int bgop = 0xCC;
 
-//	SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
+	TRACE_EXIT(FALSE);
+
+	SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
 	SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
 
 	if (!CheckBltvalidity(pDstPixmap, alu, planemask)) {
@@ -152,12 +154,12 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 		VIV2DCacheOperation(&pViv->mGrCtx, psrc, FLUSH);
 		psrc->mCpuBusy = FALSE;
 	}
-/*
+
 	if (pdst->mCpuBusy) {
 		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
 		pdst->mCpuBusy = FALSE;
 	}
-*/
+
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
 	}

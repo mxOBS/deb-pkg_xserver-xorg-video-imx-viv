@@ -35,13 +35,8 @@ extern "C" {
 
 #include "vivante_common.h"
 
-#define VIV_EXA_FLUSH_2D_CMD_ENABLE         1
-#define VIV_EXA_SOLID_SIZE_CHECK_ENABLE     1
-#define VIV_EXA_COPY_SIZE_CHECK_ENABLE      1
-
-#define	IMX_EXA_MIN_PIXEL_AREA_SOLID        422500
-#define	IMX_EXA_MIN_PIXEL_AREA_COPY         14400
-#define	IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    150
+#define	IMX_EXA_MIN_AREA_CLEAN         40000
+#define	IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    640
 
     /************************************************************************
      * EXA COPY  (START)

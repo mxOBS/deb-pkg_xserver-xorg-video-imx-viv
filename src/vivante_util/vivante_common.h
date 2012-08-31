@@ -82,7 +82,7 @@ extern "C" {
 #define V_MIN(a,b) ((a)>(b)?(b):(a))
 #define V_MAX(a,b) ((a)>(b)?(a):(b))
 
-#define USE_GPU_FB_MEM_MAP 1
+//#define ALL_NONCACHE_BIGSURFACE 1
 
 #define WIDTH_ALIGNMENT 8
 #define HEIGHT_ALIGNMENT 1
@@ -97,6 +97,10 @@ extern "C" {
 						TRACE_EXIT(FALSE);	\
 				} while ( 0 )
 
+#define	SURF_SIZE_FOR_SW_COND(sw,sh) (	\
+						( gcmALIGN(sw, WIDTH_ALIGNMENT) < IMX_EXA_NONCACHESURF_WIDTH	\
+						|| gcmALIGN(sh, HEIGHT_ALIGNMENT) < IMX_EXA_NONCACHESURF_HEIGHT )	\
+						)
 
 #ifdef __cplusplus
 }

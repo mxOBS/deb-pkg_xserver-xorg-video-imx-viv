@@ -57,14 +57,11 @@ x, __FILE__, __FUNCTION__ ,__LINE__, ## args)
 #define TRACE_ERROR(x, args ...) \
     do {  fprintf(stderr, "[ERROR : %s(), %s:%u]\n\n" x, __FILE__, __FUNCTION__ ,__LINE__, ## args); } while (0)
 #else
-#define TRACE_ENTER() \
-    do {  ; } while (0)
+#define TRACE_ENTER() 
 #define TRACE_EXIT(val) \
     do { return val;  } while (0)
-#define TRACE_INFO(x, args ...) \
-    do { ;} while (0)
-#define TRACE_ERROR(x, args ...) \
-    do {  ;} while (0)
+#define TRACE_INFO(x, args ...) 
+#define TRACE_ERROR(x, args ...) 
 #endif
 
 
