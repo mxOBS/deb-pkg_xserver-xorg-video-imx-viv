@@ -229,7 +229,10 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 		} else {/* Simple source blend */
 
 			if (pBlt->mIsNotStretched)
-				TRACE_EXIT(FALSE);
+			{
+				SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
+				SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
+			}
 
 		}
 

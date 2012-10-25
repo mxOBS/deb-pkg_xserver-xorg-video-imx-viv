@@ -109,7 +109,7 @@ ConvertXAluToOPS(PixmapPtr pPixmap, int alu, Pixel planemask, int *fg, int *bg) 
 }
 
 Bool
-CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
+CheckCPYValidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
 
 	TRACE_ENTER();
 
@@ -125,12 +125,16 @@ CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
 			;
 	}
 
-	/*
+	TRACE_EXIT(TRUE);
+}
+
+Bool
+CheckFILLValidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
+
 	if (alu != GXcopy) {
 		TRACE_INFO("FALSE: (alu != GXcopy)\n");
 		TRACE_EXIT(FALSE);
 	}
-	*/
 
 	if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask)) {
 		TRACE_INFO("FALSE: (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))\n");
@@ -309,23 +313,17 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     pBltInfo->mBgRop = 0xCC;
     pBltInfo->mFgRop = 0xCC;
 
-/*
     if (pdst->mCpuBusy) {
-       VIV2DCacheOperation(&pViv->mGrCtx,pdst,CLEAN);
+       VIV2DCacheOperation(&pViv->mGrCtx,pdst,FLUSH);
+       pdst->mCpuBusy = FALSE;
     }
-*/
+
     if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
         TRACE_ERROR("Copy Blit From Host Failed\n");
         TRACE_EXIT(FALSE);
     }
 
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-/*
-    if (pdst->mCpuBusy) {
-       VIV2DCacheOperation(&pViv->mGrCtx,pdst,INVALIDATE);
-       pdst->mCpuBusy = FALSE;
-    }
-*/
 }
 
 static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,

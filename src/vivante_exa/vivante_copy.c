@@ -64,12 +64,10 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	int fgop = 0xCC;
 	int bgop = 0xCC;
 
-	TRACE_EXIT(FALSE);
-
 	SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
 	SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
 
-	if (!CheckBltvalidity(pDstPixmap, alu, planemask)) {
+	if (!CheckCPYValidity(pDstPixmap, alu, planemask)) {
 		TRACE_EXIT(FALSE);
 	}
 
@@ -197,8 +195,7 @@ VivDoneCopy(PixmapPtr pDstPixmap) {
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-#if VIV_EXA_FLUSH_2D_CMD_ENABLE
 	VIV2DGPUBlitComplete(&pViv->mGrCtx,TRUE);
-#endif
+
 	TRACE_EXIT();
 }

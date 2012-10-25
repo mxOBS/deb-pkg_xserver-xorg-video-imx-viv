@@ -52,11 +52,9 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int fgop = 0xF0;
 	int bgop = 0xF0;
 
-	TRACE_EXIT(FALSE);
-
  	SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
 
-	if (!CheckBltvalidity(pPixmap, alu, planemask)) {
+	if (!CheckFILLValidity(pPixmap, alu, planemask)) {
 		TRACE_EXIT(FALSE);
 	}
 	if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
@@ -151,9 +149,7 @@ VivDoneSolid(PixmapPtr pPixmap) {
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-#if VIV_EXA_FLUSH_2D_CMD_ENABLE
 	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-#endif
 
 	TRACE_EXIT();
 }

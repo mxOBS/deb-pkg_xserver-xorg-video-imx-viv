@@ -128,7 +128,8 @@ extern "C" {
     /************************************************************************
      * UTILITY FUNCTIONS  (START)
      ************************************************************************/
-    Bool CheckBltvalidity(PixmapPtr pPixmap, int alu, Pixel planemask);
+    Bool CheckCPYValidity(PixmapPtr pPixmap, int alu, Pixel planemask);
+    Bool CheckFILLValidity(PixmapPtr pPixmap, int alu, Pixel planemask);
     void ConvertXAluToOPS(PixmapPtr pPixmap, int alu, Pixel planemask, int *fg, int *bg);
     PixmapPtr GetDrawablePixmap(DrawablePtr pDrawable);
     /************************************************************************
