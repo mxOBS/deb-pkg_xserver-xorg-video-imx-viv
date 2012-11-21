@@ -137,9 +137,6 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	Viv2DPixmapPtr psrc = NULL;
 	Viv2DPixmapPtr pdst = NULL;
 
-	pixman_image_t *dstimage;
-	pixman_image_t *srcimage;
-
 	pdst = pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv;
 	psrc = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv;
 	/*Setting up the rectangle*/

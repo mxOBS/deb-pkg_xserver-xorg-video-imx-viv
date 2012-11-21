@@ -98,9 +98,6 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	TRACE_ENTER();
-	pixman_image_t *dstimage;
-	pixman_color_t pixcolor;
-	pixman_box32_t pixbox;
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 	/*Setting up the rectangle*/
