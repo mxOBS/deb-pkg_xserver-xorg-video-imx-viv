@@ -41,7 +41,8 @@ extern "C" {
     typedef enum {
         OPTION_VIV,
         OPTION_NOACCEL,
-        OPTION_ACCELMETHOD
+        OPTION_ACCELMETHOD,
+        OPTION_VIVCACHEMEM
     } VivOpts;
 
     typedef struct _vivFakeExa {

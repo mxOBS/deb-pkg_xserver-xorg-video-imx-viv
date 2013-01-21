@@ -23,10 +23,7 @@
 #include "vivante_gal.h"
 #include "vivante_priv.h"
 
-/* gcvSURF_CACHEABLE_BITMAP OR gcvSURF_BITMAP */
-#define SURFACE_TYPE gcvSURF_CACHEABLE_BITMAP
-/* Cacheable = TRUE otherwise FALSE*/
-#define SURFACE_CACHEABLE TRUE
+extern Bool vivEnableCacheMemory;
 
 /**
  *
@@ -466,9 +463,12 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
         cacheable = FALSE;
     } else
 #endif
-    {
-        surftype = SURFACE_TYPE;
-        cacheable = SURFACE_CACHEABLE;
+    if (vivEnableCacheMemory) {
+        surftype = gcvSURF_CACHEABLE_BITMAP;
+        cacheable = TRUE;
+    } else {
+        surftype = gcvSURF_BITMAP;
+        cacheable = FALSE;
     }
 
     if (surf->mVideoNode.mNode != gcvNULL) {
@@ -531,12 +531,14 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
 			surftype = gcvSURF_BITMAP;
 			cacheable = FALSE;
 		} else
-
 #endif
-		{
-			surftype = SURFACE_TYPE;
-			cacheable = SURFACE_CACHEABLE;
-		}
+        if (vivEnableCacheMemory) {
+            surftype = gcvSURF_CACHEABLE_BITMAP;
+            cacheable = TRUE;
+        } else {
+            surftype = gcvSURF_BITMAP;
+            cacheable = FALSE;
+        }
 
 		status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, &surf->mVideoNode.mNode);
 		if (status != gcvSTATUS_OK) {

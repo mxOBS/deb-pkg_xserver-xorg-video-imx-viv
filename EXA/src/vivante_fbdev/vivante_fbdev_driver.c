@@ -34,6 +34,11 @@
 
 #define VIVANTE_NAME              "VIVANTE"
 #define VIVANTE_DRIVER_NAME       "vivante"
+
+
+Bool vivEnableCacheMemory = TRUE;
+
+
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (END)
  ************************************************************************/
@@ -120,6 +125,8 @@ static const OptionInfoRec VivOptions[] = {
     { OPTION_NOACCEL, "NoAccel", OPTV_BOOLEAN,
         {0}, FALSE},
     { OPTION_ACCELMETHOD, "AccelMethod", OPTV_STRING,
+        {0}, FALSE},
+    { OPTION_VIVCACHEMEM, "VivCacheMem", OPTV_BOOLEAN,
         {0}, FALSE},
     { -1, NULL, OPTV_NONE,
         {0}, FALSE}
@@ -503,6 +510,8 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
 
     memcpy(fPtr->mSupportedOptions, VivOptions, sizeof (VivOptions));
     xf86ProcessOptions(pScrn->scrnIndex, fPtr->mEntity->device->options, fPtr->mSupportedOptions);
+
+    vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_VIVCACHEMEM, TRUE);
 
     fPtr->mFakeExa.mNoAccelFlag = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_NOACCEL, FALSE);
 
