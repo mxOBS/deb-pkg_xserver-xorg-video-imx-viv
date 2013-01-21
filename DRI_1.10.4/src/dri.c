@@ -1585,12 +1585,34 @@ DRIGetDrawableInfo(ScreenPtr pScreen,
 	}
 	else {
 	    /* Not a DRIDrawable */
+	    *index = 0;
 	    return FALSE;
 	}
     }
     else { /* pixmap (or for GLX 1.3, a PBuffer) */
-	/* NOT_DONE */
-	return FALSE;
+
+    if (pDrawable->type == DRAWABLE_PIXMAP) {
+        Viv2DPixmapPtr ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
+        GenericSurfacePtr surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
+
+        if (surf) {
+            *index = (unsigned int)surf->mVideoNode.mNode;
+            *X = surf->mStride;
+        } else {
+            *index = 0;
+            *X = 0;
+        }
+        *numClipRects = 0;
+        *pClipRects = 0;
+        *numBackClipRects = 0;
+        *pBackClipRects = 0;
+
+        return TRUE;
+    } else {
+        *index = 0;
+        return FALSE;
+    }
+
     }
 
     return TRUE;
