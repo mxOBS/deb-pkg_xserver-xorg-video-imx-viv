@@ -64,6 +64,7 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	int fgop = 0xCC;
 	int bgop = 0xCC;
 
+
 	SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
 	SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
 
@@ -128,6 +129,8 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
  * This call is required if PrepareCopy ever succeeds.
  *
 **/
+//#define SUB_COPY_SIZE IMX_EXA_NONCACHESURF_SIZE
+#define SUB_COPY_SIZE (50*50)
 void
 VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	int dstX, int dstY, int width, int height) {
@@ -152,7 +155,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	pViv->mGrCtx.mBlitInfo.mSwcpy=FALSE;
 
 	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-	if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE && pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY )
+	if ( ( width * height ) < SUB_COPY_SIZE && pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY )
 	{
 		pViv->mGrCtx.mBlitInfo.mSwcpy = TRUE;
 		pdst->mCpuBusy = TRUE;

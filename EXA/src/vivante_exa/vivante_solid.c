@@ -52,6 +52,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int fgop = 0xF0;
 	int bgop = 0xF0;
 
+
  	SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
 
 	if (!CheckFILLValidity(pPixmap, alu, planemask)) {
@@ -95,6 +96,8 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  *
  * This call is required if PrepareSolid() ever succeeds.
  */
+//#define SUB_FILL_SIZE IMX_EXA_NONCACHESURF_SIZE
+#define SUB_FILL_SIZE (100*100)
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	TRACE_ENTER();
@@ -108,7 +111,7 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
 	
 	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-	if ( (  x2 - x1 ) * ( y2 - y1 ) < IMX_EXA_NONCACHESURF_SIZE )
+    if ( (  x2 - x1 ) * ( y2 - y1 ) < SUB_FILL_SIZE )
 	{
 		pViv->mGrCtx.mBlitInfo.mSwsolid = TRUE;
 		pdst->mCpuBusy = TRUE;
