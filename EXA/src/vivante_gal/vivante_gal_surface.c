@@ -38,7 +38,7 @@ static gceSTATUS AllocVideoNode(
         IN OUT gctUINT_PTR Size,
         IN OUT gcePOOL *Pool,
         IN gceSURF_TYPE surftype,
-        OUT gcuVIDMEM_NODE_PTR *Node) {
+        OUT gctUINT64 *Node) {
     gcsHAL_INTERFACE iface;
     gceSTATUS status;
 
@@ -73,7 +73,7 @@ OnError:
  */
 static gceSTATUS FreeVideoNode(
         IN gcoHAL Hal,
-        IN gcuVIDMEM_NODE_PTR Node) {
+        IN gctUINT64 Node) {
     gcsHAL_INTERFACE iface;
 
     gcmASSERT(Node != gcvNULL);
@@ -95,7 +95,7 @@ static gceSTATUS FreeVideoNode(
  */
 static gceSTATUS LockVideoNode(
         IN gcoHAL Hal,
-        IN gcuVIDMEM_NODE_PTR Node,
+        IN gctUINT64 Node,
         IN Bool cacheable,
         OUT gctUINT32 *Address,
         OUT gctPOINTER *Memory) {
@@ -114,7 +114,7 @@ static gceSTATUS LockVideoNode(
 
     /* Get allocated node in video memory. */
     *Address = iface.u.LockVideoMemory.address;
-    *Memory = iface.u.LockVideoMemory.memory;
+    *Memory = gcmUINT64_TO_PTR(iface.u.LockVideoMemory.memory);
 
 OnError:
 
@@ -129,7 +129,7 @@ OnError:
  */
 static gceSTATUS UnlockVideoNode(
 	IN gcoHAL Hal,
-	IN gcuVIDMEM_NODE_PTR Node,
+	IN gctUINT64 Node,
 	IN gceSURF_TYPE surftype) {
 
 	gcsHAL_INTERFACE iface;
@@ -471,7 +471,7 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
         cacheable = FALSE;
     }
 
-    if (surf->mVideoNode.mNode != gcvNULL) {
+    if (surf->mVideoNode.mNode != 0) {
         if (surf->mVideoNode.mLogicalAddr != gcvNULL) {
             status = UnlockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, surftype);
             if (status != gcvSTATUS_OK) {

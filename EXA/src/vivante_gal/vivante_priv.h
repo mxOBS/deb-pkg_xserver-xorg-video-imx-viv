@@ -34,7 +34,7 @@ extern "C" {
      * PIXMAP_HANDLING_STUFF(START)
      ************************************************************************/
     typedef struct {
-        gcuVIDMEM_NODE_PTR mNode;
+        gctUINT64 mNode;
         gcePOOL mPool;
         gctUINT mSizeInBytes;
         gctUINT32 mPhysicalAddr;
