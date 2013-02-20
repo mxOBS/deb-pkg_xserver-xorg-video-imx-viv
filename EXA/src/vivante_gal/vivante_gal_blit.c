@@ -141,14 +141,18 @@ Bool SetSolidBrush(GALINFOPTR galInfo) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+    gctUINT32 mask;
+    mask = galInfo->mBlitInfo.mPlaneMask;
+
     status = gco2D_LoadSolidBrush
             (
             gpuctx->mDriver->m2DEngine,
             (gceSURF_FORMAT) galInfo->mBlitInfo.mDstSurfInfo.mFormat.mVivFmt,
             (gctBOOL) galInfo->mBlitInfo.mColorConvert,
-            galInfo->mBlitInfo.mColorARGB32,
-            galInfo->mBlitInfo.mPlaneMask
+            galInfo->mBlitInfo.mColorARGB32 & mask,
+            (gctUINT64)(0xFFFFFFFFFFFFFFFF)
             );
+
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("gco2D_LoadSolidBrush failed\n");
         TRACE_EXIT(FALSE);
