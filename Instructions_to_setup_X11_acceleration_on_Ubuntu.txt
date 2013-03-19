@@ -1,5 +1,5 @@
 
-    Instructions to Setup EXA on Ubuntu
+    Instructions to Setup X11 acceleration on Ubuntu
 
 Contents
      1. Prepare Ubuntu desktop build environment
@@ -44,9 +44,16 @@ Contents
 
         dpkg -i gpu-viv-bin-mx6q_<KERNEL VERSION>-<RELEASE VESRION>_armel.deb
 
-2.2 Install Kernel module driver driver.
+2.2 Install Kernel module driver.
 
         dpkg -i kernel_<KERNEL VERSION>-imx_<RELEASE VESRION>_armel.deb
+
+        After this debian package is installed, please double check drm.ko and 
+        vivante.ko is properly installed.
+        If you don't use prebuilt linux kernel, you need rebuild the kernel module 
+        while build your own Linux kernel. Please refer to Linux reference manual 
+        for building DRM.
+
 
 2.3 Switch the default egl backend from fb to x11.
         cd /usr/lib
@@ -86,6 +93,62 @@ Contents
 3.3. Disable Mesa openGL on target board
 mv /usr/lib/arm-linux-gnueabi/mesa /usr/lib/arm-linux-gnueabi/mesa_bak
 mv /usr/lib/arm-linux-gnueabi/mesa-egl /usr/lib/arm-linux-gnueabi/mesa-egl_bak
+
+3.4 Update /etc/X11/xorg.conf
+Replace xorg.conf with following contents
+######################################
+Section "ServerLayout"
+        Identifier      "Default Layout"
+        Screen          "Default Screen"
+EndSection
+
+Section "Module"
+        Load            "dbe"
+        Load            "extmod"
+        Load            "freetype"
+        Load            "glx"
+        Load            "dri"
+EndSection
+
+Section "InputDevice"
+        Identifier      "Generic Keyboard"
+        Driver          "kbd"
+        Option          "XkbLayout" "us"
+        Option          "XkbModel" "pc105"
+        Option          "XkbRules" "xorg"
+EndSection
+
+Section "InputDevice"
+        Identifier      "Configured Mouse"
+        Driver          "mouse"
+        Option          "CorePointer"
+EndSection
+
+Section "Device"
+        Identifier      "i.MX Accelerated Framebuffer Device"
+        Driver          "vivante"
+        Option          "fbdev"         "/dev/fb0"
+        Option          "vivante_fbdev" "/dev/fb0"
+        Option          "HWcursor"      "false"
+EndSection
+
+Section "Monitor"
+        Identifier      "Configured Monitor"
+EndSection
+
+Section "Screen"
+        Identifier      "Default Screen"
+        Monitor         "Configured Monitor"
+        Device          "i.MX Accelerated Framebuffer Device"
+        DefaultDepth    24
+EndSection
+
+Section "DRI"
+        Mode 0666
+EndSection
+######################################
+
+Note: If you want to use 16bpp framebuffer, you can change the defaultdepth to 16.
 
 4. Start X server
 =================
