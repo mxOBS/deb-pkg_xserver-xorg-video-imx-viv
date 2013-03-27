@@ -105,7 +105,20 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
 	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
 	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
-	pViv->mGrCtx.mBlitInfo.mSwsolid=FALSE;
+
+	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
+	if ( (  x2 - x1 ) * ( y2 - y1 ) < IMX_EXA_NONCACHESURF_SIZE )
+	{
+
+		pdst->mCpuBusy = TRUE;
+
+		/* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
+		gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
+
+		pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
+		TRACE_EXIT();
+	}
+
 	
 	if (pdst->mCpuBusy) {
 		VIV2DCacheOperation(&pViv->mGrCtx, pdst,FLUSH);

@@ -95,7 +95,10 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	pViv->mGrCtx.mBlitInfo.mBgRop = fgop;
 	pViv->mGrCtx.mBlitInfo.mFgRop = bgop;
 
-	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
+	if ( alu == GXcopy)
+		pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSIMCOPY;
+	else
+		pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
 
 	TRACE_EXIT(TRUE);
 }
@@ -146,7 +149,35 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
 	pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
 	pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
-	pViv->mGrCtx.mBlitInfo.mSwcpy=FALSE;
+
+	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
+	if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE && pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY )
+	{
+
+		/* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
+		gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
+		gcmASSERT((pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride%4)==0);
+
+		if ( MapViv2DPixmap(psrc) != MapViv2DPixmap(pdst) )
+		{
+			pdst->mCpuBusy = TRUE;
+			psrc->mCpuBusy = TRUE;
+			pixman_blt((uint32_t *) MapViv2DPixmap(psrc),
+				(uint32_t *) MapViv2DPixmap(pdst),
+				pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride/4,
+				pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4,
+				pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp,
+				pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp,
+				srcX,
+				srcY,
+				dstX,
+				dstY,
+				width,
+				height);
+
+			TRACE_EXIT();
+		}
+	}
 
 	if (psrc->mCpuBusy) {
 		VIV2DCacheOperation(&pViv->mGrCtx, psrc, FLUSH);
