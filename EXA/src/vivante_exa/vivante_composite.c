@@ -135,8 +135,8 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 		TRACE_EXIT(FALSE);
 	}
 
-	if ( (pxDst->drawable.width * pxDst->drawable.height) < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE )
-		TRACE_EXIT(FALSE);
+//	if ( (pxDst->drawable.width * pxDst->drawable.height) < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE )
+//		TRACE_EXIT(FALSE);
 
 	/*Not supported op*/
 	if (!GetBlendingFactors(op, &pBlt->mBlendOp)) {
@@ -230,8 +230,8 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 
 			if (pBlt->mIsNotStretched)
 			{
-				SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
-				SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
+//				SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
+//				SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
 			}
 
 		}
@@ -645,12 +645,14 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 	VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
 	Viv2DPixmapPtr psrc;
 	Viv2DPixmapPtr pdst;
+	Viv2DPixmapPtr pmsk;
 
 	Bool isMasked = pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN
 		|| pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN
 		|| pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SIMPLE;
 
 	pBlt->mSwcmp = FALSE;
+#if 0
 	/* Currenlty if mask on, it will not fall into this path ,otherwise consider mask */
 	/* IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT is small, enable this */
 	/* otherwise disable it, it is not meaningful when the size is big */
@@ -663,14 +665,16 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 		VIVSWComposite(pxDst, srcX, srcY, maskX, maskY, dstX, dstY, width, height);
 		return ;
 	}
+#endif
 
 
 	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
 	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
+    pmsk = (Viv2DPixmapPtr)pBlt->mMskSurfInfo.mPriv;
 
 	if ( psrc->mCpuBusy )
 	{
-		VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH);
+		VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH); // TODO: next time, PrepareAccess, can sip INVALIDATE
 		psrc->mCpuBusy = FALSE;
 	}
 
@@ -688,6 +692,12 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 	}
 #endif
 
+    if ( pmsk && pmsk->mCpuBusy )
+	{
+		VIV2DCacheOperation(&pViv->mGrCtx,pmsk, FLUSH);
+		pmsk->mCpuBusy = FALSE;
+	}
+
 	if ( isMasked )
 		CalOrgBoxInfoWithMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
 	else
@@ -703,8 +713,15 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 
 	if (!DoCompositeBlit(&pViv->mGrCtx, &opBox)) {
 		TRACE_ERROR("Copy Blit Failed\n");
+        goto quit;
 	}
 
+	psrc->mGpuBusy = TRUE; // locked by gpu
+	pdst->mGpuBusy = TRUE;
+    if(pmsk)
+    	pmsk->mGpuBusy = TRUE;
+
+quit:
 	TRACE_EXIT();
 }
 
@@ -721,6 +738,6 @@ VivDoneComposite(PixmapPtr pDst) {
     }
 
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
     TRACE_EXIT();
 }

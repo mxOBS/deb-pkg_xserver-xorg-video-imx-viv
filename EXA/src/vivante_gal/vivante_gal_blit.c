@@ -304,6 +304,13 @@ Bool DoSolidBlit(GALINFOPTR galInfo) {
     VIV2DBLITINFOPTR pBltInfo = &galInfo->mBlitInfo;
     gcsRECT dstRect = {pBltInfo->mDstBox.x1, pBltInfo->mDstBox.y1, pBltInfo->mDstBox.x2, pBltInfo->mDstBox.y2};
     status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
+/*    status = gco2D_Clear(gpuctx->mDriver->m2DEngine,
+        1,
+        &dstRect,
+        ((galInfo->mBlitInfo.mColorARGB32<<2) & galInfo->mBlitInfo.mPlaneMask),
+        pBltInfo->mFgRop,
+        pBltInfo->mBgRop,
+        pBltInfo->mDstSurfInfo.mFormat.mVivFmt); */
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Blit failed\n");
         TRACE_EXIT(FALSE);
@@ -1016,9 +1023,9 @@ static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurface
 	{
 
 		case 16:
-			retvsurf = VGetSurfAddrBy16(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch);
+			retvsurf = VGetSurfAddrBy16(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch, 1);
 		case 32:
-			retvsurf = VGetSurfAddrBy32(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch);
+			retvsurf = VGetSurfAddrBy32(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch, 1);
 		default:
 			return ;
 	}

@@ -687,6 +687,15 @@ Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppix) {
         TRACE_INFO("NOT GPU GENERATED SURFACE\n");
         TRACE_EXIT(TRUE);
     }
+
+    if(ppix != NULL) {
+        if(ppix->mGpuBusy) {
+        	VIV2DGPUBlitComplete(galInfo, TRUE);
+        	VIV2DCacheOperation(galInfo, ppix, INVALIDATE);
+            ppix->mGpuBusy = FALSE;
+        }
+    }
+
     if (!FreeGPUSurface(gpuctx, ppix)) {
         TRACE_ERROR("Unable to free gpu surface\n");
         TRACE_EXIT(FALSE);
@@ -817,7 +826,8 @@ static Bool VDestroySurf32() {
 
 }
 
-Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+// FIXME! cacheable buffer, shared by two users!
+Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride, int cacheable)
  {
 
 	static int gphyaddr;
@@ -843,7 +853,7 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 	if (_vsurf16.surf==NULL) {
 
 		lastmaxsize=maxsize;
-		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,gcvSURF_BITMAP,gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
+		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
 
 		if (status!=gcvSTATUS_OK)
 			TRACE_EXIT(FALSE);
@@ -870,7 +880,7 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
  }
 
 
- Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+ Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride, int cacheable)
  {
 
 	static int gphyaddr;
@@ -896,7 +906,7 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 	if (_vsurf32.surf==NULL) {
 
 		lastmaxsize=maxsize;
-		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,gcvSURF_BITMAP,gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
+		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
 
 		if (status!=gcvSTATUS_OK)
 			TRACE_EXIT(FALSE);
@@ -920,6 +930,20 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 
 	TRACE_EXIT(TRUE);
 
+}
+
+void VFlushSurf(int surf16, void *logAddr, int size, gceCACHEOPERATION op)
+{
+    if(surf16)
+        gcoSURF_Cache(&_vsurf16.surf,
+                         logAddr,
+                         size,
+                         op);
+    else
+        gcoSURF_Cache(&_vsurf32.surf,
+                         logAddr,
+                         size,
+                         op);
 }
 
 void  VDestroySurf()

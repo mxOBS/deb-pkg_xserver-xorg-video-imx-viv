@@ -52,7 +52,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int fgop = 0xF0;
 	int bgop = 0xF0;
 
- 	SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
+ 	//SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
 
 	if (!CheckFILLValidity(pPixmap, alu, planemask)) {
 		TRACE_EXIT(FALSE);
@@ -107,6 +107,7 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
 
 	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
+#if 0
 	if ( (  x2 - x1 ) * ( y2 - y1 ) < IMX_EXA_NONCACHESURF_SIZE )
 	{
 
@@ -118,28 +119,36 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 		pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
 		TRACE_EXIT();
 	}
-
+#endif
 	
 	if (pdst->mCpuBusy) {
-		VIV2DCacheOperation(&pViv->mGrCtx, pdst,FLUSH);
+		VIV2DCacheOperation(&pViv->mGrCtx, pdst,CLEAN);
 		pdst->mCpuBusy = FALSE;
 	}
 
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
+        goto quit;
 	}
 
 	if (!SetClipping(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
+        goto quit;
 	}
 
 	if (!SetSolidBrush(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
+        goto quit;
 	}
 
 	if (!DoSolidBlit(&pViv->mGrCtx)) {
 		TRACE_ERROR("Solid Blit Failed\n");
+        goto quit;
 	}
+
+	pdst->mGpuBusy = TRUE;
+
+quit:
 	TRACE_EXIT();
 }
 
@@ -162,7 +171,7 @@ VivDoneSolid(PixmapPtr pPixmap) {
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+	VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
 
 	TRACE_EXIT();
 }

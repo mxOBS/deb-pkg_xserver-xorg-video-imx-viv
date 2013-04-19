@@ -1,0 +1,51 @@
+
+.PHONY: all clean install
+
+target := vivante_drv.so
+
+OBJS := vivante_gal/vivante_gal_blit.o \
+	vivante_gal/vivante_gal_gpu.o \
+	vivante_gal/vivante_gal_surface.o \
+	vivante_fbdev/vivante_fbdev_driver.o \
+	vivante_exa/vivante_exa.o \
+	vivante_exa/vivante_solid.o \
+	vivante_exa/vivante_copy.o \
+	vivante_exa/vivante_composite.o \
+	vivante_exa/vivante_pixmap.o \
+	vivante_fbdev/vivante_dri.o \
+	vivante_util/logger.o \
+
+PIXMAN := pixman-1
+
+ifeq ($(NODRI),1)
+CFLAGS += -DDISABLE_VIVANTE_DRI
+endif
+
+CFLAGS += -fvisibility=hidden -fPIC -DPIC -O2
+CFLAGS += -I. -I.. -I/usr/include/xorg -I/usr/include/$(PIXMAN)
+CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa
+CFLAGS += -I/usr/include/drm
+CFLAGS += -marm
+
+LFLAGS += -fPIC -lGAL -lm -ldl -Wl,-soname -Wl,vivante_drv.so #-Wl,--no-allow-shlib-undefined
+
+
+all: .libs/$(target)
+
+.libs/$(target): .libs $(OBJS)
+	gcc -shared -fPIC -o .libs/$(target) $(OBJS) $(LFLAGS)
+
+.libs:
+	mkdir .libs
+
+clean:
+	-@rm -r .libs/
+	-@rm $(OBJS)
+
+install:
+	cp .libs/$(target) /usr/lib/xorg/modules/drivers/
+
+%.o: %.c
+	gcc $(CFLAGS) -o $@ -c $<
+
+

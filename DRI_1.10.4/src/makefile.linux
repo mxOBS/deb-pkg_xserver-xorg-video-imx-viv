@@ -1,0 +1,40 @@
+
+.PHONY: all clean install
+
+target := libdri.so
+
+OBJS := dri.o \
+	drimodule.o \
+	xf86dri.o \
+
+PIXMAN := pixman-1
+
+CFLAGS += -fvisibility=hidden -fPIC -DPIC
+CFLAGS += -I. -I.. -I/usr/include/xorg -I/usr/include/$(PIXMAN)
+CFLAGS += -I../../EXA/src/vivante_gal
+CFLAGS += -marm
+# -Wa,-mimplicit-it=thumb
+
+#LFLAGS += -lGAL -lm -ldl -ldrm -lX11 -module -Wl,-soname -Wl,$(target) -Wl,-rpath,/usr/lib/xorg/modules/extensions
+#LFLAGS += -lGAL -lm -ldl -ldrm -lX11 -module -Wl,-soname -Wl,$(target)
+LFLAGS += -lGAL -lm -ldl -ldrm -lX11 -Wl,-soname -Wl,$(target)
+
+all: .libs/$(target)
+
+.libs/$(target): .libs $(OBJS)
+	gcc -shared -fPIC -o .libs/$(target) $(OBJS) $(LFLAGS)
+
+.libs:
+	mkdir .libs
+
+clean:
+	-@rm -r .libs/
+	-@rm $(OBJS)
+
+install:
+	cp .libs/$(target) /usr/lib/xorg/modules/extensions/
+
+%.o: %.c
+	gcc $(CFLAGS) -o $@ -c $<
+
+

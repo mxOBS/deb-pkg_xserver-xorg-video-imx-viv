@@ -27,47 +27,37 @@ extern "C" {
 #endif
 #include <stdio.h>
 
-    /*******************************************************************************
-     *
-     * DEBUG Macros (START)
-     *
-     ******************************************************************************/
-    //#define VIVFBDEV_DEBUG
-#ifdef VIVFBDEV_DEBUG
-#define DEBUGP(x, args ...) fprintf(stderr, "[%s(), %s:%u]\n\n" \
-x, __FILE__, __FUNCTION__ ,__LINE__, ## args)
-#else
-#define DEBUGP(x, args ...)
-#endif
+//#define ENABLE_LOG
+#if defined(ENABLE_LOG)
+void OpenLog();
+void CloseLog();
+void LogText(const char *fmt, ...);
 
-#ifdef VIVFBDEV_DEBUG
-#define TRACE_ENTER() \
-    do {  PrintEnter(); DEBUGP("ENTERED FUNCTION : %s\n", __FUNCTION__); } while (0)
-#define TRACE_EXIT(val) \
-    do { PrintExit(); DEBUGP("EXITED FUNCTION : %s\n", __FUNCTION__); return val;  } while (0)
-#define TRACE_INFO(x, args ...) \
-    do { fprintf(stderr, "[INFO : %s(), %s:%u]\n\n" x, __FILE__, __FUNCTION__ ,__LINE__, ## args); } while (0)
-#define TRACE_ERROR(x, args ...) \
-    do {  fprintf(stderr, "[ERROR : %s(), %s:%u]\n\n" x, __FILE__, __FUNCTION__ ,__LINE__, ## args); } while (0)
+#define LOG_START OpenLog
+#define LOG_END   CloseLog
+#define LOG       LogText
+#define LOGD LOG
+#define LOGW LOG
+#define LOGE LOG
+#define TRACE_INFO  LOGD
+#define TRACE_ERROR LOGE
 #else
+#define LOG_START(...)
+#define LOG_END(...)
+#define LOG(...)
+#define LOGD(...)
+#define LOGW(...)
+#define LOGE(...)
+#define TRACE_INFO(...)
+#define TRACE_ERROR(...)
+#endif
+#define DEBUGP(x, args ...)
+
 #define TRACE_ENTER()
 #define TRACE_EXIT(val) \
     do { return val;  } while (0)
-#define TRACE_INFO(x, args ...)
-#define TRACE_ERROR(x, args ...)
-#endif
 
-
-
-    /*******************************************************************************
-     *
-     * DEBUG Macros (END)
-     *
-     ******************************************************************************/
-
-    void PrintEnter();
-    void PrintExit();
-    void PrintString(const char* str);
+#define FSLASSERT(x) do { if(!(x)) {LOG("Assertion failed @%s:%d\n", __FILE__, __LINE__);} } while(0);
 
 #ifdef __cplusplus
 }

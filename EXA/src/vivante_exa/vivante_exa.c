@@ -261,12 +261,12 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
         case 16:
             bytesperpixel = 2;
-            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch, 1);
 
             break;
         case 32:
             bytesperpixel = 4;
-            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch, 1);
             break;
         default:
             return FALSE;
@@ -276,7 +276,7 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
         TRACE_EXIT(FALSE);
 
     mmap.mapping = NULL;
-    mmap.mSize = aligned_pitch*aligned_width;
+    mmap.mSize = aligned_pitch*aligned_height;
 
     aligned_start = (char *) mmap.mUserAddr;
 
@@ -317,6 +317,8 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
        VIV2DCacheOperation(&pViv->mGrCtx,pdst,FLUSH);
        pdst->mCpuBusy = FALSE;
     }
+
+    VFlushSurf((pDst->drawable.bitsPerPixel == 16), mmap.mUserAddr, mmap.mSize, gcvCACHE_FLUSH);
 
     if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
         TRACE_ERROR("Copy Blit From Host Failed\n");
@@ -406,11 +408,26 @@ Bool
 VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
 	int h, char *src, int src_pitch) {
 
+    // wait hw done and invalidate the cache
+    Bool ret;
 
-	if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
+/*	if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
+    {
+    	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pDst);
+    	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
+        if(vivpixmap->mGpuBusy) {
+        	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+        	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
+            vivpixmap->mGpuBusy = FALSE;
+        }
 		ftype = DONE_BY_SWCPY;
-	else
+    }
+	else */
+    {
 		ftype = DONE_BY_VSURF;
+    }
 
-	return _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
+	ret = _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
+
+    return ret;
 }

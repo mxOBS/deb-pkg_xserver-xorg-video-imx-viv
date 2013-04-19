@@ -180,6 +180,14 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 			TRACE_EXIT(FALSE);
 		}
 
+        // invalid cache: buffer will be cleared by gpu
+		if(pPixmap != NULL) {
+			Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
+            if(vivpixmap != NULL)
+            	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
+		}
+        // TODO: clear the surface to prevent data leakage
+
 		TRACE_EXIT(TRUE);
 
 	} else if (pPixData) {
@@ -222,18 +230,39 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 					TRACE_EXIT(FALSE);
 				}
 			}
+            else
+            {
+                // check gpu access: wait it done
+                if(pPixmap != NULL) {
+                	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
+                    if(vivpixmap && vivpixmap->mGpuBusy) {
+                    	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+                        vivpixmap->mGpuBusy = FALSE;
+                    }
+                }
+            }
 
 			pPixmap->devKind = GetStride(vivPixmap);
-
-			/* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
-			if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
-			{
-				CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
-			}
-
-
 		}
+        else
+        {
+            // check gpu access: wait it done
+            if(pPixmap != NULL) {
+            	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
+                if(vivpixmap && vivpixmap->mGpuBusy) {
+                	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+                    vivpixmap->mGpuBusy = FALSE;
+                }
+            }
+        }
 
+        // invalid cache: buffer will be cleard by gpu
+        if(pPixmap != NULL) {
+        	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
+            if(vivpixmap)
+            	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
+        }
+        // TODO: clear the surface to prevent data leakage
 	}
 
 	TRACE_EXIT(TRUE);
@@ -290,6 +319,13 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
 		TRACE_EXIT(FALSE);
 
 	}
+
+    // wait hw done and invalidate the cache
+    if(vivpixmap->mGpuBusy) {
+    	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
+        vivpixmap->mGpuBusy = FALSE;
+    }
 
 	vivpixmap->mCpuBusy=TRUE;
 	TRACE_EXIT(TRUE);

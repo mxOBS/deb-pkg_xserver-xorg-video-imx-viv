@@ -21,6 +21,7 @@
 
 #include "vivante_exa.h"
 #include "vivante.h"
+#include "vivante_priv.h"
 
 /**
  * PrepareCopy() sets up the driver for doing a copy within video
@@ -64,8 +65,8 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 	int fgop = 0xCC;
 	int bgop = 0xCC;
 
-	SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
-	SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
+	//SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
+	//SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
 
 	if (!CheckCPYValidity(pDstPixmap, alu, planemask)) {
 		TRACE_EXIT(FALSE);
@@ -149,7 +150,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
 	pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
 	pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
-
+#if 0
 	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
 	if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE && pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY )
 	{
@@ -178,6 +179,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 			TRACE_EXIT();
 		}
 	}
+#endif
 
 	if (psrc->mCpuBusy) {
 		VIV2DCacheOperation(&pViv->mGrCtx, psrc, FLUSH);
@@ -191,19 +193,28 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
+        goto quit;
 	}
 
 	if (!SetSourceSurface(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
+        goto quit;
 	}
 
 	if (!SetClipping(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
+        goto quit;
 	}
 
 	if (!DoCopyBlit(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
+        goto quit;
 	}
+
+	psrc->mGpuBusy = TRUE; // locked by gpu
+	pdst->mGpuBusy = TRUE;
+
+quit:
 	TRACE_EXIT();
 }
 
@@ -226,7 +237,7 @@ VivDoneCopy(PixmapPtr pDstPixmap) {
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
 	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-	VIV2DGPUBlitComplete(&pViv->mGrCtx,TRUE);
+	VIV2DGPUBlitComplete(&pViv->mGrCtx,FALSE);
 
 	TRACE_EXIT();
 }

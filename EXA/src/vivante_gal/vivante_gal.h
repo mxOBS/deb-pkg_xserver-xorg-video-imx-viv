@@ -218,8 +218,9 @@ extern "C" {
     Bool GetVivPictureFormat(int exa_fmt, VivPictFmtPtr viv);
     Bool GetDefaultFormat(int bpp, VivPictFmtPtr format);
     char *MapViv2DPixmap(Viv2DPixmapPtr pdst);
-    Bool VGetSurfAddrBy16(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
-    Bool VGetSurfAddrBy32(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
+    Bool VGetSurfAddrBy16(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride, int cacheable);
+    Bool VGetSurfAddrBy32(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride, int cacheable);
+    void VFlushSurf(int surf16, void *logAddr, int size, gceCACHEOPERATION op);
     void VDestroySurf();
     /************************************************************************
      *EXA RELATED UTILITY (END)
