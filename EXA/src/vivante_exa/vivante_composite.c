@@ -87,6 +87,16 @@ static inline int IsDestAlphaRequired(int op) {
             0) >> (op)) & 1);
 }
 
+Bool
+DummyCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
+    return FALSE;
+}
+Bool
+DummyPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
+	PicturePtr pDst, PixmapPtr pxSrc, PixmapPtr pxMsk, PixmapPtr pxDst) {
+	return FALSE;
+}
+
 /**
  * CheckComposite() checks to see if a composite operation could be
  * accelerated.
@@ -672,31 +682,10 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
     pmsk = (Viv2DPixmapPtr)pBlt->mMskSurfInfo.mPriv;
 
-	if ( psrc->mCpuBusy )
-	{
-		VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH); // TODO: next time, PrepareAccess, can sip INVALIDATE
-		psrc->mCpuBusy = FALSE;
-	}
-
-#if ALL_NONCACHE_BIGSURFACE
-	if ( pdst->mCpuBusy && SURF_SIZE_FOR_SW_COND(pxDst->drawable.width, pxDst->drawable.height))
-	{
-		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
-		pdst->mCpuBusy = FALSE;
-	}
-#else
-	if ( pdst->mCpuBusy )
-	{
-		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
-		pdst->mCpuBusy = FALSE;
-	}
-#endif
-
-    if ( pmsk && pmsk->mCpuBusy )
-	{
-		VIV2DCacheOperation(&pViv->mGrCtx,pmsk, FLUSH);
-		pmsk->mCpuBusy = FALSE;
-	}
+	// sync with cpu cache
+    preGpuDraw(pViv, psrc, TRUE);
+    preGpuDraw(pViv, pmsk, TRUE);
+    preGpuDraw(pViv, pdst, FALSE);
 
 	if ( isMasked )
 		CalOrgBoxInfoWithMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
@@ -716,10 +705,10 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
         goto quit;
 	}
 
-	psrc->mGpuBusy = TRUE; // locked by gpu
-	pdst->mGpuBusy = TRUE;
-    if(pmsk)
-    	pmsk->mGpuBusy = TRUE;
+    // put these pixmaps into gpu queue
+    queuePixmapToGpu(psrc);
+    queuePixmapToGpu(pmsk);
+    queuePixmapToGpu(pdst);
 
 quit:
 	TRACE_EXIT();
@@ -737,7 +726,7 @@ VivDoneComposite(PixmapPtr pDst) {
         TRACE_EXIT();
     }
 
-    VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-    VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
+	postGpuDraw(pViv);
+
     TRACE_EXIT();
 }

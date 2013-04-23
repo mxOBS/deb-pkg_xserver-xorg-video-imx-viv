@@ -610,13 +610,15 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
 
     TRACE_ENTER();
 
-    DEBUGP("\tbitsPerPixel=%d, depth=%d, defaultVisual=%s\n"
+    LOG_START("\tbitsPerPixel=%d, depth=%d, defaultVisual=%s\n"
             "\tmask: %lu,%lu,%lu, offset: %lu,%lu,%lu\n",
             pScrn->bitsPerPixel,
             pScrn->depth,
             xf86GetVisualName(pScrn->defaultVisual),
             pScrn->mask.red, pScrn->mask.green, pScrn->mask.blue,
             pScrn->offset.red, pScrn->offset.green, pScrn->offset.blue);
+
+    initPixmapQueue();
 
     /*Mapping the Video memory*/
     if (NULL == (fPtr->mFB.mFBMemory = fbdevHWMapVidmem(pScrn))) {
@@ -790,12 +792,14 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
     Bool ret = FALSE;
     TRACE_ENTER();
 
+    freePixmapQueue();
+
 #ifndef DISABLE_VIVANTE_DRI
     VivDRICloseScreen(pScreen);
 #endif
 
     if (fPtr->mFakeExa.mUseExaFlag) {
-        DEBUGP("UnLoading EXA");
+        LOG_END("UnLoading EXA");
         if (fPtr->mFakeExa.mIsInited && !DestroyExaLayer(pScreen)) {
             xf86DrvMsg(scrnIndex, X_ERROR,
                     "internal error: DestroyExaLayer failed "

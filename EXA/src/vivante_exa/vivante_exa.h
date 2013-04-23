@@ -44,6 +44,10 @@ extern "C" {
     void
     VivDoneCopy(PixmapPtr pDstPixmap);
 
+    Bool
+    DummyPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
+    	int xdir, int ydir, int alu, Pixel planemask);
+
     /************************************************************************
      * EXA COPY (FINISH)
      ************************************************************************/
@@ -60,6 +64,8 @@ extern "C" {
     void
     VivDoneSolid(PixmapPtr pPixmap);
 
+    Bool
+    DummyPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg);
     /************************************************************************
      * EXA SOLID (FINISH)
      ************************************************************************/
@@ -77,6 +83,12 @@ extern "C" {
             int dstX, int dstY, int width, int height);
     void
     VivDoneComposite(PixmapPtr pDst);
+
+    Bool
+    DummyCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst);
+    Bool
+    DummyPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
+    	PicturePtr pDst, PixmapPtr pxSrc, PixmapPtr pxMsk, PixmapPtr pxDst);
 
     /************************************************************************
      * EXA COMPOSITE (FINISH)
@@ -120,6 +132,10 @@ extern "C" {
 
     Bool
     VivDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h, char *dst, int dst_pitch);
+
+    Bool
+    DummyUploadToScreen(PixmapPtr pDst, int x, int y, int w,
+    	int h, char *src, int src_pitch);
     /************************************************************************
      * EXA OTHER FUNCTIONS (END)
      ************************************************************************/

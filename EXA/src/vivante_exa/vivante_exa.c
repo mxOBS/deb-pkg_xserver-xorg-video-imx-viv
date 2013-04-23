@@ -221,6 +221,8 @@ static Bool DoneBySWCPY(PixmapPtr pDst, int x, int y, int w,
     if (mDestAddr == NULL)
         TRACE_EXIT(FALSE);
 
+    preCpuDraw(pViv, pdst);
+
     mDestAddr += y * stride + x *cpp;
 
     for (i = 0; i < h; i++) {
@@ -229,8 +231,7 @@ static Bool DoneBySWCPY(PixmapPtr pDst, int x, int y, int w,
         src += src_pitch;
     }
 
-//    pdst->mSwAnyWay = TRUE;
-    pdst->mCpuBusy = TRUE;
+    postCpuDraw(pViv, pdst);
 
     TRACE_EXIT(TRUE);
 }
@@ -313,19 +314,19 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     pBltInfo->mBgRop = 0xCC;
     pBltInfo->mFgRop = 0xCC;
 
-    if (pdst->mCpuBusy) {
-       VIV2DCacheOperation(&pViv->mGrCtx,pdst,FLUSH);
-       pdst->mCpuBusy = FALSE;
-    }
 
+	// sync with cpu cache
     VFlushSurf((pDst->drawable.bitsPerPixel == 16), mmap.mUserAddr, mmap.mSize, gcvCACHE_FLUSH);
+    preGpuDraw(pViv, pdst, FALSE);
 
     if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
         TRACE_ERROR("Copy Blit From Host Failed\n");
         TRACE_EXIT(FALSE);
     }
 
+    // TODO: can delay?
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    freePixmapQueue();
 }
 
 static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
@@ -391,6 +392,7 @@ static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
     }
 
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    freePixmapQueue();
     UnmapUserMem(&pViv->mGrCtx, &mmap);
     //exaMarkSync(pDst->drawable.pScreen);
     free(start);
@@ -411,18 +413,11 @@ VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
     // wait hw done and invalidate the cache
     Bool ret;
 
-/*	if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
+	if (1)//( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
     {
-    	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pDst);
-    	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDst);
-        if(vivpixmap->mGpuBusy) {
-        	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-        	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
-            vivpixmap->mGpuBusy = FALSE;
-        }
 		ftype = DONE_BY_SWCPY;
     }
-	else */
+	else
     {
 		ftype = DONE_BY_VSURF;
     }
@@ -431,3 +426,10 @@ VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
 
     return ret;
 }
+
+Bool
+DummyUploadToScreen(PixmapPtr pDst, int x, int y, int w,
+	int h, char *src, int src_pitch) {
+    return FALSE;
+}
+

@@ -172,6 +172,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 		const unsigned long offset =(CARD8*) (pPixData) - screenMemoryBegin;
 
+        LOGD("Wrapper address %08x in fb (%08x-%08x) to pixmap, offset=%d\n",
+            pPixData, screenMemoryBegin, screenMemoryEnd, offset);
+
 		/* Store GPU address. */
 		const unsigned long physical = pViv->mFB.memPhysBase + offset;
 		if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
@@ -180,13 +183,8 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 			TRACE_EXIT(FALSE);
 		}
 
-        // invalid cache: buffer will be cleared by gpu
-		if(pPixmap != NULL) {
-			Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
-            if(vivpixmap != NULL)
-            	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
-		}
-        // TODO: clear the surface to prevent data leakage
+        // clear the surface to prevent data leakage
+        CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
 
 		TRACE_EXIT(TRUE);
 
@@ -213,6 +211,14 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 	} else {
 
+        // check gpu access: wait it done
+        if(pPixmap != NULL) {
+            if(vivPixmap && vivPixmap->mGpuBusy) {
+            	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+                freePixmapQueue();
+            }
+        }
+
 		if (isChanged) {
 
 			if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, vivPixmap) )
@@ -230,39 +236,12 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 					TRACE_EXIT(FALSE);
 				}
 			}
-            else
-            {
-                // check gpu access: wait it done
-                if(pPixmap != NULL) {
-                	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
-                    if(vivpixmap && vivpixmap->mGpuBusy) {
-                    	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-                        vivpixmap->mGpuBusy = FALSE;
-                    }
-                }
-            }
 
 			pPixmap->devKind = GetStride(vivPixmap);
 		}
-        else
-        {
-            // check gpu access: wait it done
-            if(pPixmap != NULL) {
-            	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
-                if(vivpixmap && vivpixmap->mGpuBusy) {
-                	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-                    vivpixmap->mGpuBusy = FALSE;
-                }
-            }
-        }
 
-        // invalid cache: buffer will be cleard by gpu
-        if(pPixmap != NULL) {
-        	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPixmap);
-            if(vivpixmap)
-            	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
-        }
-        // TODO: clear the surface to prevent data leakage
+        // clear the surface to prevent data leakage
+        CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
 	}
 
 	TRACE_EXIT(TRUE);
@@ -320,14 +299,8 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
 
 	}
 
-    // wait hw done and invalidate the cache
-    if(vivpixmap->mGpuBusy) {
-    	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-    	VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
-        vivpixmap->mGpuBusy = FALSE;
-    }
+    preCpuDraw(pViv, vivpixmap);
 
-	vivpixmap->mCpuBusy=TRUE;
 	TRACE_EXIT(TRUE);
 }
 
@@ -347,6 +320,8 @@ VivFinishAccess(PixmapPtr pPix, int index) {
 	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
 	IGNORE(index);
+
+    postCpuDraw(pViv, vivpixmap);
 
 	if (vivpixmap->mRef == 1) {
 

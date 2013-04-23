@@ -23,6 +23,12 @@
 #include "vivante.h"
 #include "vivante_priv.h"
 
+Bool
+DummyPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
+	int xdir, int ydir, int alu, Pixel planemask) {
+	return FALSE;
+}
+
 /**
  * PrepareCopy() sets up the driver for doing a copy within video
  * memory.
@@ -181,15 +187,9 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 	}
 #endif
 
-	if (psrc->mCpuBusy) {
-		VIV2DCacheOperation(&pViv->mGrCtx, psrc, FLUSH);
-		psrc->mCpuBusy = FALSE;
-	}
-
-	if (pdst->mCpuBusy) {
-		VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
-		pdst->mCpuBusy = FALSE;
-	}
+	// sync with cpu cache
+    preGpuDraw(pViv, psrc, TRUE);
+    preGpuDraw(pViv, pdst, FALSE);
 
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 		TRACE_ERROR("Copy Blit Failed\n");
@@ -211,8 +211,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
         goto quit;
 	}
 
-	psrc->mGpuBusy = TRUE; // locked by gpu
-	pdst->mGpuBusy = TRUE;
+	queuePixmapToGpu(psrc);
 
 quit:
 	TRACE_EXIT();
@@ -236,8 +235,7 @@ VivDoneCopy(PixmapPtr pDstPixmap) {
 	TRACE_ENTER();
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
-	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-	VIV2DGPUBlitComplete(&pViv->mGrCtx,FALSE);
+	postGpuDraw(pViv);
 
 	TRACE_EXIT();
 }

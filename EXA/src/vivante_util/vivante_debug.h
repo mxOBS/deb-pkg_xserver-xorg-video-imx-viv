@@ -27,7 +27,7 @@ extern "C" {
 #endif
 #include <stdio.h>
 
-//#define ENABLE_LOG
+#define ENABLE_LOG
 #if defined(ENABLE_LOG)
 void OpenLog();
 void CloseLog();
@@ -39,7 +39,7 @@ void LogText(const char *fmt, ...);
 #define LOGD LOG
 #define LOGW LOG
 #define LOGE LOG
-#define TRACE_INFO  LOGD
+#define TRACE_INFO(...) //  LOGD
 #define TRACE_ERROR LOGE
 #else
 #define LOG_START(...)
@@ -58,6 +58,18 @@ void LogText(const char *fmt, ...);
     do { return val;  } while (0)
 
 #define FSLASSERT(x) do { if(!(x)) {LOG("Assertion failed @%s:%d\n", __FILE__, __LINE__);} } while(0);
+
+
+#include "vivante_exa.h"
+#include "vivante.h"
+int isGpuSyncMode();
+void initPixmapQueue();
+void freePixmapQueue();
+void queuePixmapToGpu(Viv2DPixmapPtr vpixmap);
+void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc);
+void postGpuDraw(VivPtr pViv);
+void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap);
+void postCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap);
 
 #ifdef __cplusplus
 }

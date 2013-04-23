@@ -27,7 +27,9 @@ CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa
 CFLAGS += -I/usr/include/drm
 CFLAGS += -marm
 
-LFLAGS += -fPIC -lGAL -lm -ldl -Wl,-soname -Wl,vivante_drv.so #-Wl,--no-allow-shlib-undefined
+LFLAGS += -fPIC
+#LFLAGS +=  -Wl,--no-allow-shlib-undefined -lX11
+LFLAGS +=  -lm -ldl -lGAL -Wl,-soname -Wl,vivante_drv.so
 
 
 all: .libs/$(target)

@@ -632,13 +632,18 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
 {
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     GenericSurfacePtr surf = NULL;
+	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
     if ( pPix == NULL )
         TRACE_EXIT(FALSE);
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 
-    pPix->mCpuBusy = TRUE;
+    preCpuDraw(pViv, pPix);
+
     memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
+
+    postCpuDraw(pViv, pPix);
+
     TRACE_EXIT(TRUE);
 
 }
@@ -690,9 +695,11 @@ Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppix) {
 
     if(ppix != NULL) {
         if(ppix->mGpuBusy) {
+            FSLASSERT(!isGpuSyncMode());
+
+            // wait until gpu done
         	VIV2DGPUBlitComplete(galInfo, TRUE);
-        	VIV2DCacheOperation(galInfo, ppix, INVALIDATE);
-            ppix->mGpuBusy = FALSE;
+        	freePixmapQueue();
         }
     }
 

@@ -22,6 +22,10 @@
 #include "vivante_exa.h"
 #include "vivante.h"
 
+Bool
+DummyPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
+    return FALSE;
+}
 
 /**
  * PrepareSolid() sets up the driver for doing a solid fill.
@@ -121,10 +125,8 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	}
 #endif
 	
-	if (pdst->mCpuBusy) {
-		VIV2DCacheOperation(&pViv->mGrCtx, pdst,CLEAN);
-		pdst->mCpuBusy = FALSE;
-	}
+	// sync with cpu cache
+    preGpuDraw(pViv, pdst, FALSE);
 
 	if (!SetDestinationSurface(&pViv->mGrCtx)) {
 			TRACE_ERROR("Solid Blit Failed\n");
@@ -146,7 +148,8 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
         goto quit;
 	}
 
-	pdst->mGpuBusy = TRUE;
+    // put this pixmap into gpu queue
+    queuePixmapToGpu(pdst);
 
 quit:
 	TRACE_EXIT();
@@ -170,8 +173,7 @@ VivDoneSolid(PixmapPtr pPixmap) {
 
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
-	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-	VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
+	postGpuDraw(pViv);
 
 	TRACE_EXIT();
 }
