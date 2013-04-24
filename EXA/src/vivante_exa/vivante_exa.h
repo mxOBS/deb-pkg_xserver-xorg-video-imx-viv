@@ -20,7 +20,7 @@
 
 
 #ifndef VIVANTE_EXA_H
-#define	VIVANTE_EXA_H
+#define    VIVANTE_EXA_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,8 +28,8 @@ extern "C" {
 
 #include "vivante_common.h"
 
-#define	IMX_EXA_MIN_AREA_CLEAN         40000
-#define	IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    640
+#define    IMX_EXA_MIN_AREA_CLEAN         40000
+#define    IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    640
 
     /************************************************************************
      * EXA COPY  (START)
@@ -46,7 +46,7 @@ extern "C" {
 
     Bool
     DummyPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
-    	int xdir, int ydir, int alu, Pixel planemask);
+        int xdir, int ydir, int alu, Pixel planemask);
 
     /************************************************************************
      * EXA COPY (FINISH)
@@ -88,7 +88,7 @@ extern "C" {
     DummyCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst);
     Bool
     DummyPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
-    	PicturePtr pDst, PixmapPtr pxSrc, PixmapPtr pxMsk, PixmapPtr pxDst);
+        PicturePtr pDst, PixmapPtr pxSrc, PixmapPtr pxMsk, PixmapPtr pxDst);
 
     /************************************************************************
      * EXA COMPOSITE (FINISH)
@@ -135,7 +135,7 @@ extern "C" {
 
     Bool
     DummyUploadToScreen(PixmapPtr pDst, int x, int y, int w,
-    	int h, char *src, int src_pitch);
+        int h, char *src, int src_pitch);
     /************************************************************************
      * EXA OTHER FUNCTIONS (END)
      ************************************************************************/
@@ -155,5 +155,5 @@ extern "C" {
 }
 #endif
 
-#endif	/* VIVANTE_EXA_H */
+#endif    /* VIVANTE_EXA_H */
 

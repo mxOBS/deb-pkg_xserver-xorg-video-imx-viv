@@ -45,70 +45,70 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 typedef struct _DRIDrawablePrivRec
 {
-    drm_drawable_t		hwDrawable;
-    int			drawableIndex;
-    ScreenPtr		pScreen;
-    int 		refCount;
-    int 		nrects;
+    drm_drawable_t        hwDrawable;
+    int            drawableIndex;
+    ScreenPtr        pScreen;
+    int         refCount;
+    int         nrects;
 } DRIDrawablePrivRec, *DRIDrawablePrivPtr;
 
 struct _DRIContextPrivRec
 {
-    drm_context_t		hwContext;
-    ScreenPtr		pScreen;
-    Bool     		valid3D;
+    drm_context_t        hwContext;
+    ScreenPtr        pScreen;
+    Bool             valid3D;
     DRIContextFlags     flags;
-    void**     		pContextStore;
+    void**             pContextStore;
 };
 
 #define DRI_SCREEN_PRIV(pScreen) ((DRIScreenPrivPtr) \
-    (dixPrivateKeyRegistered(DRIScreenPrivKey) ?			\
+    (dixPrivateKeyRegistered(DRIScreenPrivKey) ?            \
      dixLookupPrivate(&(pScreen)->devPrivates, DRIScreenPrivKey) : NULL))
 
 #define DRI_SCREEN_PRIV_FROM_INDEX(screenIndex) ((DRIScreenPrivPtr) \
     dixLookupPrivate(&screenInfo.screens[screenIndex]->devPrivates, \
-		     DRIScreenPrivKey))
+             DRIScreenPrivKey))
 
 #define DRI_ENT_PRIV(pScrn)  \
     ((DRIEntPrivIndex < 0) ? \
-     NULL:		     \
+     NULL:             \
      ((DRIEntPrivPtr)(xf86GetEntityPrivate((pScrn)->entityList[0], \
-					   DRIEntPrivIndex)->ptr)))
+                       DRIEntPrivIndex)->ptr)))
 
 typedef struct _DRIScreenPrivRec
 {
-    Bool		directRenderingSupport;
-    int			drmFD;	      /* File descriptor for /dev/video/?   */
-    drm_handle_t   	hSAREA;	      /* Handle to SAREA, for mapping       */
-    XF86DRISAREAPtr	pSAREA;	      /* Mapped pointer to SAREA            */
+    Bool        directRenderingSupport;
+    int            drmFD;          /* File descriptor for /dev/video/?   */
+    drm_handle_t       hSAREA;          /* Handle to SAREA, for mapping       */
+    XF86DRISAREAPtr    pSAREA;          /* Mapped pointer to SAREA            */
     drm_context_t          myContext;    /* DDX Driver's context               */
     DRIContextPrivPtr   myContextPriv;/* Pointer to server's private area   */
     DRIContextPrivPtr   lastPartial3DContext;  /* last one partially saved  */
-    void**		hiddenContextStore;    /* hidden X context          */
-    void**		partial3DContextStore; /* parital 3D context        */
-    DRIInfoPtr		pDriverInfo;
+    void**        hiddenContextStore;    /* hidden X context          */
+    void**        partial3DContextStore; /* parital 3D context        */
+    DRIInfoPtr        pDriverInfo;
     int                 nrWindows;
     int                 nrWindowsVisible;
     int                 nrWalked;
     drm_clip_rect_t  private_buffer_rect[3]; /* management of private buffers */
     DrawablePtr         fullscreen; /* pointer to fullscreen drawable */
     drm_clip_rect_t  fullscreen_rect; /* fake rect for fullscreen mode */
-    DRIWrappedFuncsRec	wrap;
+    DRIWrappedFuncsRec    wrap;
     DestroyWindowProcPtr DestroyWindow;
-    DrawablePtr		DRIDrawables[SAREA_MAX_DRAWABLES];
+    DrawablePtr        DRIDrawables[SAREA_MAX_DRAWABLES];
     DRIContextPrivPtr   dummyCtxPriv; /* Pointer to dummy context */
-    Bool		createDummyCtx;
-    Bool		createDummyCtxPriv;
-    Bool		grabbedDRILock;
-    Bool		drmSIGIOHandlerInstalled;
-    Bool		wrapped;
-    Bool		windowsTouched;
-    int			lockRefCount;
+    Bool        createDummyCtx;
+    Bool        createDummyCtxPriv;
+    Bool        grabbedDRILock;
+    Bool        drmSIGIOHandlerInstalled;
+    Bool        wrapped;
+    Bool        windowsTouched;
+    int            lockRefCount;
     drm_handle_t        hLSAREA;      /* Handle to SAREA containing lock, for mapping */
     XF86DRILSAREAPtr    pLSAREA;      /* Mapped pointer to SAREA containing lock */
     int*                pLockRefCount;
     int*                pLockingContext;
-    xf86_crtc_notify_proc_ptr	xf86_crtc_notify;
+    xf86_crtc_notify_proc_ptr    xf86_crtc_notify;
 } DRIScreenPrivRec, *DRIScreenPrivPtr;
 
 

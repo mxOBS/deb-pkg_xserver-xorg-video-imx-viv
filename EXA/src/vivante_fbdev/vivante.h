@@ -20,7 +20,7 @@
 
 
 #ifndef VIVANTE_H
-#define	VIVANTE_H
+#define    VIVANTE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -92,12 +92,12 @@ extern "C" {
      ********************************************************************************/
 #define GET_VIV_PTR(p) ((VivPtr)((p)->driverPrivate))
 
-#define VIVPTR_FROM_PIXMAP(x)		\
-		GET_VIV_PTR(xf86Screens[(x)->drawable.pScreen->myNum])
-#define VIVPTR_FROM_SCREEN(x)		\
-		GET_VIV_PTR(xf86Screens[(x)->myNum])
-#define VIVPTR_FROM_PICTURE(x)	\
-		GET_VIV_PTR(xf86Screens[(x)->pDrawable->pScreen->myNum])
+#define VIVPTR_FROM_PIXMAP(x)        \
+        GET_VIV_PTR(xf86Screens[(x)->drawable.pScreen->myNum])
+#define VIVPTR_FROM_SCREEN(x)        \
+        GET_VIV_PTR(xf86Screens[(x)->myNum])
+#define VIVPTR_FROM_PICTURE(x)    \
+        GET_VIV_PTR(xf86Screens[(x)->pDrawable->pScreen->myNum])
 
     /********************************************************************************
      *
@@ -109,5 +109,5 @@ extern "C" {
 }
 #endif
 
-#endif	/* VIVANTE_H */
+#endif    /* VIVANTE_H */
 

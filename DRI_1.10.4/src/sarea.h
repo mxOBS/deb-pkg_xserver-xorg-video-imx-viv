@@ -41,17 +41,17 @@
 
 /* SAREA area needs to be at least a page */
 #if defined(__alpha__)
-#define SAREA_MAX 			0x2000
+#define SAREA_MAX             0x2000
 #elif defined(__ia64__)
-#define SAREA_MAX			0x10000		/* 64kB */
+#define SAREA_MAX            0x10000        /* 64kB */
 #else
 /* Intel 830M driver needs at least 8k SAREA */
-#define SAREA_MAX			0x2000
+#define SAREA_MAX            0x2000
 #endif
 
-#define SAREA_MAX_DRAWABLES 		256
+#define SAREA_MAX_DRAWABLES         256
 
-#define SAREA_DRAWABLE_CLAIMED_ENTRY	0x80000000
+#define SAREA_DRAWABLE_CLAIMED_ENTRY    0x80000000
 
 /**
  * SAREA per drawable information.
@@ -59,8 +59,8 @@
  * \sa _XF86DRISAREA.
  */
 typedef struct _XF86DRISAREADrawable {
-    unsigned int	stamp;
-    unsigned int	flags;
+    unsigned int    stamp;
+    unsigned int    flags;
 } XF86DRISAREADrawableRec, *XF86DRISAREADrawablePtr;
 
 /**
@@ -81,12 +81,12 @@ typedef struct _XF86DRISAREAFrame {
  */
 typedef struct _XF86DRISAREA {
     /** first thing is always the DRM locking structure */
-    drmLock			lock;
+    drmLock            lock;
     /** \todo Use readers/writer lock for drawable_lock */
-    drmLock			drawable_lock;
-    XF86DRISAREADrawableRec	drawableTable[SAREA_MAX_DRAWABLES];
+    drmLock            drawable_lock;
+    XF86DRISAREADrawableRec    drawableTable[SAREA_MAX_DRAWABLES];
     XF86DRISAREAFrameRec        frame;
-    drm_context_t			dummy_context;
+    drm_context_t            dummy_context;
 } XF86DRISAREARec, *XF86DRISAREAPtr;
 
 typedef struct _XF86DRILSAREA  {

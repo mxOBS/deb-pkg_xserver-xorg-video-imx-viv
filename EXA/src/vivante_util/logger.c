@@ -136,12 +136,12 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
         }
         else if(ePolicy == WRITEALLOC)
         {
-    		VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH);
-    		vpixmap->mCpuBusy = FALSE;
+            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH);
+            vpixmap->mCpuBusy = FALSE;
         }
         else if(ePolicy == NONCACHEABLE)
         {
-	    	vpixmap->mCpuBusy = FALSE;
+            vpixmap->mCpuBusy = FALSE;
         }
     }
     else
@@ -149,35 +149,35 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
         // this is a dest pixmap
         if(ePolicy == WRITETHROUGH)
         {
-    		VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, INVALIDATE);
-    		vpixmap->mCpuBusy = FALSE;
+            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, INVALIDATE);
+            vpixmap->mCpuBusy = FALSE;
         }
         else if(ePolicy == WRITEALLOC)
         {
-    		VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH);
-    		vpixmap->mCpuBusy = FALSE;
+            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH);
+            vpixmap->mCpuBusy = FALSE;
         }
         else if(ePolicy == NONCACHEABLE)
         {
-    		vpixmap->mCpuBusy = FALSE;
+            vpixmap->mCpuBusy = FALSE;
         }
     }
 }
 
 void postGpuDraw(VivPtr pViv)
 {
-	VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx); // need flush?
+    VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx); // need flush?
 
     if(isGpuSyncMode())
     {
         // wait until gpu done
-    	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+        VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
         freePixmapQueue();
     }
     else
     {
         // fire but not wait
-    	VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
+        VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
     }
 }
 
@@ -190,7 +190,7 @@ void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
         {
             FSLASSERT(!isGpuSyncMode());
 
-        	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+            VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
             freePixmapQueue();
         }
 

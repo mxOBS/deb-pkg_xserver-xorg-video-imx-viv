@@ -20,7 +20,7 @@
 
 
 #ifndef VIVANTE_GAL_H
-#define	VIVANTE_GAL_H
+#define    VIVANTE_GAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -261,5 +261,5 @@ extern "C" {
 }
 #endif
 
-#endif	/* VIVANTE_GAL_H */
+#endif    /* VIVANTE_GAL_H */
 

@@ -20,7 +20,7 @@
 
 
 #ifndef VIVANTE_COMMON_H
-#define	VIVANTE_COMMON_H
+#define    VIVANTE_COMMON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,24 +81,24 @@ extern "C" {
 #define HEIGHT_ALIGNMENT 1
 #define BITSTOBYTES(x) (((x)+7)/8)
 
-#define	IMX_EXA_NONCACHESURF_WIDTH 1024
-#define	IMX_EXA_NONCACHESURF_HEIGHT 1024
-#define	IMX_EXA_NONCACHESURF_SIZE ( IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT )
+#define    IMX_EXA_NONCACHESURF_WIDTH 1024
+#define    IMX_EXA_NONCACHESURF_HEIGHT 1024
+#define    IMX_EXA_NONCACHESURF_SIZE ( IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT )
 
-#define	SURF_SIZE_FOR_SW(sw,sh) do {	\
-						if ( gcmALIGN(sw, WIDTH_ALIGNMENT) < IMX_EXA_NONCACHESURF_WIDTH	\
-						|| gcmALIGN(sh, HEIGHT_ALIGNMENT) < IMX_EXA_NONCACHESURF_HEIGHT)	\
-						TRACE_EXIT(FALSE);	\
-				} while ( 0 )
+#define    SURF_SIZE_FOR_SW(sw,sh) do {    \
+                        if ( gcmALIGN(sw, WIDTH_ALIGNMENT) < IMX_EXA_NONCACHESURF_WIDTH    \
+                        || gcmALIGN(sh, HEIGHT_ALIGNMENT) < IMX_EXA_NONCACHESURF_HEIGHT)    \
+                        TRACE_EXIT(FALSE);    \
+                } while ( 0 )
 
-#define	SURF_SIZE_FOR_SW_COND(sw,sh) (	\
-						( gcmALIGN(sw, WIDTH_ALIGNMENT) < IMX_EXA_NONCACHESURF_WIDTH	\
-						|| gcmALIGN(sh, HEIGHT_ALIGNMENT) < IMX_EXA_NONCACHESURF_HEIGHT )	\
-						)
+#define    SURF_SIZE_FOR_SW_COND(sw,sh) (    \
+                        ( gcmALIGN(sw, WIDTH_ALIGNMENT) < IMX_EXA_NONCACHESURF_WIDTH    \
+                        || gcmALIGN(sh, HEIGHT_ALIGNMENT) < IMX_EXA_NONCACHESURF_HEIGHT )    \
+                        )
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif	/* VIVANTE_COMMON_H */
+#endif    /* VIVANTE_COMMON_H */
 

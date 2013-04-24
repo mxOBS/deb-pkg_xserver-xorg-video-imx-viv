@@ -128,37 +128,37 @@ OnError:
  * @return
  */
 static gceSTATUS UnlockVideoNode(
-	IN gcoHAL Hal,
-	IN gctUINT64 Node,
-	IN gceSURF_TYPE surftype) {
+    IN gcoHAL Hal,
+    IN gctUINT64 Node,
+    IN gceSURF_TYPE surftype) {
 
-	gcsHAL_INTERFACE iface;
-	gceSTATUS status;
+    gcsHAL_INTERFACE iface;
+    gceSTATUS status;
 
-	gcmASSERT(Node != gcvNULL);
+    gcmASSERT(Node != gcvNULL);
 
-	iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
-	iface.u.UnlockVideoMemory.node = Node;
-	iface.u.UnlockVideoMemory.type = surftype;
-	iface.u.UnlockVideoMemory.asynchroneous = gcvTRUE;
+    iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
+    iface.u.UnlockVideoMemory.node = Node;
+    iface.u.UnlockVideoMemory.type = surftype;
+    iface.u.UnlockVideoMemory.asynchroneous = gcvTRUE;
 
-	/* Call the kernel. */
-	gcmONERROR(gcoOS_DeviceControl(
-				gcvNULL,
-				IOCTL_GCHAL_INTERFACE,
-				&iface, gcmSIZEOF(iface),
-				&iface, gcmSIZEOF(iface)
-	));
+    /* Call the kernel. */
+    gcmONERROR(gcoOS_DeviceControl(
+                gcvNULL,
+                IOCTL_GCHAL_INTERFACE,
+                &iface, gcmSIZEOF(iface),
+                &iface, gcmSIZEOF(iface)
+    ));
 
-	/* Success? */
-	gcmONERROR(iface.status);
+    /* Success? */
+    gcmONERROR(iface.status);
 
-	/* Do we need to schedule an event for the unlock? */
-	if (iface.u.UnlockVideoMemory.asynchroneous)
-	{
-		iface.u.UnlockVideoMemory.asynchroneous = gcvFALSE;
-		gcmONERROR(gcoHAL_ScheduleEvent(Hal, &iface));
-	}
+    /* Do we need to schedule an event for the unlock? */
+    if (iface.u.UnlockVideoMemory.asynchroneous)
+    {
+        iface.u.UnlockVideoMemory.asynchroneous = gcvFALSE;
+        gcmONERROR(gcoHAL_ScheduleEvent(Hal, &iface));
+    }
 
 OnError:
     /* Call kernel API. */
@@ -197,76 +197,76 @@ static GPOOLHEAD *__gpoolhead = &__gsmallpoolhead;
 
 static gctUINT MAX_NODE = MAX_SNODE;
 
-#define SETPOOL(alwidth,alheight,bytesPerPixel) do {	\
-											if (( alwidth * alheight * bytesPerPixel ) >= ( AL_WIDTH * AL_HEIGHT *bytesPerPixel))	\
-											{							\
-												__gpoolhead = &__gbigpoolhead;	\
-												MAX_NODE = MAX_BNODE;	\
-												break;							\
-											}								\
-											if ( ( alwidth * alheight * bytesPerPixel ) <= ( AL_SWIDTH * AL_SHEIGHT * bytesPerPixel ) ) \
-											{	\
-												__gpoolhead = &__gsmallpoolhead; \
-												MAX_NODE = MAX_SNODE;	\
-												break ;						\
-											}	\
-											__gpoolhead = &__gmidpoolhead; \
-											MAX_NODE = MAX_MNODE; \
-										} while( 0 )
+#define SETPOOL(alwidth,alheight,bytesPerPixel) do {    \
+                                            if (( alwidth * alheight * bytesPerPixel ) >= ( AL_WIDTH * AL_HEIGHT *bytesPerPixel))    \
+                                            {                            \
+                                                __gpoolhead = &__gbigpoolhead;    \
+                                                MAX_NODE = MAX_BNODE;    \
+                                                break;                            \
+                                            }                                \
+                                            if ( ( alwidth * alheight * bytesPerPixel ) <= ( AL_SWIDTH * AL_SHEIGHT * bytesPerPixel ) ) \
+                                            {    \
+                                                __gpoolhead = &__gsmallpoolhead; \
+                                                MAX_NODE = MAX_SNODE;    \
+                                                break ;                        \
+                                            }    \
+                                            __gpoolhead = &__gmidpoolhead; \
+                                            MAX_NODE = MAX_MNODE; \
+                                        } while( 0 )
 
 
 static Bool SurfaceInPool(GenericSurfacePtr psurface)
 {
-	PGSURFPOOL poolnode = NULL;
+    PGSURFPOOL poolnode = NULL;
 
-	if (psurface == NULL )
-		TRACE_EXIT(gcvFALSE);
+    if (psurface == NULL )
+        TRACE_EXIT(gcvFALSE);
 
-	SETPOOL((psurface->mAlignedWidth), (psurface->mAlignedHeight), (psurface->mBytesPerPixel));
-	if ( __gpoolhead->pfirst == NULL)	TRACE_EXIT(gcvFALSE);
+    SETPOOL((psurface->mAlignedWidth), (psurface->mAlignedHeight), (psurface->mBytesPerPixel));
+    if ( __gpoolhead->pfirst == NULL)    TRACE_EXIT(gcvFALSE);
 
-	poolnode = __gpoolhead->pfirst;
+    poolnode = __gpoolhead->pfirst;
 
-	while ( poolnode )
-	{
+    while ( poolnode )
+    {
 
-		if ( poolnode->surface == psurface )
-			TRACE_EXIT(gcvTRUE);
+        if ( poolnode->surface == psurface )
+            TRACE_EXIT(gcvTRUE);
 
-		poolnode = poolnode->pnext;
+        poolnode = poolnode->pnext;
 
-	}
+    }
 
 
-	TRACE_EXIT(gcvFALSE);
+    TRACE_EXIT(gcvFALSE);
 }
 
 /* only for debug */
 static Bool TestSurfPool()
 {
 
-	gctUINT num = 0;
-	PGSURFPOOL poolnode = NULL;
+    gctUINT num = 0;
+    PGSURFPOOL poolnode = NULL;
 
-	if ( __gpoolhead->pfirst == NULL )
-	{
-		if ( __gpoolhead->num == 0)
-			TRACE_EXIT(gcvTRUE);
+    if ( __gpoolhead->pfirst == NULL )
+    {
+        if ( __gpoolhead->num == 0)
+            TRACE_EXIT(gcvTRUE);
 
-		TRACE_EXIT(gcvFALSE);
-	}
+        TRACE_EXIT(gcvFALSE);
+    }
 
-	poolnode = __gpoolhead->pfirst;
+    poolnode = __gpoolhead->pfirst;
 
-	while ( poolnode ) {
-		num++;
-		poolnode = poolnode->pnext;
-	}
+    while ( poolnode ) {
+        num++;
+        poolnode = poolnode->pnext;
+    }
 
-	if ( num != __gpoolhead->num)
-		TRACE_EXIT(gcvFALSE);
+    if ( num != __gpoolhead->num)
+        TRACE_EXIT(gcvFALSE);
 
-	TRACE_EXIT(gcvTRUE);
+    TRACE_EXIT(gcvTRUE);
 
 }
 
@@ -275,92 +275,92 @@ static Bool TestSurfPool()
 /* Return null, which means the user has not to do the next destroy procedure */
 static GenericSurfacePtr AddGSurfIntoPool(GenericSurfacePtr psurface)
 {
-	PGSURFPOOL poolnode = NULL;
-	PGSURFPOOL pnextnode = NULL;
-	GenericSurfacePtr pretsurf = NULL;
+    PGSURFPOOL poolnode = NULL;
+    PGSURFPOOL pnextnode = NULL;
+    GenericSurfacePtr pretsurf = NULL;
 
-	if ( psurface == NULL) return NULL;
+    if ( psurface == NULL) return NULL;
 
 
-	SETPOOL((psurface->mAlignedWidth), (psurface->mAlignedHeight), (psurface->mBytesPerPixel));
+    SETPOOL((psurface->mAlignedWidth), (psurface->mAlignedHeight), (psurface->mBytesPerPixel));
 
-	gcmASSERT(__gpoolhead->num <= MAX_NODE);
-	gcmASSERT( 3 <= MAX_NODE);
+    gcmASSERT(__gpoolhead->num <= MAX_NODE);
+    gcmASSERT( 3 <= MAX_NODE);
 
-	if ( __gpoolhead->num == MAX_NODE )
-	{
-		if ( __gpoolhead->plast->surface->mVideoNode.mSizeInBytes >= psurface->mVideoNode.mSizeInBytes )
-			return psurface;
+    if ( __gpoolhead->num == MAX_NODE )
+    {
+        if ( __gpoolhead->plast->surface->mVideoNode.mSizeInBytes >= psurface->mVideoNode.mSizeInBytes )
+            return psurface;
 
-		poolnode = __gpoolhead->plast;
+        poolnode = __gpoolhead->plast;
 
-		pretsurf = poolnode->surface;
+        pretsurf = poolnode->surface;
 
-		__gpoolhead->plast->prev->pnext = NULL;
-		__gpoolhead->plast = __gpoolhead->plast->prev;
-		__gpoolhead->num--;
+        __gpoolhead->plast->prev->pnext = NULL;
+        __gpoolhead->plast = __gpoolhead->plast->prev;
+        __gpoolhead->num--;
 
-		//free(poolnode);
-	}
+        //free(poolnode);
+    }
 
-	if ( poolnode == NULL )
-		poolnode = (PGSURFPOOL)malloc(sizeof(GSURFPOOL));
+    if ( poolnode == NULL )
+        poolnode = (PGSURFPOOL)malloc(sizeof(GSURFPOOL));
 
-	poolnode->surface = psurface;
-	poolnode->pnext = NULL;
-	poolnode->prev= NULL;
+    poolnode->surface = psurface;
+    poolnode->pnext = NULL;
+    poolnode->prev= NULL;
 
-	if ( __gpoolhead->pfirst == NULL) {
+    if ( __gpoolhead->pfirst == NULL) {
 
-		poolnode->prev = poolnode;
-		__gpoolhead->pfirst = poolnode;
-		__gpoolhead->plast = poolnode;
-		__gpoolhead->num = 1;
-		return NULL;
-	}
+        poolnode->prev = poolnode;
+        __gpoolhead->pfirst = poolnode;
+        __gpoolhead->plast = poolnode;
+        __gpoolhead->num = 1;
+        return NULL;
+    }
 
-	/* if pfirst is not NULL, plast must be non-null */
-	pnextnode = __gpoolhead->pfirst;
+    /* if pfirst is not NULL, plast must be non-null */
+    pnextnode = __gpoolhead->pfirst;
 
-	while ( pnextnode )
-	{
-		if ( pnextnode->surface->mVideoNode.mSizeInBytes > psurface->mVideoNode.mSizeInBytes )
-		{
-			pnextnode = pnextnode->pnext;
-			continue;
-		}
-		break;
-	}
+    while ( pnextnode )
+    {
+        if ( pnextnode->surface->mVideoNode.mSizeInBytes > psurface->mVideoNode.mSizeInBytes )
+        {
+            pnextnode = pnextnode->pnext;
+            continue;
+        }
+        break;
+    }
 
-	if ( pnextnode == NULL )
-	{
-		poolnode->prev= __gpoolhead->plast;
-		__gpoolhead->plast->pnext = poolnode;
-		__gpoolhead->plast =poolnode;
-	} else {
-		if ( pnextnode == __gpoolhead->pfirst )
-		{
-			poolnode->pnext = pnextnode;
-			pnextnode->prev = poolnode;
-			__gpoolhead->pfirst = poolnode;
-			poolnode->prev = __gpoolhead->pfirst;
-		} else {
-			poolnode->pnext = pnextnode;
-			poolnode->prev = pnextnode->prev;
-			pnextnode->prev->pnext = poolnode;
-			pnextnode->prev = poolnode;
-		}
-	}
+    if ( pnextnode == NULL )
+    {
+        poolnode->prev= __gpoolhead->plast;
+        __gpoolhead->plast->pnext = poolnode;
+        __gpoolhead->plast =poolnode;
+    } else {
+        if ( pnextnode == __gpoolhead->pfirst )
+        {
+            poolnode->pnext = pnextnode;
+            pnextnode->prev = poolnode;
+            __gpoolhead->pfirst = poolnode;
+            poolnode->prev = __gpoolhead->pfirst;
+        } else {
+            poolnode->pnext = pnextnode;
+            poolnode->prev = pnextnode->prev;
+            pnextnode->prev->pnext = poolnode;
+            pnextnode->prev = poolnode;
+        }
+    }
 
-	__gpoolhead->num++;
+    __gpoolhead->num++;
 
 
 #ifdef TEST_POOL
-	if ( !TestSurfPool() )
-		fprintf(stderr,"Surf Pool Gets ERR when adding node \n");
+    if ( !TestSurfPool() )
+        fprintf(stderr,"Surf Pool Gets ERR when adding node \n");
 #endif
 
-	return pretsurf;
+    return pretsurf;
 
 }
 
@@ -368,62 +368,62 @@ static GenericSurfacePtr AddGSurfIntoPool(GenericSurfacePtr psurface)
 /* Otherwise you get surface from the pool, you have not to allocate the surface */
 static GenericSurfacePtr GrabSurfFromPool(gctUINT alignedwidth, gctUINT alignedheight, gctUINT bytesPerPixel)
 {
-	PGSURFPOOL pnextnode = NULL;
-	GenericSurfacePtr pret = NULL;
-	gctUINT size = 0;
+    PGSURFPOOL pnextnode = NULL;
+    GenericSurfacePtr pret = NULL;
+    gctUINT size = 0;
 
 
-	SETPOOL(alignedwidth, alignedheight, bytesPerPixel);
+    SETPOOL(alignedwidth, alignedheight, bytesPerPixel);
 
-	if ( __gpoolhead->pfirst == NULL )
-	{
-		gcmASSERT( __gpoolhead->num == 0 );
-		return NULL;
-	}
+    if ( __gpoolhead->pfirst == NULL )
+    {
+        gcmASSERT( __gpoolhead->num == 0 );
+        return NULL;
+    }
 
-	size = alignedwidth * alignedheight * bytesPerPixel;
+    size = alignedwidth * alignedheight * bytesPerPixel;
 
-	pnextnode = __gpoolhead->pfirst;
-	while ( pnextnode )
-	{
-		if ( pnextnode->surface->mVideoNode.mSizeInBytes >= size )
-		{
-			if ( pnextnode->pnext )
-				pnextnode->pnext->prev = pnextnode->prev;
+    pnextnode = __gpoolhead->pfirst;
+    while ( pnextnode )
+    {
+        if ( pnextnode->surface->mVideoNode.mSizeInBytes >= size )
+        {
+            if ( pnextnode->pnext )
+                pnextnode->pnext->prev = pnextnode->prev;
 
-			pnextnode->prev->pnext = pnextnode->pnext;
+            pnextnode->prev->pnext = pnextnode->pnext;
 
-			if ( pnextnode == __gpoolhead->pfirst)
-			{
-				__gpoolhead->pfirst = pnextnode->pnext;
-				if ( pnextnode->pnext)
-				pnextnode->pnext->prev = __gpoolhead->pfirst;
-			}
+            if ( pnextnode == __gpoolhead->pfirst)
+            {
+                __gpoolhead->pfirst = pnextnode->pnext;
+                if ( pnextnode->pnext)
+                pnextnode->pnext->prev = __gpoolhead->pfirst;
+            }
 
-			if (pnextnode == __gpoolhead->plast )
-				if ( __gpoolhead->pfirst == NULL)
-					__gpoolhead->plast = NULL;
-				else
-					__gpoolhead->plast = pnextnode->prev;
+            if (pnextnode == __gpoolhead->plast )
+                if ( __gpoolhead->pfirst == NULL)
+                    __gpoolhead->plast = NULL;
+                else
+                    __gpoolhead->plast = pnextnode->prev;
 
-			pret = pnextnode->surface;
+            pret = pnextnode->surface;
 
-			__gpoolhead->num--;
+            __gpoolhead->num--;
 
-			free(pnextnode);
-			break;
-		}
+            free(pnextnode);
+            break;
+        }
 
-		pnextnode = pnextnode->pnext;
+        pnextnode = pnextnode->pnext;
 
-	}
+    }
 
 #ifdef TEST_POOL
-	if ( !TestSurfPool() )
-		fprintf(stderr,"Surf Pool Gets ERR when grabbing node \n");
+    if ( !TestSurfPool() )
+        fprintf(stderr,"Surf Pool Gets ERR when grabbing node \n");
 #endif
 
-	return pret;
+    return pret;
 
 }
 
@@ -500,37 +500,37 @@ delete_wrapper:
 
 
 static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
-	gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
-	TRACE_ENTER();
-	gceSTATUS status = gcvSTATUS_OK;
-	GenericSurfacePtr surf = gcvNULL;
-	gctPOINTER mHandle = gcvNULL;
-	gceSURF_TYPE surftype;
-	Bool cacheable;
+    gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
+    TRACE_ENTER();
+    gceSTATUS status = gcvSTATUS_OK;
+    GenericSurfacePtr surf = gcvNULL;
+    gctPOINTER mHandle = gcvNULL;
+    gceSURF_TYPE surftype;
+    Bool cacheable;
 
-	surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
+    surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
 
-	if ( surf == NULL )
-	{
+    if ( surf == NULL )
+    {
 
-		status = gcoOS_Allocate(gcvNULL, sizeof(GenericSurface), &mHandle);
-		if (status != gcvSTATUS_OK) {
-			TRACE_ERROR("Unable to allocate generic surface\n");
-			TRACE_EXIT(FALSE);
-		}
+        status = gcoOS_Allocate(gcvNULL, sizeof(GenericSurface), &mHandle);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("Unable to allocate generic surface\n");
+            TRACE_EXIT(FALSE);
+        }
 
-		memset(mHandle, 0, sizeof (GenericSurface));
-		surf = (GenericSurfacePtr) mHandle;
+        memset(mHandle, 0, sizeof (GenericSurface));
+        surf = (GenericSurfacePtr) mHandle;
 
-		surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
-		surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
+        surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
 
-#if		ALL_NONCACHE_BIGSURFACE
-		if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
-		{
-			surftype = gcvSURF_BITMAP;
-			cacheable = FALSE;
-		} else
+#if        ALL_NONCACHE_BIGSURFACE
+        if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
+        {
+            surftype = gcvSURF_BITMAP;
+            cacheable = FALSE;
+        } else
 #endif
         if (vivEnableCacheMemory) {
             surftype = gcvSURF_CACHEABLE_BITMAP;
@@ -540,68 +540,68 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
             cacheable = FALSE;
         }
 
-		status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, &surf->mVideoNode.mNode);
-		if (status != gcvSTATUS_OK) {
-			TRACE_ERROR("Unable to allocate video node\n");
-			TRACE_EXIT(FALSE);
-		}
+        status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, &surf->mVideoNode.mNode);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("Unable to allocate video node\n");
+            TRACE_EXIT(FALSE);
+        }
 
-		status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
-		if (status != gcvSTATUS_OK) {
-			TRACE_ERROR("Unable to Lock video node\n");
-			TRACE_EXIT(FALSE);
-		}
-		TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
-	}
+        status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("Unable to Lock video node\n");
+            TRACE_EXIT(FALSE);
+        }
+        TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
+    }
 
-	surf->mTiling = gcvLINEAR;
-	surf->mAlignedWidth = alignedWidth;
-	surf->mAlignedHeight = alignedHeight;
-	surf->mBytesPerPixel = bytesPerPixel;
-	surf->mStride = alignedWidth * bytesPerPixel;
-	surf->mRotation = gcvSURF_0_DEGREE;
-	surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
-	surf->mIsWrapped = gcvFALSE;
-	surf->mData = gcvNULL;
-	*surface = surf;
+    surf->mTiling = gcvLINEAR;
+    surf->mAlignedWidth = alignedWidth;
+    surf->mAlignedHeight = alignedHeight;
+    surf->mBytesPerPixel = bytesPerPixel;
+    surf->mStride = alignedWidth * bytesPerPixel;
+    surf->mRotation = gcvSURF_0_DEGREE;
+    surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
+    surf->mIsWrapped = gcvFALSE;
+    surf->mData = gcvNULL;
+    *surface = surf;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
 Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix)
 {
 
-	GenericSurfacePtr surf = gcvNULL;
-	gctUINT alignedWidth, alignedHeight;
-	gctUINT bytesPerPixel;
-	alignedWidth = gcmALIGN(pPixmap->drawable.width, WIDTH_ALIGNMENT);
-	alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
-	bytesPerPixel = BITSTOBYTES(pPixmap->drawable.bitsPerPixel);
+    GenericSurfacePtr surf = gcvNULL;
+    gctUINT alignedWidth, alignedHeight;
+    gctUINT bytesPerPixel;
+    alignedWidth = gcmALIGN(pPixmap->drawable.width, WIDTH_ALIGNMENT);
+    alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
+    bytesPerPixel = BITSTOBYTES(pPixmap->drawable.bitsPerPixel);
 
-	/* The same as CreatSurface */
-	if (bytesPerPixel < 2) {
-		bytesPerPixel = 2;
-	}
+    /* The same as CreatSurface */
+    if (bytesPerPixel < 2) {
+        bytesPerPixel = 2;
+    }
 
-	surf = (GenericSurfacePtr)toBeUpdatedpPix->mVidMemInfo;
-	if ( surf && surf->mVideoNode.mSizeInBytes >= (alignedWidth * alignedHeight * bytesPerPixel))
-	{
-		surf->mTiling = gcvLINEAR;
-		surf->mAlignedWidth = alignedWidth;
-		surf->mAlignedHeight = alignedHeight;
-		surf->mStride = alignedWidth * bytesPerPixel;
-		surf->mRotation = gcvSURF_0_DEGREE;
-		surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
-		surf->mIsWrapped = gcvFALSE;
+    surf = (GenericSurfacePtr)toBeUpdatedpPix->mVidMemInfo;
+    if ( surf && surf->mVideoNode.mSizeInBytes >= (alignedWidth * alignedHeight * bytesPerPixel))
+    {
+        surf->mTiling = gcvLINEAR;
+        surf->mAlignedWidth = alignedWidth;
+        surf->mAlignedHeight = alignedHeight;
+        surf->mStride = alignedWidth * bytesPerPixel;
+        surf->mRotation = gcvSURF_0_DEGREE;
+        surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
+        surf->mIsWrapped = gcvFALSE;
 
-		if ( surf->mData )
-			pixman_image_unref( (pixman_image_t *)surf->mData );
+        if ( surf->mData )
+            pixman_image_unref( (pixman_image_t *)surf->mData );
 
-		surf->mData = gcvNULL;
-		TRACE_EXIT(TRUE);
-	}
+        surf->mData = gcvNULL;
+        TRACE_EXIT(TRUE);
+    }
 
-	TRACE_EXIT(FALSE);
+    TRACE_EXIT(FALSE);
 }
 
 /*Creating and Destroying Functions*/
@@ -632,7 +632,7 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
 {
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     GenericSurfacePtr surf = NULL;
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
     if ( pPix == NULL )
         TRACE_EXIT(FALSE);
@@ -698,8 +698,8 @@ Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppix) {
             FSLASSERT(!isGpuSyncMode());
 
             // wait until gpu done
-        	VIV2DGPUBlitComplete(galInfo, TRUE);
-        	freePixmapQueue();
+            VIV2DGPUBlitComplete(galInfo, TRUE);
+            freePixmapQueue();
         }
     }
 
@@ -718,7 +718,7 @@ void * MapSurface(Viv2DPixmapPtr priv) {
     surf = (GenericSurfacePtr) priv->mVidMemInfo;
 
     if ( surf == NULL )
-	TRACE_EXIT(0);
+    TRACE_EXIT(0);
 
     returnaddr = surf->mLogicalAddr;
     TRACE_EXIT(returnaddr);
@@ -731,9 +731,9 @@ void UnMapSurface(Viv2DPixmapPtr priv) {
 
 char *MapViv2DPixmap(Viv2DPixmapPtr pdst ){
 
-	GenericSurfacePtr surf = (GenericSurfacePtr) pdst->mVidMemInfo;
+    GenericSurfacePtr surf = (GenericSurfacePtr) pdst->mVidMemInfo;
 
-	return (surf ? surf->mVideoNode.mLogicalAddr:NULL);
+    return (surf ? surf->mVideoNode.mLogicalAddr:NULL);
 }
 
 unsigned int GetStride(Viv2DPixmapPtr pixmap) {
@@ -786,50 +786,50 @@ void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
 }
 
 
-#define  MAX_WIDTH		1024
-#define  MAX_HEIGHT		1024
+#define  MAX_WIDTH        1024
+#define  MAX_HEIGHT        1024
 
 typedef struct _IVSURF {
-gcoSURF	surf;
-int		lineaddr;
+gcoSURF    surf;
+int        lineaddr;
 }IVSURF,*PIVSURF;
 
 static IVSURF _vsurf16={NULL,0};
 static IVSURF _vsurf32={NULL,0};
 
 static Bool VDestroySurf16() {
-	gceSTATUS status = gcvSTATUS_OK;
+    gceSTATUS status = gcvSTATUS_OK;
 
-	if (_vsurf16.surf==NULL) TRACE_EXIT(TRUE);
+    if (_vsurf16.surf==NULL) TRACE_EXIT(TRUE);
 
- 	status=gcoSURF_Unlock(_vsurf16.surf, &(_vsurf16.lineaddr));
+     status=gcoSURF_Unlock(_vsurf16.surf, &(_vsurf16.lineaddr));
 
-	if (status!=gcvSTATUS_OK)
-		TRACE_EXIT(FALSE);
+    if (status!=gcvSTATUS_OK)
+        TRACE_EXIT(FALSE);
 
-	status=gcoSURF_Destroy(_vsurf16.surf);
+    status=gcoSURF_Destroy(_vsurf16.surf);
 
-	_vsurf16.surf=NULL;
+    _vsurf16.surf=NULL;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
 static Bool VDestroySurf32() {
 
-	gceSTATUS status = gcvSTATUS_OK;
+    gceSTATUS status = gcvSTATUS_OK;
 
-	if (_vsurf32.surf==NULL) TRACE_EXIT(TRUE);
+    if (_vsurf32.surf==NULL) TRACE_EXIT(TRUE);
 
-	status=gcoSURF_Unlock(_vsurf32.surf, &(_vsurf32.lineaddr));
+    status=gcoSURF_Unlock(_vsurf32.surf, &(_vsurf32.lineaddr));
 
-	if (status!=gcvSTATUS_OK)
-		TRACE_EXIT(FALSE);
+    if (status!=gcvSTATUS_OK)
+        TRACE_EXIT(FALSE);
 
-	status=gcoSURF_Destroy(_vsurf32.surf);
+    status=gcoSURF_Destroy(_vsurf32.surf);
 
-	_vsurf32.surf=NULL;
+    _vsurf32.surf=NULL;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 
 }
 
@@ -837,52 +837,52 @@ static Bool VDestroySurf32() {
 Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride, int cacheable)
  {
 
-	static int gphyaddr;
-	static int glgaddr;
-	static int gwidth;
-	static int gheight;
-	static int gstride;
-	static int lastmaxsize=0;
+    static int gphyaddr;
+    static int glgaddr;
+    static int gwidth;
+    static int gheight;
+    static int gstride;
+    static int lastmaxsize=0;
 
-	gceSTATUS status = gcvSTATUS_OK;
+    gceSTATUS status = gcvSTATUS_OK;
 
-   	VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+       VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
 
-	if (maxsize <MAX_WIDTH)
-		maxsize=MAX_WIDTH;
+    if (maxsize <MAX_WIDTH)
+        maxsize=MAX_WIDTH;
 
-	if (_vsurf16.surf && (maxsize >lastmaxsize)) {
-		if (VDestroySurf16()!=TRUE)
-			TRACE_EXIT(FALSE);
-		lastmaxsize=maxsize;
-	}
+    if (_vsurf16.surf && (maxsize >lastmaxsize)) {
+        if (VDestroySurf16()!=TRUE)
+            TRACE_EXIT(FALSE);
+        lastmaxsize=maxsize;
+    }
 
-	if (_vsurf16.surf==NULL) {
+    if (_vsurf16.surf==NULL) {
 
-		lastmaxsize=maxsize;
-		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
+        lastmaxsize=maxsize;
+        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
 
-		if (status!=gcvSTATUS_OK)
-			TRACE_EXIT(FALSE);
+        if (status!=gcvSTATUS_OK)
+            TRACE_EXIT(FALSE);
 
-		status=gcoSURF_GetAlignedSize(_vsurf16.surf,&gwidth,&gheight,&gstride);
+        status=gcoSURF_GetAlignedSize(_vsurf16.surf,&gwidth,&gheight,&gstride);
 
-		if (status!=gcvSTATUS_OK)
-			TRACE_EXIT(FALSE);
+        if (status!=gcvSTATUS_OK)
+            TRACE_EXIT(FALSE);
 
-		status=gcoSURF_Lock(_vsurf16.surf,  &gphyaddr, (void *)&glgaddr);
+        status=gcoSURF_Lock(_vsurf16.surf,  &gphyaddr, (void *)&glgaddr);
 
-		_vsurf16.lineaddr=glgaddr;
+        _vsurf16.lineaddr=glgaddr;
 
-	}
+    }
 
-	*phyaddr=gphyaddr;
-	*lgaddr=glgaddr;
-	*width=gwidth;
-	*height=gheight;
-	*stride=gstride;
+    *phyaddr=gphyaddr;
+    *lgaddr=glgaddr;
+    *width=gwidth;
+    *height=gheight;
+    *stride=gstride;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 
  }
 
@@ -890,52 +890,52 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
  Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride, int cacheable)
  {
 
-	static int gphyaddr;
-	static int glgaddr;
-	static int gwidth;
-	static int gheight;
-	static int gstride;
-	static int lastmaxsize=0;
-	gceSTATUS status = gcvSTATUS_OK;
+    static int gphyaddr;
+    static int glgaddr;
+    static int gwidth;
+    static int gheight;
+    static int gstride;
+    static int lastmaxsize=0;
+    gceSTATUS status = gcvSTATUS_OK;
 
-	VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
 
-	if (maxsize <MAX_WIDTH)
-		maxsize=MAX_WIDTH;
+    if (maxsize <MAX_WIDTH)
+        maxsize=MAX_WIDTH;
 
-	if (_vsurf32.surf && (maxsize >lastmaxsize)) {
-		if (VDestroySurf32()!=TRUE)
-			TRACE_EXIT(FALSE);
-		lastmaxsize=maxsize;
-	}
+    if (_vsurf32.surf && (maxsize >lastmaxsize)) {
+        if (VDestroySurf32()!=TRUE)
+            TRACE_EXIT(FALSE);
+        lastmaxsize=maxsize;
+    }
 
 
-	if (_vsurf32.surf==NULL) {
+    if (_vsurf32.surf==NULL) {
 
-		lastmaxsize=maxsize;
-		status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
+        lastmaxsize=maxsize;
+        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
 
-		if (status!=gcvSTATUS_OK)
-			TRACE_EXIT(FALSE);
+        if (status!=gcvSTATUS_OK)
+            TRACE_EXIT(FALSE);
 
-		status=gcoSURF_GetAlignedSize(_vsurf32.surf,&gwidth,&gheight,&gstride);
+        status=gcoSURF_GetAlignedSize(_vsurf32.surf,&gwidth,&gheight,&gstride);
 
-		if (status!=gcvSTATUS_OK)
-			TRACE_EXIT(FALSE);
+        if (status!=gcvSTATUS_OK)
+            TRACE_EXIT(FALSE);
 
-		status=gcoSURF_Lock(_vsurf32.surf,  &gphyaddr, (void *)&glgaddr);
+        status=gcoSURF_Lock(_vsurf32.surf,  &gphyaddr, (void *)&glgaddr);
 
-		_vsurf32.lineaddr=glgaddr;
+        _vsurf32.lineaddr=glgaddr;
 
-	}
+    }
 
-	*phyaddr=gphyaddr;
-	*lgaddr=glgaddr;
-	*width=gwidth;
-	*height=gheight;
-	*stride=gstride;
+    *phyaddr=gphyaddr;
+    *lgaddr=glgaddr;
+    *width=gwidth;
+    *height=gheight;
+    *stride=gstride;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 
 }
 
@@ -955,6 +955,6 @@ void VFlushSurf(int surf16, void *logAddr, int size, gceCACHEOPERATION op)
 
 void  VDestroySurf()
 {
-	VDestroySurf16();
-	VDestroySurf32();
+    VDestroySurf16();
+    VDestroySurf32();
 }

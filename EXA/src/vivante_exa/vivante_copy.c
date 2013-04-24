@@ -25,8 +25,8 @@
 
 Bool
 DummyPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
-	int xdir, int ydir, int alu, Pixel planemask) {
-	return FALSE;
+    int xdir, int ydir, int alu, Pixel planemask) {
+    return FALSE;
 }
 
 // FIXME! thresould is calculated on 24-bit pixmap
@@ -67,59 +67,59 @@ DummyPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 
 Bool
 VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
-	int xdir, int ydir, int alu, Pixel planemask) {
-	TRACE_ENTER();
-	Viv2DPixmapPtr psrc = exaGetPixmapDriverPrivate(pSrcPixmap);
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDstPixmap);
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
-	int fgop = 0xCC;
-	int bgop = 0xCC;
+    int xdir, int ydir, int alu, Pixel planemask) {
+    TRACE_ENTER();
+    Viv2DPixmapPtr psrc = exaGetPixmapDriverPrivate(pSrcPixmap);
+    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pDstPixmap);
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+    int fgop = 0xCC;
+    int bgop = 0xCC;
 
-	//SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
-	//SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
+    //SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
+    //SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
     // early fail out
- 	if(pSrcPixmap->drawable.height < MIN_HW_HEIGHT || pSrcPixmap->drawable.width * pSrcPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
-		TRACE_EXIT(FALSE);
+    if(pSrcPixmap->drawable.height < MIN_HW_HEIGHT || pSrcPixmap->drawable.width * pSrcPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
+        TRACE_EXIT(FALSE);
     }
 
- 	if(pDstPixmap->drawable.height < MIN_HW_HEIGHT || pDstPixmap->drawable.width * pDstPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
-		TRACE_EXIT(FALSE);
+    if(pDstPixmap->drawable.height < MIN_HW_HEIGHT || pDstPixmap->drawable.width * pDstPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
+        TRACE_EXIT(FALSE);
     }
 
-	if (!CheckCPYValidity(pDstPixmap, alu, planemask)) {
-		TRACE_EXIT(FALSE);
-	}
+    if (!CheckCPYValidity(pDstPixmap, alu, planemask)) {
+        TRACE_EXIT(FALSE);
+    }
 
-	if (!GetDefaultFormat(pSrcPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat))) {
-		TRACE_EXIT(FALSE);
-	}
+    if (!GetDefaultFormat(pSrcPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat))) {
+        TRACE_EXIT(FALSE);
+    }
 
-	if (!GetDefaultFormat(pDstPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
-		TRACE_EXIT(FALSE);
-	}
+    if (!GetDefaultFormat(pDstPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
+        TRACE_EXIT(FALSE);
+    }
 
-	ConvertXAluToOPS(pDstPixmap, alu, planemask, &fgop,&bgop);
+    ConvertXAluToOPS(pDstPixmap, alu, planemask, &fgop,&bgop);
 
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pDstPixmap->drawable.height;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pDstPixmap->drawable.width;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pDstPixmap->devKind;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pDstPixmap->drawable.height;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pDstPixmap->drawable.width;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pDstPixmap->devKind;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
 
-	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight = pSrcPixmap->drawable.height;
-	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth = pSrcPixmap->drawable.width;
-	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride = pSrcPixmap->devKind;
-	pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv = psrc;
+    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mHeight = pSrcPixmap->drawable.height;
+    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mWidth = pSrcPixmap->drawable.width;
+    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride = pSrcPixmap->devKind;
+    pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv = psrc;
 
 
-	pViv->mGrCtx.mBlitInfo.mBgRop = fgop;
-	pViv->mGrCtx.mBlitInfo.mFgRop = bgop;
+    pViv->mGrCtx.mBlitInfo.mBgRop = fgop;
+    pViv->mGrCtx.mBlitInfo.mFgRop = bgop;
 
-	if ( alu == GXcopy)
-		pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSIMCOPY;
-	else
-		pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
+    if ( alu == GXcopy)
+        pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSIMCOPY;
+    else
+        pViv->mGrCtx.mBlitInfo.mOperationCode = VIVCOPY;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
 /**
@@ -149,88 +149,88 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
 **/
 void
 VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
-	int dstX, int dstY, int width, int height) {
-	TRACE_ENTER();
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+    int dstX, int dstY, int width, int height) {
+    TRACE_ENTER();
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
-	Viv2DPixmapPtr psrc = NULL;
-	Viv2DPixmapPtr pdst = NULL;
+    Viv2DPixmapPtr psrc = NULL;
+    Viv2DPixmapPtr pdst = NULL;
 
     startDrawingCopy(width, height, pViv->mGrCtx.mBlitInfo.mOperationCode);
 
-	pdst = pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv;
-	psrc = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv;
-	/*Setting up the rectangle*/
-	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
-	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
-	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = dstX + width;
-	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = dstY + height;
+    pdst = pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv;
+    psrc = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv;
+    /*Setting up the rectangle*/
+    pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
+    pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
+    pViv->mGrCtx.mBlitInfo.mDstBox.x2 = dstX + width;
+    pViv->mGrCtx.mBlitInfo.mDstBox.y2 = dstY + height;
 
-	pViv->mGrCtx.mBlitInfo.mSrcBox.x1 = srcX;
-	pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
-	pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
-	pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.x1 = srcX;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
 
-	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-	if ( height < MIN_HW_HEIGHT || ( width * height ) < MIN_HW_SIZE_24BIT )
-	{
-		/* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
-		gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
-		gcmASSERT((pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride%4)==0);
+    /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
+    if ( height < MIN_HW_HEIGHT || ( width * height ) < MIN_HW_SIZE_24BIT )
+    {
+        /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
+        gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
+        gcmASSERT((pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride%4)==0);
 
-		if ( MapViv2DPixmap(psrc) != MapViv2DPixmap(pdst) )
-		{
+        if ( MapViv2DPixmap(psrc) != MapViv2DPixmap(pdst) )
+        {
             preCpuDraw(pViv, psrc);
             preCpuDraw(pViv, pdst);
 
-			pixman_blt((uint32_t *) MapViv2DPixmap(psrc),
-				(uint32_t *) MapViv2DPixmap(pdst),
-				pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride/4,
-				pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4,
-				pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp,
-				pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp,
-				srcX,
-				srcY,
-				dstX,
-				dstY,
-				width,
-				height);
+            pixman_blt((uint32_t *) MapViv2DPixmap(psrc),
+                (uint32_t *) MapViv2DPixmap(pdst),
+                pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride/4,
+                pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4,
+                pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp,
+                pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp,
+                srcX,
+                srcY,
+                dstX,
+                dstY,
+                width,
+                height);
 
             postCpuDraw(pViv, psrc);
             postCpuDraw(pViv, pdst);
-			TRACE_EXIT();
-		}
-	}
+            TRACE_EXIT();
+        }
+    }
 
-	// sync with cpu cache
+    // sync with cpu cache
     preGpuDraw(pViv, psrc, TRUE);
     preGpuDraw(pViv, pdst, FALSE);
 
-	if (!SetDestinationSurface(&pViv->mGrCtx)) {
-		TRACE_ERROR("Copy Blit Failed\n");
+    if (!SetDestinationSurface(&pViv->mGrCtx)) {
+        TRACE_ERROR("Copy Blit Failed\n");
         goto quit;
-	}
+    }
 
-	if (!SetSourceSurface(&pViv->mGrCtx)) {
-		TRACE_ERROR("Copy Blit Failed\n");
+    if (!SetSourceSurface(&pViv->mGrCtx)) {
+        TRACE_ERROR("Copy Blit Failed\n");
         goto quit;
-	}
+    }
 
-	if (!SetClipping(&pViv->mGrCtx)) {
-		TRACE_ERROR("Copy Blit Failed\n");
+    if (!SetClipping(&pViv->mGrCtx)) {
+        TRACE_ERROR("Copy Blit Failed\n");
         goto quit;
-	}
+    }
 
-	if (!DoCopyBlit(&pViv->mGrCtx)) {
-		TRACE_ERROR("Copy Blit Failed\n");
+    if (!DoCopyBlit(&pViv->mGrCtx)) {
+        TRACE_ERROR("Copy Blit Failed\n");
         goto quit;
-	}
+    }
 
-	queuePixmapToGpu(psrc);
-	queuePixmapToGpu(pdst);
+    queuePixmapToGpu(psrc);
+    queuePixmapToGpu(pdst);
 
 quit:
-	TRACE_EXIT();
+    TRACE_EXIT();
 }
 
 /**
@@ -248,12 +248,12 @@ quit:
 void
 VivDoneCopy(PixmapPtr pDstPixmap) {
 
-	TRACE_ENTER();
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+    TRACE_ENTER();
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
-	postGpuDraw(pViv);
+    postGpuDraw(pViv);
 
     endDrawingCopy();
 
-	TRACE_EXIT();
+    TRACE_EXIT();
 }

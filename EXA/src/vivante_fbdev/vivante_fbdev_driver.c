@@ -30,7 +30,7 @@
 #define VIVANTE_VERSION_MAJOR      1
 #define VIVANTE_VERSION_MINOR      0
 #define VIVANTE_VERSION_PATCHLEVEL 0
-#define VIVANTE_VERSION_STRING	"1.0"
+#define VIVANTE_VERSION_STRING    "1.0"
 
 #define VIVANTE_NAME              "VIVANTE"
 #define VIVANTE_DRIVER_NAME       "vivante"

@@ -105,5 +105,5 @@ void endDrawingSW();
 }
 #endif
 
-#endif	/* VIVANTE_DEBUG_H */
+#endif    /* VIVANTE_DEBUG_H */
 

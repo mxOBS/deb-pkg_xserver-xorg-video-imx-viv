@@ -42,106 +42,106 @@ VivEXASync(ScreenPtr pScreen, int marker) {
 
 void
 ConvertXAluToOPS(PixmapPtr pPixmap, int alu, Pixel planemask, int *fg, int *bg) {
-	switch (alu)
-	{
-		case GXcopy:
-			*fg = 0xCC;
-			*bg = 0xCC;
-			break;
-		case GXclear:
-			*fg = 0xCC;
-			*bg = 0x00;
-			break;
-		case GXand:
-			*fg = 0xCC;
-			*bg = 0x88;
-			break;
-		case GXandReverse:
-			*fg = 0xCC;
-			*bg = 0x88;
-			break;
-		case GXandInverted:
-			/* Not supported */
-			break;
-		case GXnoop:
-			*fg = 0xCC;
-			*bg = 0xAA;
-			break;
-		case GXxor:
-			*fg = 0xCC;
-			*bg = 0x66;
-			break;
-		case GXor:
-			*fg = 0xCC;
-			*bg = 0xEE;
-			break;
-		case GXnor:
-			/* Not supported */
-			break;
-		case GXequiv:
-			/* Not supported */
-			break;
-		case GXinvert:
-			*fg = 0xCC;
-			*bg = 0x55;
-			break;
-		case GXorReverse:
-			/* Not supported */
-			break;
-		case GXcopyInverted:
-			*fg = 0xCC;
-			*bg = 0x33;
-			break;
-		case GXorInverted:
-			/* Not supported */
-			break;
-		case GXnand:
-			/* Not supported */
-			break;
-		case GXset:
-			*fg = 0xCC;
-			*bg = 0xFF;
-			break;
-		default:
-			;
-	}
+    switch (alu)
+    {
+        case GXcopy:
+            *fg = 0xCC;
+            *bg = 0xCC;
+            break;
+        case GXclear:
+            *fg = 0xCC;
+            *bg = 0x00;
+            break;
+        case GXand:
+            *fg = 0xCC;
+            *bg = 0x88;
+            break;
+        case GXandReverse:
+            *fg = 0xCC;
+            *bg = 0x88;
+            break;
+        case GXandInverted:
+            /* Not supported */
+            break;
+        case GXnoop:
+            *fg = 0xCC;
+            *bg = 0xAA;
+            break;
+        case GXxor:
+            *fg = 0xCC;
+            *bg = 0x66;
+            break;
+        case GXor:
+            *fg = 0xCC;
+            *bg = 0xEE;
+            break;
+        case GXnor:
+            /* Not supported */
+            break;
+        case GXequiv:
+            /* Not supported */
+            break;
+        case GXinvert:
+            *fg = 0xCC;
+            *bg = 0x55;
+            break;
+        case GXorReverse:
+            /* Not supported */
+            break;
+        case GXcopyInverted:
+            *fg = 0xCC;
+            *bg = 0x33;
+            break;
+        case GXorInverted:
+            /* Not supported */
+            break;
+        case GXnand:
+            /* Not supported */
+            break;
+        case GXset:
+            *fg = 0xCC;
+            *bg = 0xFF;
+            break;
+        default:
+            ;
+    }
 
 }
 
 Bool
 CheckCPYValidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
 
-	TRACE_ENTER();
+    TRACE_ENTER();
 
-	switch(alu){
-		case GXandInverted:
-		case GXnor:
-		case GXequiv:
-		case GXorReverse:
-		case GXorInverted:
-		case GXnand:
-			TRACE_EXIT(FALSE);
-		default:
-			;
-	}
+    switch(alu){
+        case GXandInverted:
+        case GXnor:
+        case GXequiv:
+        case GXorReverse:
+        case GXorInverted:
+        case GXnand:
+            TRACE_EXIT(FALSE);
+        default:
+            ;
+    }
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
 Bool
 CheckFILLValidity(PixmapPtr pPixmap, int alu, Pixel planemask) {
 
-	if (alu != GXcopy) {
-		TRACE_INFO("FALSE: (alu != GXcopy)\n");
-		TRACE_EXIT(FALSE);
-	}
+    if (alu != GXcopy) {
+        TRACE_INFO("FALSE: (alu != GXcopy)\n");
+        TRACE_EXIT(FALSE);
+    }
 
-	if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask)) {
-		TRACE_INFO("FALSE: (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))\n");
-		TRACE_EXIT(FALSE);
-	}
+    if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask)) {
+        TRACE_INFO("FALSE: (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))\n");
+        TRACE_EXIT(FALSE);
+    }
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
 PixmapPtr
@@ -315,7 +315,7 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     pBltInfo->mFgRop = 0xCC;
 
 
-	// sync with cpu cache
+    // sync with cpu cache
     VFlushSurf((pDst->drawable.bitsPerPixel == 16), mmap.mUserAddr, mmap.mSize, gcvCACHE_FLUSH);
     preGpuDraw(pViv, pdst, FALSE);
 
@@ -408,23 +408,23 @@ static FUpToScreen _fptoscreen[4] = {DoneByNothing, DoneBySWCPY, DoneByVSurf, Do
 static FUPSCREENTYPE ftype = /*DONE_BY_SWCPY*/DONE_BY_VSURF;
 Bool
 VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch) {
+    int h, char *src, int src_pitch) {
 
     // wait hw done and invalidate the cache
     Bool ret;
 
     startDrawingUpload(w, h);
 
-	if ( 1 )//( w*h ) < MAXSIZE_FORSWTOSCREEN )
+    if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
     {
-		ftype = DONE_BY_SWCPY;
+        ftype = DONE_BY_SWCPY;
     }
-	else
+    else
     {
-		ftype = DONE_BY_VSURF;
+        ftype = DONE_BY_VSURF;
     }
 
-	ret = _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
+    ret = _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
 
     endDrawingUpload();
 
@@ -433,7 +433,7 @@ VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
 
 Bool
 DummyUploadToScreen(PixmapPtr pDst, int x, int y, int w,
-	int h, char *src, int src_pitch) {
+    int h, char *src, int src_pitch) {
     return FALSE;
 }
 

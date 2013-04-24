@@ -82,10 +82,10 @@ driSetup(pointer module, pointer opts, int *errmaj, int *errmin)
     static Bool setupDone = FALSE;
 
     if (!setupDone) {
-	setupDone = TRUE;
-	LoadExtension(&XF86DRIExt, FALSE);
+    setupDone = TRUE;
+    LoadExtension(&XF86DRIExt, FALSE);
     } else {
-	if (errmaj) *errmaj = LDR_ONCEONLY;
+    if (errmaj) *errmaj = LDR_ONCEONLY;
     }
 
     drmSetServerInfo(&DRIDRMServerInfo);

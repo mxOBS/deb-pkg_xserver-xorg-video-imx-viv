@@ -54,37 +54,37 @@ DummyPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  */
 Bool
 VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
-	TRACE_ENTER();
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-	int fgop = 0xF0;
-	int bgop = 0xF0;
+    TRACE_ENTER();
+    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+    int fgop = 0xF0;
+    int bgop = 0xF0;
 
     // early fail out
- 	if(pPixmap->drawable.height < MIN_HW_HEIGHT || pPixmap->drawable.width * pPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
-		TRACE_EXIT(FALSE);
+     if(pPixmap->drawable.height < MIN_HW_HEIGHT || pPixmap->drawable.width * pPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
+        TRACE_EXIT(FALSE);
     }
 
-	if (!CheckFILLValidity(pPixmap, alu, planemask)) {
-		TRACE_EXIT(FALSE);
-	}
-	if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
-		TRACE_EXIT(FALSE);
-	}
+    if (!CheckFILLValidity(pPixmap, alu, planemask)) {
+        TRACE_EXIT(FALSE);
+    }
+    if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &(pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat))) {
+        TRACE_EXIT(FALSE);
+    }
 
-	/*Populating the information*/
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pPixmap->drawable.height;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pPixmap->drawable.width;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pPixmap->devKind;
-	pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
-	pViv->mGrCtx.mBlitInfo.mFgRop = fgop;
-	pViv->mGrCtx.mBlitInfo.mBgRop = bgop;
-	pViv->mGrCtx.mBlitInfo.mColorARGB32 = fg;
-	pViv->mGrCtx.mBlitInfo.mColorConvert = FALSE;
-	pViv->mGrCtx.mBlitInfo.mPlaneMask = planemask;
-	pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSOLID;
+    /*Populating the information*/
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mHeight = pPixmap->drawable.height;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mWidth = pPixmap->drawable.width;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride = pPixmap->devKind;
+    pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv = pdst;
+    pViv->mGrCtx.mBlitInfo.mFgRop = fgop;
+    pViv->mGrCtx.mBlitInfo.mBgRop = bgop;
+    pViv->mGrCtx.mBlitInfo.mColorARGB32 = fg;
+    pViv->mGrCtx.mBlitInfo.mColorConvert = FALSE;
+    pViv->mGrCtx.mBlitInfo.mPlaneMask = planemask;
+    pViv->mGrCtx.mBlitInfo.mOperationCode = VIVSOLID;
 
-	TRACE_EXIT(TRUE);
+    TRACE_EXIT(TRUE);
 }
 
 /**
@@ -108,59 +108,59 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  */
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
-	TRACE_ENTER();
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
+    TRACE_ENTER();
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+    Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
 
-	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
- 	if(( y2 - y1 ) < MIN_HW_HEIGHT || (  x2 - x1 ) * ( y2 - y1 ) < MIN_HW_SIZE_24BIT) {
+    /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
+     if(( y2 - y1 ) < MIN_HW_HEIGHT || (  x2 - x1 ) * ( y2 - y1 ) < MIN_HW_SIZE_24BIT) {
         preCpuDraw(pViv, pdst);
 
-		/* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
-		gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
+        /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
+        gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
 
-		pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
+        pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
 
         postCpuDraw(pViv, pdst);
-		TRACE_EXIT();
-	}
+        TRACE_EXIT();
+    }
 
     startDrawingSolid(x2-x1, y2-y1);
 
-	/*Setting up the rectangle*/
-	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
-	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
-	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
-	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
-	
-	// sync with cpu cache
+    /*Setting up the rectangle*/
+    pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
+    pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
+    pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
+    pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
+    
+    // sync with cpu cache
     preGpuDraw(pViv, pdst, FALSE);
 
-	if (!SetDestinationSurface(&pViv->mGrCtx)) {
-			TRACE_ERROR("Solid Blit Failed\n");
+    if (!SetDestinationSurface(&pViv->mGrCtx)) {
+            TRACE_ERROR("Solid Blit Failed\n");
         goto quit;
-	}
+    }
 
-	if (!SetClipping(&pViv->mGrCtx)) {
-			TRACE_ERROR("Solid Blit Failed\n");
+    if (!SetClipping(&pViv->mGrCtx)) {
+            TRACE_ERROR("Solid Blit Failed\n");
         goto quit;
-	}
+    }
 
-	if (!SetSolidBrush(&pViv->mGrCtx)) {
-			TRACE_ERROR("Solid Blit Failed\n");
+    if (!SetSolidBrush(&pViv->mGrCtx)) {
+            TRACE_ERROR("Solid Blit Failed\n");
         goto quit;
-	}
+    }
 
-	if (!DoSolidBlit(&pViv->mGrCtx)) {
-		TRACE_ERROR("Solid Blit Failed\n");
+    if (!DoSolidBlit(&pViv->mGrCtx)) {
+        TRACE_ERROR("Solid Blit Failed\n");
         goto quit;
-	}
+    }
 
     // put this pixmap into gpu queue
     queuePixmapToGpu(pdst);
 
 quit:
-	TRACE_EXIT();
+    TRACE_EXIT();
 }
 
 /**
@@ -177,13 +177,13 @@ quit:
  */
 void
 VivDoneSolid(PixmapPtr pPixmap) {
-	TRACE_ENTER();
+    TRACE_ENTER();
 
-	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
-	postGpuDraw(pViv);
+    postGpuDraw(pViv);
 
     endDrawingSolid();
 
-	TRACE_EXIT();
+    TRACE_EXIT();
 }

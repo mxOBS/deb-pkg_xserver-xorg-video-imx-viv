@@ -20,7 +20,7 @@
 
 
 #ifndef VIVANTE_PRIV_H
-#define	VIVANTE_PRIV_H
+#define    VIVANTE_PRIV_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,5 +101,5 @@ extern "C" {
 }
 #endif
 
-#endif	/* VIVANTE_PRIV_H */
+#endif    /* VIVANTE_PRIV_H */
 
