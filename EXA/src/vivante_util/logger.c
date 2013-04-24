@@ -85,7 +85,7 @@ void queuePixmapToGpu(Viv2DPixmapPtr vpixmap)
 {
     PixmapQueue *p = NULL;
 
-    if(vpixmap == NULL)
+    if(vpixmap == NULL || vpixmap->mGpuBusy) // already in the queue
         return;
 
     p = (PixmapQueue *)malloc(sizeof(PixmapQueue));
@@ -203,4 +203,200 @@ void postCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
 {
     // nothing to do
 }
+
+#if defined(DRAWING_STATISTICS)
+#include <sys/time.h>
+
+typedef enum tagDrawOp
+{
+    DRAW_SOLID = 1,
+    DRAW_COPY,
+    DRAW_UPLOAD,
+    DRAW_COMPOSITE,
+    DRAW_SWACCESS,
+    DRAW_UNKNOWN = 100
+}DRAWOP;
+
+typedef struct tagDrawing
+{
+    DRAWOP op;
+    // time
+    struct timeval time_start;
+    struct timeval time_end;
+    // parameters for solid
+    int solid_width;
+    int solid_height;
+    // parameters for copy
+    int copy_width;
+    int copy_height;
+    int rop;
+    // parameters for upload
+    int upload_width;
+    int upload_height;
+    // parameters for composite
+    int comp_width;
+    int comp_height;
+}DRAWING;
+
+static DRAWING curDrawing;
+
+void initDrawingStatistics()
+{
+    curDrawing.op = DRAW_UNKNOWN;
+}
+
+void freeDrawingStatistics()
+{
+}
+
+void startDrawingSolid(int width, int height)
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    curDrawing.op           = DRAW_SOLID;
+    curDrawing.time_start   = time;
+    curDrawing.solid_width  = width;
+    curDrawing.solid_height = height;
+}
+
+void endDrawingSolid()
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    FSLASSERT(curDrawing.op == DRAW_SOLID);
+    if(curDrawing.op != DRAW_SOLID)
+        return;
+
+    curDrawing.time_end     = time;
+
+    // save to file
+    LOGD("STATISTICS: [%d:%d - %d:%d] solid  %d x %d  use %d us\n",
+        curDrawing.time_start.tv_sec, curDrawing.time_start.tv_usec,
+        curDrawing.time_end.tv_sec, curDrawing.time_end.tv_usec,
+        curDrawing.solid_width, curDrawing.solid_height,
+        (curDrawing.time_end.tv_sec-curDrawing.time_start.tv_sec)*1000*1000+(curDrawing.time_end.tv_usec-curDrawing.time_start.tv_usec));
+}
+
+void startDrawingCopy(int width, int height, int rop)
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    curDrawing.op           = DRAW_COPY;
+    curDrawing.time_start   = time;
+    curDrawing.rop          = rop;
+    curDrawing.copy_width   = width;
+    curDrawing.copy_height  = height;
+}
+
+void endDrawingCopy()
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    FSLASSERT(curDrawing.op == DRAW_COPY);
+    if(curDrawing.op != DRAW_COPY)
+        return;
+
+    curDrawing.time_end     = time;
+
+    // save to file
+    LOGD("STATISTICS: [%d:%d - %d:%d] copy  %d x %d rop %d  use %d us\n",
+        curDrawing.time_start.tv_sec, curDrawing.time_start.tv_usec,
+        curDrawing.time_end.tv_sec, curDrawing.time_end.tv_usec,
+        curDrawing.copy_width, curDrawing.copy_height,
+        curDrawing.rop,
+        (curDrawing.time_end.tv_sec-curDrawing.time_start.tv_sec)*1000*1000+(curDrawing.time_end.tv_usec-curDrawing.time_start.tv_usec));
+}
+
+void startDrawingUpload(int width, int height)
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    curDrawing.op           = DRAW_UPLOAD;
+    curDrawing.time_start   = time;
+    curDrawing.upload_width = width;
+    curDrawing.upload_height= height;
+}
+
+void endDrawingUpload()
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    FSLASSERT(curDrawing.op == DRAW_UPLOAD);
+    if(curDrawing.op != DRAW_UPLOAD)
+        return;
+
+    curDrawing.time_end     = time;
+
+    // save to file
+    LOGD("STATISTICS: [%d:%d - %d:%d] upload  %d x %d use %d us\n",
+        curDrawing.time_start.tv_sec, curDrawing.time_start.tv_usec,
+        curDrawing.time_end.tv_sec, curDrawing.time_end.tv_usec,
+        curDrawing.upload_width, curDrawing.upload_height,
+        (curDrawing.time_end.tv_sec-curDrawing.time_start.tv_sec)*1000*1000+(curDrawing.time_end.tv_usec-curDrawing.time_start.tv_usec));
+}
+
+void startDrawingCompose(int width, int height)
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    curDrawing.op           = DRAW_COMPOSITE;
+    curDrawing.time_start   = time;
+    curDrawing.comp_width   = width;
+    curDrawing.comp_height  = height;
+}
+
+void endDrawingCompose()
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    FSLASSERT(curDrawing.op == DRAW_COMPOSITE);
+    if(curDrawing.op != DRAW_COMPOSITE)
+        return;
+
+    curDrawing.time_end     = time;
+
+    // save to file
+    LOGD("STATISTICS: [%d:%d - %d:%d] composite  %d x %d use %d us\n",
+        curDrawing.time_start.tv_sec, curDrawing.time_start.tv_usec,
+        curDrawing.time_end.tv_sec, curDrawing.time_end.tv_usec,
+        curDrawing.comp_width, curDrawing.comp_height,
+        (curDrawing.time_end.tv_sec-curDrawing.time_start.tv_sec)*1000*1000+(curDrawing.time_end.tv_usec-curDrawing.time_start.tv_usec));
+}
+
+void startDrawingSW()
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    curDrawing.op           = DRAW_SWACCESS;
+    curDrawing.time_start   = time;
+}
+
+void endDrawingSW()
+{
+    struct timeval time;
+    gettimeofday(&time, NULL);
+
+    FSLASSERT(curDrawing.op == DRAW_SWACCESS);
+    if(curDrawing.op != DRAW_SWACCESS)
+        return;
+
+    curDrawing.time_end     = time;
+
+    // save to file
+    LOGD("STATISTICS: [%d:%d - %d:%d] sw  use %d us\n",
+        curDrawing.time_start.tv_sec, curDrawing.time_start.tv_usec,
+        curDrawing.time_end.tv_sec, curDrawing.time_end.tv_usec,
+        (curDrawing.time_end.tv_sec-curDrawing.time_start.tv_sec)*1000*1000+(curDrawing.time_end.tv_usec-curDrawing.time_start.tv_usec));
+}
+
+#endif
 

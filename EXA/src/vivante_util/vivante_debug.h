@@ -27,7 +27,9 @@ extern "C" {
 #endif
 #include <stdio.h>
 
-#define ENABLE_LOG
+//#define ENABLE_LOG
+//#define DRAWING_STATISTICS
+
 #if defined(ENABLE_LOG)
 void OpenLog();
 void CloseLog();
@@ -70,6 +72,34 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc);
 void postGpuDraw(VivPtr pViv);
 void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap);
 void postCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap);
+
+#if defined(DRAWING_STATISTICS)
+void initDrawingStatistics();
+void freeDrawingStatistics();
+void startDrawingSolid(int width, int height);
+void endDrawingSolid();
+void startDrawingCopy(int width, int height, int rop);
+void endDrawingCopy();
+void startDrawingUpload(int width, int height);
+void endDrawingUpload();
+void startDrawingCompose(int width, int height);
+void endDrawingCompose();
+void startDrawingSW();
+void endDrawingSW();
+#else
+#define initDrawingStatistics(...)
+#define freeDrawingStatistics(...)
+#define startDrawingSolid(...)
+#define endDrawingSolid(...)
+#define startDrawingCopy(...)
+#define endDrawingCopy(...)
+#define startDrawingUpload(...)
+#define endDrawingUpload(...)
+#define startDrawingCompose(...)
+#define endDrawingCompose(...)
+#define startDrawingSW(...)
+#define endDrawingSW(...)
+#endif
 
 #ifdef __cplusplus
 }
