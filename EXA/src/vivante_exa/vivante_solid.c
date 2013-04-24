@@ -27,6 +27,10 @@ DummyPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
     return FALSE;
 }
 
+// FIXME! thresould is calculated on 24-bit pixmap
+#define MIN_HW_HEIGHT 64
+#define MIN_HW_SIZE_24BIT (300 * 300)
+
 /**
  * PrepareSolid() sets up the driver for doing a solid fill.
  * @param pPixmap Destination pixmap
@@ -56,7 +60,10 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
 	int fgop = 0xF0;
 	int bgop = 0xF0;
 
- 	//SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
+    // early fail out
+ 	if(pPixmap->drawable.height < MIN_HW_HEIGHT || pPixmap->drawable.width * pPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
+		TRACE_EXIT(FALSE);
+    }
 
 	if (!CheckFILLValidity(pPixmap, alu, planemask)) {
 		TRACE_EXIT(FALSE);
@@ -104,26 +111,27 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 	TRACE_ENTER();
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 	Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
-	/*Setting up the rectangle*/
-	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
-	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
-	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
-	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
 
 	/* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-#if 0
-	if ( (  x2 - x1 ) * ( y2 - y1 ) < IMX_EXA_NONCACHESURF_SIZE )
-	{
-
-		pdst->mCpuBusy = TRUE;
+ 	if(( y2 - y1 ) < MIN_HW_HEIGHT || (  x2 - x1 ) * ( y2 - y1 ) < MIN_HW_SIZE_24BIT) {
+        preCpuDraw(pViv, pdst);
 
 		/* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
 		gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
 
 		pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
+
+        postCpuDraw(pViv, pdst);
 		TRACE_EXIT();
 	}
-#endif
+
+    startDrawingSolid(x2-x1, y2-y1);
+
+	/*Setting up the rectangle*/
+	pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
+	pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
+	pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
+	pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
 	
 	// sync with cpu cache
     preGpuDraw(pViv, pdst, FALSE);
@@ -174,6 +182,8 @@ VivDoneSolid(PixmapPtr pPixmap) {
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
 	postGpuDraw(pViv);
+
+    endDrawingSolid();
 
 	TRACE_EXIT();
 }

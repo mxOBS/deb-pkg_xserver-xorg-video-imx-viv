@@ -97,6 +97,9 @@ DummyPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
 	return FALSE;
 }
 
+#define MIN_HW_HEIGHT 64
+#define MIN_HW_SIZE_24BIT (200 * 200)
+
 /**
  * CheckComposite() checks to see if a composite operation could be
  * accelerated.
@@ -144,6 +147,10 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 	if (pxSrc == NULL) {
 		TRACE_EXIT(FALSE);
 	}
+
+ 	if(pxDst->drawable.height < MIN_HW_HEIGHT || pxDst->drawable.width * pxDst->drawable.height < MIN_HW_SIZE_24BIT) {
+		TRACE_EXIT(FALSE);
+    }
 
 //	if ( (pxDst->drawable.width * pxDst->drawable.height) < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE )
 //		TRACE_EXIT(FALSE);
@@ -662,25 +669,35 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 		|| pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SIMPLE;
 
 	pBlt->mSwcmp = FALSE;
-#if 0
+
+    startDrawingCompose(width, height);
+
+	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
+	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
+    pmsk = (Viv2DPixmapPtr)pBlt->mMskSurfInfo.mPriv;
+
 	/* Currenlty if mask on, it will not fall into this path ,otherwise consider mask */
 	/* IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT is small, enable this */
 	/* otherwise disable it, it is not meaningful when the size is big */
-	if ( ( width * height ) < MAX_COMPOSITE_SUB_SIZE && pBlt->mBlendOp.mOp != PIXMAN_OP_OVER)
+	if ( (height < MIN_HW_HEIGHT || width * height < MIN_HW_SIZE_24BIT) && pBlt->mBlendOp.mOp != PIXMAN_OP_OVER)
 	{
 		pBlt->mSwcmp = TRUE;
 		/* VIVSWComposite will call pixman_composite to do composition */
 		/* For OVER, pixman_composite can't work properly */
 		/* Let's disable it currently, enable until solution is done*/
+
+        preCpuDraw(pViv, psrc);
+        preCpuDraw(pViv, pmsk);
+        preCpuDraw(pViv, pdst);
+
 		VIVSWComposite(pxDst, srcX, srcY, maskX, maskY, dstX, dstY, width, height);
+
+        postCpuDraw(pViv, psrc);
+        postCpuDraw(pViv, pmsk);
+        postCpuDraw(pViv, pdst);
+
 		return ;
 	}
-#endif
-
-
-	psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
-	pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
-    pmsk = (Viv2DPixmapPtr)pBlt->mMskSurfInfo.mPriv;
 
 	// sync with cpu cache
     preGpuDraw(pViv, psrc, TRUE);
@@ -727,6 +744,8 @@ VivDoneComposite(PixmapPtr pDst) {
     }
 
 	postGpuDraw(pViv);
+
+    endDrawingCompose();
 
     TRACE_EXIT();
 }

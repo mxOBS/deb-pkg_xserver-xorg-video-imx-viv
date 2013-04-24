@@ -212,11 +212,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 	} else {
 
         // check gpu access: wait it done
-        if(pPixmap != NULL) {
-            if(vivPixmap && vivPixmap->mGpuBusy) {
-            	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-                freePixmapQueue();
-            }
+        if(vivPixmap && vivPixmap->mGpuBusy) {
+        	VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+            freePixmapQueue();
         }
 
 		if (isChanged) {
@@ -246,6 +244,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
 	TRACE_EXIT(TRUE);
 }
+
+// (PrepareAccess, FinishAccess) can embed:
+// (PrepareAccess1, PrepareAccess2, ..., FinishAccess2, FinishAccess1)
 
 /**
  * PrepareAccess() is called before CPU access to an offscreen pixmap.
@@ -285,6 +286,8 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
 	TRACE_ENTER();
 	Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
 	VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
+
+    startDrawingSW();
 
 	if (vivpixmap->mRef == 0) {
 		pPix->devPrivate.ptr = MapSurface(vivpixmap);
@@ -330,6 +333,9 @@ VivFinishAccess(PixmapPtr pPix, int index) {
 	}
 
 	vivpixmap->mRef--;
+
+    endDrawingSW();
+
 	TRACE_EXIT();
 }
 

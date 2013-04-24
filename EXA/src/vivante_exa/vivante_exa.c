@@ -413,7 +413,9 @@ VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
     // wait hw done and invalidate the cache
     Bool ret;
 
-	if (1)//( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
+    startDrawingUpload(w, h);
+
+	if ( 1 )//( w*h ) < MAXSIZE_FORSWTOSCREEN )
     {
 		ftype = DONE_BY_SWCPY;
     }
@@ -423,6 +425,8 @@ VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
     }
 
 	ret = _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
+
+    endDrawingUpload();
 
     return ret;
 }

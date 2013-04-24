@@ -367,6 +367,9 @@ Bool VIV2DGPUBlitComplete(GALINFOPTR galInfo, Bool wait) {
     gceSTATUS status = gcvSTATUS_OK;
     VIVGPUPtr gpuctx = (galInfo->mGpu);
     gctBOOL stall = wait ? gcvTRUE : gcvFALSE;
+    gceHARDWARE_TYPE currentType = gcvHARDWARE_INVALID;
+    gcoHAL_GetHardwareType(0, &currentType);
+    FSLASSERT(currentType == 2);
     status = gcoHAL_Commit(gpuctx->mDriver->mHal, stall);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("HAL commit Failed\n");

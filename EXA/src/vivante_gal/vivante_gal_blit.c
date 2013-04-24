@@ -303,14 +303,14 @@ Bool DoSolidBlit(GALINFOPTR galInfo) {
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     VIV2DBLITINFOPTR pBltInfo = &galInfo->mBlitInfo;
     gcsRECT dstRect = {pBltInfo->mDstBox.x1, pBltInfo->mDstBox.y1, pBltInfo->mDstBox.x2, pBltInfo->mDstBox.y2};
-    status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
-/*    status = gco2D_Clear(gpuctx->mDriver->m2DEngine,
+//    status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
+    status = gco2D_Clear(gpuctx->mDriver->m2DEngine,
         1,
         &dstRect,
         ((galInfo->mBlitInfo.mColorARGB32<<2) & galInfo->mBlitInfo.mPlaneMask),
         pBltInfo->mFgRop,
         pBltInfo->mBgRop,
-        pBltInfo->mDstSurfInfo.mFormat.mVivFmt); */
+        pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Blit failed\n");
         TRACE_EXIT(FALSE);
@@ -968,10 +968,6 @@ void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 	}
 
 	pixman_image_composite(pBlt->mBlendOp.mOp, srcimage, NULL, dstimage, srcX, srcY, 0, 0, dstX, dstY, width, height);
-
-	psrc->mCpuBusy = TRUE;
-	pdst->mCpuBusy = TRUE;
-
 }
 
 static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurfacePtr *pinfo)
@@ -1210,8 +1206,8 @@ Bool GetBlendingFactors(int op, VivBlendOpPtr vivBlendOp) {
     Bool isFound = FALSE;
 
     /* Disable op= PIXMAN_OP_SRC, currently hw path can't defeat sw path */
-    if ( op == PIXMAN_OP_SRC )
-        TRACE_EXIT(FALSE);
+    //if ( op == PIXMAN_OP_SRC )
+    //    TRACE_EXIT(FALSE);
 
     for (i = 0; i < ARRAY_SIZE(blendingOps) && !isFound; i++) {
         if (blendingOps[i].mOp == op) {

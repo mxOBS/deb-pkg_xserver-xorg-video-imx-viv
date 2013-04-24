@@ -19,20 +19,16 @@ CFLAGS += -marm
 #LFLAGS += -lGAL -lm -ldl -ldrm -lX11 -module -Wl,-soname -Wl,$(target)
 LFLAGS += -lGAL -lm -ldl -ldrm -lX11 -Wl,-soname -Wl,$(target)
 
-all: .libs/$(target)
+all: $(target)
 
-.libs/$(target): .libs $(OBJS)
-	gcc -shared -fPIC -o .libs/$(target) $(OBJS) $(LFLAGS)
-
-.libs:
-	mkdir .libs
+$(target): $(OBJS)
+	gcc -shared -fPIC -o $(target) $(OBJS) $(LFLAGS)
 
 clean:
-	-@rm -r .libs/
-	-@rm $(OBJS)
+	-@rm $(target) $(OBJS)
 
 install:
-	cp .libs/$(target) /usr/lib/xorg/modules/extensions/
+	cp $(target) /usr/lib/xorg/modules/extensions/
 
 %.o: %.c
 	gcc $(CFLAGS) -o $@ -c $<

@@ -792,6 +792,7 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
     Bool ret = FALSE;
     TRACE_ENTER();
 
+    LOG("Closing screen ...\n");
     freePixmapQueue();
 
 #ifndef DISABLE_VIVANTE_DRI
@@ -799,13 +800,15 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
 #endif
 
     if (fPtr->mFakeExa.mUseExaFlag) {
-        LOG_END("UnLoading EXA");
+        LOG("UnLoading EXA");
         if (fPtr->mFakeExa.mIsInited && !DestroyExaLayer(pScreen)) {
             xf86DrvMsg(scrnIndex, X_ERROR,
                     "internal error: DestroyExaLayer failed "
                     "in VivCloseScreen()\n");
         }
     }
+
+    LOG_END();
 
     fbdevHWRestore(pScrn);
     fbdevHWUnmapVidmem(pScrn);

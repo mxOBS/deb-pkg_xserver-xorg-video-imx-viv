@@ -32,20 +32,16 @@ LFLAGS += -fPIC
 LFLAGS +=  -lm -ldl -lGAL -Wl,-soname -Wl,vivante_drv.so
 
 
-all: .libs/$(target)
+all: $(target)
 
-.libs/$(target): .libs $(OBJS)
-	gcc -shared -fPIC -o .libs/$(target) $(OBJS) $(LFLAGS)
-
-.libs:
-	mkdir .libs
+$(target): $(OBJS)
+	gcc -shared -fPIC -o $(target) $(OBJS) $(LFLAGS)
 
 clean:
-	-@rm -r .libs/
-	-@rm $(OBJS)
+	-@rm $(target) $(OBJS)
 
 install:
-	cp .libs/$(target) /usr/lib/xorg/modules/drivers/
+	cp $(target) /usr/lib/xorg/modules/drivers/
 
 %.o: %.c
 	gcc $(CFLAGS) -o $@ -c $<
