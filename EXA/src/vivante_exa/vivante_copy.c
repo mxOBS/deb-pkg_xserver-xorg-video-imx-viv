@@ -78,6 +78,12 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
     //SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
     //SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
     // early fail out
+    if(xdir || ydir) {
+        TRACE_EXIT(FALSE);
+    }
+
+    // FIXME! planemask? should be ALL_ONES
+
     if(pSrcPixmap->drawable.height < MIN_HW_HEIGHT || pSrcPixmap->drawable.width * pSrcPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
         TRACE_EXIT(FALSE);
     }
@@ -172,7 +178,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
 
     /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-    if ( height < MIN_HW_HEIGHT || ( width * height ) < MIN_HW_SIZE_24BIT )
+    if (( height < MIN_HW_HEIGHT || ( width * height ) < MIN_HW_SIZE_24BIT ) && pViv->mGrCtx.mBlitInfo.mOperationCode == GXcopy)
     {
         /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
         gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
