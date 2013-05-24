@@ -525,6 +525,23 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
         surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
         surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
 
+
+        switch ( getPixmapCachePolicy() )
+        {
+        case WRITEALLOC:
+            surftype = gcvSURF_CACHEABLE_BITMAP;
+            cacheable = 1;
+            break;
+        case WRITETHROUGH:
+            surftype = gcvSURF_CACHEABLE_BITMAP;
+            cacheable = 2;
+            break;
+        case NONCACHEABLE:
+            surftype = gcvSURF_BITMAP;
+            cacheable = 0;
+            break;
+        }
+#if 0
 #if        ALL_NONCACHE_BIGSURFACE
         if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
         {
@@ -539,6 +556,7 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
             surftype = gcvSURF_BITMAP;
             cacheable = FALSE;
         }
+#endif
 
         status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, &surf->mVideoNode.mNode);
         if (status != gcvSTATUS_OK) {
@@ -834,7 +852,7 @@ static Bool VDestroySurf32() {
 }
 
 // FIXME! cacheable buffer, shared by two users!
-Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride, int cacheable)
+Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
  {
 
     static int gphyaddr;
@@ -858,9 +876,24 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
     }
 
     if (_vsurf16.surf==NULL) {
+        gceSURF_TYPE surfType;
+#if defined HAS_gcoSURF_Cache
+        switch(getPixmapCachePolicy())
+        {
+        case WRITETHROUGH:
+            surfType = gcvSURF_CACHEABLEEX | gcvSURF_CACHEABLE_BITMAP; break;
+        case WRITEALLOC:
+            surfType = gcvSURF_CACHEABLE_BITMAP; break;
+        case NONCACHEABLE:
+        default:
+            surfType = gcvSURF_BITMAP; break;
+        }
+#else
+        surfType = gcvSURF_BITMAP;
+#endif
 
         lastmaxsize=maxsize;
-        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
+        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,surfType,gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
 
         if (status!=gcvSTATUS_OK)
             TRACE_EXIT(FALSE);
@@ -887,7 +920,7 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
  }
 
 
- Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride, int cacheable)
+ Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
  {
 
     static int gphyaddr;
@@ -911,9 +944,24 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 
 
     if (_vsurf32.surf==NULL) {
+        gceSURF_TYPE surfType;
+#if defined HAS_gcoSURF_Cache
+        switch(getPixmapCachePolicy())
+        {
+        case WRITETHROUGH:
+            surfType = gcvSURF_CACHEABLEEX | gcvSURF_CACHEABLE_BITMAP; break;
+        case WRITEALLOC:
+            surfType = gcvSURF_CACHEABLE_BITMAP; break;
+        case NONCACHEABLE:
+        default:
+            surfType = gcvSURF_BITMAP; break;
+        }
+#else
+        surfType = gcvSURF_BITMAP;
+#endif
 
         lastmaxsize=maxsize;
-        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,(cacheable?gcvSURF_CACHEABLE_BITMAP:gcvSURF_BITMAP),gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
+        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,surfType,gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
 
         if (status!=gcvSTATUS_OK)
             TRACE_EXIT(FALSE);
@@ -939,19 +987,42 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 
 }
 
-void VFlushSurf(int surf16, void *logAddr, int size, gceCACHEOPERATION op)
+#if defined HAS_gcoSURF_Cache
+void VFlushSurf(int surf16, void *logAddr, int size)
 {
-    if(surf16)
-        gcoSURF_Cache(&_vsurf16.surf,
-                         logAddr,
-                         size,
-                         op);
-    else
-        gcoSURF_Cache(&_vsurf32.surf,
-                         logAddr,
-                         size,
-                         op);
+    switch(getPixmapCachePolicy())
+    {
+    case WRITETHROUGH:
+        if(surf16)
+            gcoSURF_Cache(&_vsurf16.surf,
+                             logAddr,
+                             size,
+                             INVALIDATE);
+        else
+            gcoSURF_Cache(&_vsurf32.surf,
+                             logAddr,
+                             size,
+                             INVALIDATE);
+        break;
+    case WRITEALLOC:
+        if(surf16)
+            gcoSURF_Cache(&_vsurf16.surf,
+                             logAddr,
+                             size,
+                             FLUSH);
+        else
+            gcoSURF_Cache(&_vsurf32.surf,
+                             logAddr,
+                             size,
+                             FLUSH);
+        break;
+    case NONCACHEABLE:
+    default:
+        break;
+    }
+
 }
+#endif
 
 void  VDestroySurf()
 {

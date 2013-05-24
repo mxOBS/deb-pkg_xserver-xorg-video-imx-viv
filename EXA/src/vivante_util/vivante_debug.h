@@ -64,6 +64,15 @@ void LogText(const char *fmt, ...);
 
 #include "vivante_exa.h"
 #include "vivante.h"
+
+enum PixmapCachePolicy
+{
+    NONCACHEABLE,
+    WRITETHROUGH,
+    WRITEALLOC // system default
+};
+
+enum PixmapCachePolicy getPixmapCachePolicy();
 int isGpuSyncMode();
 void initPixmapQueue();
 void freePixmapQueue();

@@ -21,7 +21,8 @@ ifeq ($(NODRI),1)
 CFLAGS += -DDISABLE_VIVANTE_DRI
 endif
 
-CFLAGS += -fvisibility=hidden -fPIC -DPIC -O2
+# macro FREESCALE_EXTENSION is reserved for future use
+CFLAGS += -fvisibility=hidden -fPIC -DPIC -O2 -DFREESCALE_EXTENSION
 CFLAGS += -I. -I.. -I/usr/include/xorg -I/usr/include/$(PIXMAN)
 CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa
 CFLAGS += -I/usr/include/drm

@@ -103,14 +103,7 @@ void queuePixmapToGpu(Viv2DPixmapPtr vpixmap)
     }
 }
 
-enum PixmapCachePolicy
-{
-    NONCACHEABLE,
-    WRITETHROUGH,
-    WRITEALLOC // system default
-};
-
-static enum PixmapCachePolicy getPixmapCachePolicy()
+enum PixmapCachePolicy getPixmapCachePolicy()
 {
     return WRITEALLOC;
 }

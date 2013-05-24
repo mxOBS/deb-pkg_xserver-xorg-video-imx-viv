@@ -262,12 +262,12 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
         case 16:
             bytesperpixel = 2;
-            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch, 1);
+            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
 
             break;
         case 32:
             bytesperpixel = 4;
-            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch, 1);
+            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
             break;
         default:
             return FALSE;
@@ -316,7 +316,9 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
 
     // sync with cpu cache
-    VFlushSurf((pDst->drawable.bitsPerPixel == 16), mmap.mUserAddr, mmap.mSize, gcvCACHE_FLUSH);
+#if defined HAS_gcoSURF_Cache
+    VFlushSurf((pDst->drawable.bitsPerPixel == 16), mmap.mUserAddr, mmap.mSize);
+#endif
     preGpuDraw(pViv, pdst, FALSE);
 
     if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
