@@ -12,6 +12,7 @@ OBJS := vivante_gal/vivante_gal_blit.o \
 	vivante_exa/vivante_copy.o \
 	vivante_exa/vivante_composite.o \
 	vivante_exa/vivante_pixmap.o \
+	vivante_extension/vivante_ext.o \
 	vivante_fbdev/vivante_dri.o \
 	vivante_util/logger.o \
 
@@ -24,7 +25,7 @@ endif
 # macro FREESCALE_EXTENSION is reserved for future use
 CFLAGS += -fvisibility=hidden -fPIC -DPIC -O2 -DFREESCALE_EXTENSION
 CFLAGS += -I. -I.. -I/usr/include/xorg -I/usr/include/$(PIXMAN)
-CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa
+CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension
 CFLAGS += -I/usr/include/drm
 CFLAGS += -marm
 

@@ -46,6 +46,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include "xf86drm.h"
@@ -71,13 +72,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xf86_OSproc.h"
 #include "inputstr.h"
 #include "xf86VGAarbiter.h"
-#include "pixmapstr.h"
-#include "pixmap.h"
-#include "vivante_priv.h"
-#include "vivante_gal.h"
-
-#define WIDTH_ALIGNMENT  8
-#define HEIGHT_ALIGNMENT 1
 
 static int DRIEntPrivIndex = -1;
 static DevPrivateKeyRec DRIScreenPrivKeyRec;
@@ -114,7 +108,7 @@ DRIDrvMsg(int scrnIndex, MessageType type, const char *format, ...)
     va_list     ap;
 
     va_start(ap, format);
-    xf86VDrvMsgVerb(scrnIndex, type, 3/*DRI_MSG_VERBOSITY*/, format, ap);
+    xf86VDrvMsgVerb(scrnIndex, type, DRI_MSG_VERBOSITY, format, ap);
     va_end(ap);
 }
 
@@ -1420,13 +1414,12 @@ DRIGetDrawableInfo(ScreenPtr pScreen,
 {
     DRIScreenPrivPtr    pDRIPriv = DRI_SCREEN_PRIV(pScreen);
     DRIDrawablePrivPtr    pDRIDrawablePriv, pOldDrawPriv;
-    WindowPtr        pWin, pOldWin, pRoot;
-    PixmapPtr      pWinPixmap, pRootPixmap;
-    Viv2DPixmapPtr ppriv;
-    GenericSurfacePtr surf = NULL;
+    WindowPtr		pWin, pOldWin;
     int            i;
-    unsigned int * pPointer;
 
+#if 0
+    printf("maxDrawableTableEntry = %d\n", pDRIPriv->pDriverInfo->maxDrawableTableEntry);
+#endif
 
     if (pDrawable->type == DRAWABLE_WINDOW) {
     pWin = (WindowPtr)pDrawable;
@@ -1508,6 +1501,10 @@ DRIGetDrawableInfo(ScreenPtr pScreen,
         *stamp = pDRIPriv->pSAREA->drawableTable[*index].stamp;
         *X = (int)(pWin->drawable.x);
         *Y = (int)(pWin->drawable.y);
+#if 0
+	    *W = (int)(pWin->winSize.extents.x2 - pWin->winSize.extents.x1);
+	    *H = (int)(pWin->winSize.extents.y2 - pWin->winSize.extents.y1);
+#endif
         *W = (int)(pWin->drawable.width);
         *H = (int)(pWin->drawable.height);
         *numClipRects = RegionNumRects(&pWin->clipList);
@@ -1544,75 +1541,28 @@ DRIGetDrawableInfo(ScreenPtr pScreen,
             *numBackClipRects = 0;
             *pBackClipRects = NULL;
            } else {
-            pDRIPriv->private_buffer_rect[0].x1 = x0;
-            pDRIPriv->private_buffer_rect[0].y1 = y0;
-            pDRIPriv->private_buffer_rect[0].x2 = x1;
-            pDRIPriv->private_buffer_rect[0].y2 = y1;
+		    pDRIPriv->private_buffer_rect.x1 = x0;
+		    pDRIPriv->private_buffer_rect.y1 = y0;
+		    pDRIPriv->private_buffer_rect.x2 = x1;
+		    pDRIPriv->private_buffer_rect.y2 = y1;
 
             *numBackClipRects = 1;
-            *pBackClipRects = &(pDRIPriv->private_buffer_rect[0]);
+		    *pBackClipRects = &(pDRIPriv->private_buffer_rect);
            }
         } else {
            /* Use the frontbuffer cliprects for back buffers.  */
            *numBackClipRects = 0;
            *pBackClipRects = 0;
         }
-
-        /* Fake clip list to pass pixmap buffer address to OpenGL */
-        if(*numClipRects) {
-            pRoot = pScreen->root;
-            pRootPixmap = pScreen->GetWindowPixmap(pRoot);
-            pWinPixmap = pScreen->GetWindowPixmap(pWin);
-            pDRIPriv->private_buffer_rect[1].x1 =
-              gcmALIGN(pWinPixmap->drawable.width, WIDTH_ALIGNMENT);
-            pDRIPriv->private_buffer_rect[1].y1 =
-              gcmALIGN(pWinPixmap->drawable.height, HEIGHT_ALIGNMENT);
-            pDRIPriv->private_buffer_rect[1].x2 = pWin->origin.x;
-            pDRIPriv->private_buffer_rect[1].y2 = pWin->origin.y;
-            ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
-            if (ppriv) {
-                surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
-                if (surf) {
-                    pPointer = (unsigned *)&pDRIPriv->private_buffer_rect[2].x1;
-                    *pPointer = (unsigned int)surf->mVideoNode.mNode;
-                    pPointer++;
-                    *pPointer = (unsigned int)surf->mVideoNode.mPhysicalAddr;
-                    *numBackClipRects = 3;
-                    *pBackClipRects = &(pDRIPriv->private_buffer_rect[0]);
-                }
-            }
-        }
     }
     else {
         /* Not a DRIDrawable */
-        *index = 0;
         return FALSE;
     }
     }
     else { /* pixmap (or for GLX 1.3, a PBuffer) */
-
-    if (pDrawable->type == DRAWABLE_PIXMAP) {
-        Viv2DPixmapPtr ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
-        GenericSurfacePtr surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
-
-        if (surf) {
-            *index = (unsigned int)surf->mVideoNode.mNode;
-            *X = surf->mStride;
-        } else {
-            *index = 0;
-            *X = 0;
-        }
-        *numClipRects = 0;
-        *pClipRects = 0;
-        *numBackClipRects = 0;
-        *pBackClipRects = 0;
-
-        return TRUE;
-    } else {
-        *index = 0;
+	/* NOT_DONE */
         return FALSE;
-    }
-
     }
 
     return TRUE;
@@ -1742,7 +1692,7 @@ DRIDoBlockHandler(int screenNum, pointer blockData,
     }
 
     if (pDRIPriv->windowsTouched)
-        DRM_SPINUNLOCK_VIV(&pDRIPriv->pSAREA->drawable_lock, 1);
+        DRM_SPINUNLOCK(&pDRIPriv->pSAREA->drawable_lock, 1);
     pDRIPriv->windowsTouched = FALSE;
 
     DRIUnlock(pScreen);
@@ -2057,7 +2007,7 @@ DRISpinLockTimeout(drmLock *lock, int val, unsigned long timeout /* in mS */)
     DRIGetSecs(&s_secs, &s_usecs);
 
     do {
-    DRM_SPINLOCK_COUNT_VIV(lock, val, count, ret);
+	DRM_SPINLOCK_COUNT(lock, val, count, ret);
     if (!ret) return;    /* Got lock */
     DRIGetSecs(&f_secs, &f_usecs);
     msecs = DRIComputeMilliSeconds(s_secs, s_usecs, f_secs, f_usecs);
@@ -2071,7 +2021,7 @@ DRISpinLockTimeout(drmLock *lock, int val, unsigned long timeout /* in mS */)
                                    That's undesirable, but better than
                                    locking the server.  This should be a
                                    very rare event. */
-    DRM_SPINLOCK_TAKE_VIV(lock, val);
+    DRM_SPINLOCK_TAKE(lock, val);
 }
 
 static void
@@ -2258,7 +2208,7 @@ DRILock(ScreenPtr pScreen, int flags)
     if(!pDRIPriv || !pDRIPriv->pLockRefCount) return;
 
     if (!*pDRIPriv->pLockRefCount) {
-        DRM_LOCK_VIV(pDRIPriv->drmFD, pDRIPriv->pLSAREA, pDRIPriv->myContext, flags);
+        DRM_LOCK(pDRIPriv->drmFD, pDRIPriv->pLSAREA, pDRIPriv->myContext, flags);
     *pDRIPriv->pLockingContext = pDRIPriv->myContext;
     } else if (*pDRIPriv->pLockingContext != pDRIPriv->myContext) {
     DRIDrvMsg(pScreen->myNum, X_ERROR,
@@ -2293,7 +2243,7 @@ DRIUnlock(ScreenPtr pScreen)
         return;
     }
     if (! *pDRIPriv->pLockRefCount)
-        DRM_UNLOCK_VIV(pDRIPriv->drmFD, pDRIPriv->pLSAREA, pDRIPriv->myContext);
+        DRM_UNLOCK(pDRIPriv->drmFD, pDRIPriv->pLSAREA, pDRIPriv->myContext);
 }
 
 void *
@@ -2509,8 +2459,14 @@ static void drmSIGIOHandler(int interrupt, void *closure)
     if (drmHashFirst(hash_table, &key, &value)) {
     entry = value;
     do {
+#if 0
+	    fprintf(stderr, "Trying %d\n", entry->fd);
+#endif
         if ((count = read(entry->fd, buf, sizeof(buf) - 1)) > 0) {
         buf[count] = '\0';
+#if 0
+		fprintf(stderr, "Got %s\n", buf);
+#endif
 
         for (pt = buf; *pt != ' '; ++pt); /* Find first space */
         ++pt;
@@ -2518,6 +2474,9 @@ static void drmSIGIOHandler(int interrupt, void *closure)
         new    = strtol(pt, NULL, 0);
         oldctx = drmGetContextTag(entry->fd, old);
         newctx = drmGetContextTag(entry->fd, new);
+#if 0
+		fprintf(stderr, "%d %d %p %p\n", old, new, oldctx, newctx);
+#endif
         ((_drmCallback)entry->f)(entry->fd, oldctx, newctx);
         ctx.handle = new;
         ioctl(entry->fd, DRM_IOCTL_NEW_CTX, &ctx);

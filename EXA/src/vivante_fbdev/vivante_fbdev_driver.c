@@ -22,6 +22,7 @@
 #include "vivante_common.h"
 #include "vivante.h"
 #include "vivante_exa.h"
+#include "vivante_ext.h"
 
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (START)
@@ -153,6 +154,18 @@ static XF86ModuleVersionInfo VivVersRec = {
     {0, 0, 0, 0}
 };
 
+static Bool noXFree86VIVHELPExtension;
+
+static ExtensionModule XF86VIVExt =
+{
+	XFree86VIVHELPExtensionInit,
+	XF86VIVHELPNAME,
+	&noXFree86VIVHELPExtension,
+	NULL,
+	NULL
+};
+
+
 _X_EXPORT XF86ModuleData vivanteModuleData = {&VivVersRec, VivSetup, NULL};
 
 pointer
@@ -165,6 +178,8 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
         setupDone = TRUE;
         xf86AddDriver(&VIV, module, HaveDriverFuncs);
         ret = (pointer) 1;
+
+        LoadExtension(&XF86VIVExt, FALSE);
 
     } else {
         if (errmaj) *errmaj = LDR_ONCEONLY;
