@@ -18,6 +18,8 @@ OBJS := vivante_gal/vivante_gal_blit.o \
 
 PIXMAN := pixman-1
 
+prefix ?= /usr
+
 ifeq ($(NODRI),1)
 CFLAGS += -DDISABLE_VIVANTE_DRI
 endif
@@ -43,7 +45,8 @@ clean:
 	-@rm $(target) $(OBJS)
 
 install:
-	cp $(target) /usr/lib/xorg/modules/drivers/
+	mkdir -p $(prefix)/lib/xorg/modules/drivers/
+	cp $(target) $(prefix)/lib/xorg/modules/drivers/
 
 %.o: %.c
 	gcc $(CFLAGS) -o $@ -c $<

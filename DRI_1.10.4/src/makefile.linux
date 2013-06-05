@@ -9,6 +9,8 @@ OBJS := dri.o \
 
 PIXMAN := pixman-1
 
+prefix ?= /usr
+
 CFLAGS += -fvisibility=hidden -fPIC -DPIC
 CFLAGS += -I. -I.. -I/usr/include/xorg -I/usr/include/$(PIXMAN)
 CFLAGS += -I../../EXA/src/vivante_gal
@@ -28,7 +30,8 @@ clean:
 	-@rm $(target) $(OBJS)
 
 install:
-	cp $(target) /usr/lib/xorg/modules/extensions/
+	mkdir -p $(prefix)/lib/xorg/modules/extensions/
+	cp $(target) $(prefix)/lib/xorg/modules/extensions/
 
 %.o: %.c
 	gcc $(CFLAGS) -o $@ -c $<
