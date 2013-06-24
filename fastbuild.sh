@@ -17,6 +17,13 @@
 # ./fastbuild YOCTO=1 BUSID_HAS_NUMBER=1 && ./fastbuild install && sync
 # Note: update when X Server is not running
 
+# Cross build:
+# ./fastbuild <CROSS_COMPILE=... sysroot=...> [other options]
+# example:
+# PATH=/opt/poky/1.4.1/sysroots/i686-pokysdk-linux/usr/bin:/opt/poky/1.4.1/sysroots/i686-pokysdk-linux/usr/bin/cortexa9hf-vfp-neon-poky-linux-gnueabi:$PATH ./fastbuild.sh CROSS_COMPILE=arm-poky-linux-gnueabi- sysroot=/opt/poky/1.4.1/sysroots/cortexa9hf-vfp-neon-poky-linux-gnueabi/ BUILD_HARD_VFP=1 YOCTO=1 BUSID_HAS_NUMBER=1 prefix=/home/zhenyong/zy/Gpu/share/test/
+# PATH=/opt/poky/1.4.1/sysroots/i686-pokysdk-linux/usr/bin:/opt/poky/1.4.1/sysroots/i686-pokysdk-linux/usr/bin/cortexa9hf-vfp-neon-poky-linux-gnueabi:$PATH ./fastbuild.sh CROSS_COMPILE=arm-poky-linux-gnueabi- sysroot=/opt/poky/1.4.1/sysroots/cortexa9hf-vfp-neon-poky-linux-gnueabi/ BUILD_HARD_VFP=1 YOCTO=1 BUSID_HAS_NUMBER=1 prefix=/home/zhenyong/zy/Gpu/share/test/ install
+ 
+
 make -C EXA/src/ -f makefile.linux $* || exit 1
 make -C DRI_1.10.4/src/ -f makefile.linux $* || exit 1
 
