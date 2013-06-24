@@ -456,6 +456,22 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
 
     surf->mData = gcvNULL;
 
+    switch ( getPixmapCachePolicy() )
+    {
+    case WRITEALLOC:
+        surftype = gcvSURF_CACHEABLE_BITMAP;
+        cacheable = 1;
+        break;
+    case WRITETHROUGH:
+        surftype = gcvSURF_CACHEABLE_BITMAP;
+        cacheable = 2;
+        break;
+    case NONCACHEABLE:
+        surftype = gcvSURF_BITMAP;
+        cacheable = 0;
+        break;
+    }
+#if 0
 #if ALL_NONCACHE_BIGSURFACE
     if ( surf->mAlignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && surf->mAlignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
     {
@@ -470,6 +486,7 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
         surftype = gcvSURF_BITMAP;
         cacheable = FALSE;
     }
+#endif
 
     if (surf->mVideoNode.mNode != 0) {
         if (surf->mVideoNode.mLogicalAddr != gcvNULL) {
