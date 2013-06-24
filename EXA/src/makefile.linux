@@ -24,12 +24,26 @@ ifeq ($(NODRI),1)
 CFLAGS += -DDISABLE_VIVANTE_DRI
 endif
 
+ifeq ($(SWAP_SINGLE_PARAMETER),1)
+CFLAGS  += -DSWAP_SINGLE_PARAMETER
+endif
+
+ifeq ($(NEW_FBDEV_API),1)
+CFLAGS  += -DNEW_FBDEV_API
+endif
+
+ifeq ($(BUSID_HAS_NUMBER),1)
+CFLAGS  += -DBUSID_HAS_NUMBER
+endif
+
 # macro FREESCALE_EXTENSION is reserved for future use
 CFLAGS += -fvisibility=hidden -fPIC -DPIC -O2 -DFREESCALE_EXTENSION
 CFLAGS += -I. -I.. -I/usr/include/xorg -I/usr/include/$(PIXMAN)
 CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension
 CFLAGS += -I/usr/include/drm
 CFLAGS += -marm
+#CFLAGS += -mthumb-interwork
+#CFLAGS += -mimplicit-it=thumb
 
 LFLAGS += -fPIC
 #LFLAGS +=  -Wl,--no-allow-shlib-undefined -lX11

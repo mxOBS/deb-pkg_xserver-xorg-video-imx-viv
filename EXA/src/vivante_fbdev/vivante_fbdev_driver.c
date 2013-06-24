@@ -656,7 +656,11 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
         TRACE_EXIT(FALSE);
     }
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
+#if defined(NEW_FBDEV_API)
+    fbdevHWAdjustFrame(scrnIndex, 0, 0);
+#else
     fbdevHWAdjustFrame(scrnIndex, 0, 0, 0);
+#endif
 
     /* mi layer */
     miClearVisualTypes();
@@ -832,7 +836,11 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
 
     pScreen->CreateScreenResources = fPtr->CreateScreenResources;
     pScreen->CloseScreen = fPtr->CloseScreen;
+#if defined(NEW_FBDEV_API)
+    ret = (*pScreen->CloseScreen)(pScreen);
+#else
     ret = (*pScreen->CloseScreen)(scrnIndex, pScreen);
+#endif
     TRACE_EXIT(ret);
 }
 

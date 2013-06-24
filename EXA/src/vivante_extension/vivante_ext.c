@@ -375,10 +375,17 @@ ProcXF86VIVHelpPIXMAPPHYSADDR(register ClientPtr client)
 	/* Check if any reply values need byte swapping */
 	if (client->swapped)
 	{
+#if defined(SWAP_SINGLE_PARAMETER)
+		swaps(&rep.sequenceNumber);
+		swapl(&rep.length);
+		swapl(&rep.pixmapPhysAddr);
+		swapl(&rep.pixmapStride);
+#else
 		swaps(&rep.sequenceNumber, n);
 		swapl(&rep.length, n);
 		swapl(&rep.pixmapPhysAddr, n);
 		swapl(&rep.pixmapStride, n);
+#endif
 	}
 
 	/* Reply to client */
@@ -423,11 +430,19 @@ ProcXF86VIVHelpQueryVersion(
 	rep.patchVersion = XF86VIVHelp_PATCH_VERSION;
 
 	if (client->swapped) {
+#if defined(SWAP_SINGLE_PARAMETER)
+		swaps(&rep.sequenceNumber);
+		swapl(&rep.length);
+		swaps(&rep.majorVersion);
+		swaps(&rep.minorVersion);
+		swapl(&rep.patchVersion);
+#else
 		swaps(&rep.sequenceNumber, n);
 		swapl(&rep.length, n);
 		swaps(&rep.majorVersion, n);
 		swaps(&rep.minorVersion, n);
 		swapl(&rep.patchVersion, n);
+#endif
 	}
 
 	WriteToClient(client, sizeof(xXF86VIVHelpQueryVersionReply), (char *)&rep);
@@ -442,7 +457,11 @@ SProcXF86VIVHelpQueryVersion(
 {
 	register int n;
 	REQUEST(xXF86VIVHelpQueryVersionReq);
+#if defined(SWAP_SINGLE_PARAMETER)
+	swaps(&stuff->length);
+#else
 	swaps(&stuff->length, n);
+#endif
 	return ProcXF86VIVHelpQueryVersion(client);
 }
 

@@ -41,7 +41,7 @@ extern "C" {
 
 
 #include "mipointer.h"
-#include "mibstore.h"
+//#include "mibstore.h"
 #include "micmap.h"
 #include "mipointrst.h"
 #include "inputstr.h"

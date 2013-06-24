@@ -119,7 +119,11 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
     pDRIInfo->busIdString =(char *)xalloc(64);
     /* use = to copy string and it seems good, but when you free it, it will report invalid pointer, use strcpy instead */
     //pDRIInfo->busIdString="platform:Vivante GCCore";
+#if !defined(BUSID_HAS_NUMBER)
     strcpy(pDRIInfo->busIdString,"platform:Vivante GCCore");
+#else
+    strcpy(pDRIInfo->busIdString,"platform:Vivante GCCore:00");
+#endif
 
     pDRIInfo->ddxDriverMajorVersion = VIV_DRI_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion = VIV_DRI_VERSION_MINOR;
