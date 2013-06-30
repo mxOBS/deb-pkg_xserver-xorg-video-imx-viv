@@ -58,12 +58,12 @@
 #include "vivante_exa.h"
 #include "vivante.h"
 #include "vivante_priv.h"
+#include "vivante_common.h"
 
+static unsigned char VIVEXTReqCode = 0;
+static int VIVEXTErrorBase;
 
-static unsigned char VIVHelpReqCode = 0;
-static int VIVHelpErrorBase;
-
-static int ProcXF86DRAWABLEFLUSH(register ClientPtr client)
+static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 {
 	DrawablePtr 	pDrawable;
 	WindowPtr	pWin;
@@ -73,8 +73,8 @@ static int ProcXF86DRAWABLEFLUSH(register ClientPtr client)
 	int rc;
 	GenericSurfacePtr surf;
 
-	REQUEST(xXF86VIVHelpDRAWABLEFLUSHReq);
-	REQUEST_SIZE_MATCH(xXF86VIVHelpDRAWABLEFLUSHReq);
+	REQUEST(xVIVEXTDrawableFlushReq);
+	REQUEST_SIZE_MATCH(xVIVEXTDrawableFlushReq);
 	if (stuff->screen >= screenInfo.numScreens) {
 		client->errorValue = stuff->screen;
 		return BadValue;
@@ -99,6 +99,7 @@ static int ProcXF86DRAWABLEFLUSH(register ClientPtr client)
 		if (ppriv) {
 			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
 			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+			ppriv->mCpuBusy = FALSE;
 		}
 	}
 
@@ -110,14 +111,66 @@ static int ProcXF86DRAWABLEFLUSH(register ClientPtr client)
 		{
 			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
 			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+			ppriv->mCpuBusy = FALSE;
 		}
 	}
 
 	return  Success;
 }
 
+static Bool VIVGetParentScreenXY(ScreenPtr pScreen, WindowPtr pWin, int *screenX, int *screenY)
+{
+
+	Viv2DPixmapPtr ppriv;
+	WindowPtr pParentW = NULL;
+	WindowPtr preParentW = NULL;
+	GenericSurfacePtr surf = NULL;
+	GenericSurfacePtr parentsurf = NULL;
+	PixmapPtr      pWinPixmap;
+	pWinPixmap = pScreen->GetWindowPixmap(pWin);
+
+	ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
+	if ( ppriv == NULL )
+	{
+		*screenX = (int )pWin->drawable.x;
+		*screenY = (int )pWin->drawable.y;
+		return FALSE;
+	}
+	surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
+
+	pParentW = pWin->parent;
+	preParentW = pWin;
+	while ( pParentW ){
+		pWinPixmap = pScreen->GetWindowPixmap(pParentW);
+		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
+
+		if (ppriv)
+			parentsurf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
+		else
+			parentsurf = NULL;
+
+		if ( parentsurf == surf )
+		{
+			preParentW = pParentW;
+			pParentW = pParentW->parent;
+			continue;
+		}
+		break;
+	}
+
+	if ( preParentW )
+	{
+		*screenX = (int )preParentW->drawable.x;
+		*screenY = (int )preParentW->drawable.y;
+	} else {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 static Bool
-VIVHelpDrawableInfo(ScreenPtr pScreen,
+VIVEXTDrawableInfo(ScreenPtr pScreen,
 	DrawablePtr pDrawable,
 	int *X,
 	int *Y,
@@ -159,8 +212,8 @@ VIVHelpDrawableInfo(ScreenPtr pScreen,
 		*relX = *X - pWinPixmap->screen_x;
 		*relY = *Y - pWinPixmap->screen_y;
 		#else
-		*relX = pWin->origin.x;
-		*relY = pWin->origin.y;
+		*relX = *X;
+		*relY = *Y;
 		#endif
 
 		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
@@ -215,12 +268,53 @@ VIVHelpDrawableInfo(ScreenPtr pScreen,
 
 }
 
+static void ClippedRects(ScreenPtr pScreen,
+			PixmapPtr pWinPixmap,
+			#ifndef COMPOSITE
+			int screenX,
+			int screenY,
+			#endif
+			drm_clip_rect_t *psrcrects,
+			drm_clip_rect_t *prects,
+			int *numrects)
+{
+	if (psrcrects && prects) {
+
+		int i, j;
+
+		for (i = 0, j = 0; i < *numrects; i++) {
+
+				#ifdef COMPOSITE
+				prects[j].x1 = psrcrects[i].x1 - pWinPixmap->screen_x;
+				prects[j].y1 = psrcrects[i].y1 - pWinPixmap->screen_y;
+				prects[j].x2 = psrcrects[i].x2 - pWinPixmap->screen_x;
+				prects[j].y2 = psrcrects[i].y2 - pWinPixmap->screen_y;
+				#else
+				prects[j].x1 = psrcrects[i].x1 - screenX;
+				prects[j].y1 = psrcrects[i].y1 - screenY;
+				prects[j].x2 = psrcrects[i].x2 - screenX;
+				prects[j].y2 = psrcrects[i].y2 - screenY;
+				#endif
+
+				if (prects[j].x1 < prects[j].x2 &&
+				prects[j].y1 < prects[j].y2) {
+					j++;
+				}
+			}
+
+			*numrects = j;
+	} else {
+			*numrects = 0;
+	}
+
+}
+
 static int
-ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
+ProcVIVEXTDrawableInfo(register ClientPtr client)
 {
 	WindowPtr		pWin;
 	PixmapPtr		pWinPixmap;
-	xXF86VIVHelpDRAWABLEINFOReply rep = {
+	xVIVEXTDrawableInfoReply rep = {
 		.type = X_Reply,
 		.sequenceNumber = client->sequence,
 		.length = 0
@@ -229,10 +323,13 @@ ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
 	int X, Y, W, H;
 	drm_clip_rect_t *pClipRects, *pClippedRects;
 	int relX, relY, rc;
+	#ifndef COMPOSITE
+	int screenX;
+	int screenY;
+    #endif
 
-
-	REQUEST(xXF86VIVHelpDRAWABLEINFOReq);
-	REQUEST_SIZE_MATCH(xXF86VIVHelpDRAWABLEINFOReq);
+	REQUEST(xVIVEXTDrawableInfoReq);
+	REQUEST_SIZE_MATCH(xVIVEXTDrawableInfoReq);
 
 
 	if (stuff->screen >= screenInfo.numScreens) {
@@ -245,7 +342,7 @@ ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
 	if (rc != Success)
 	return rc;
 
-	if (!VIVHelpDrawableInfo(screenInfo.screens[stuff->screen],
+	if (!VIVEXTDrawableInfo(screenInfo.screens[stuff->screen],
 		pDrawable,
 		(int *) &X,
 		(int *) &Y,
@@ -264,6 +361,7 @@ ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
 	}
 
 	ScreenPtr pScreen = screenInfo.screens[stuff->screen];
+	pWin = NULL;
 	if (pDrawable->type == DRAWABLE_WINDOW) {
 		pWin = (WindowPtr)pDrawable;
 		pWinPixmap = pScreen->GetWindowPixmap(pWin);
@@ -277,10 +375,20 @@ ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
 	rep.drawableY = Y;
 	rep.drawableWidth = W;
 	rep.drawableHeight = H;
-	rep.length = (SIZEOF(xXF86VIVHelpDRAWABLEINFOReply) - SIZEOF(xGenericReply));
+	rep.length = (SIZEOF(xVIVEXTDrawableInfoReply) - SIZEOF(xGenericReply));
 
+	#ifdef COMPOSITE
 	rep.relX = relX;
 	rep.relY = relY;
+	#else
+	if (pWin){
+		if (VIVGetParentScreenXY(pScreen, pWin, &screenX, &screenY) == FALSE)
+			return BadValue;
+	}
+
+	rep.relX = relX - screenX;
+	rep.relY = relY - screenY;
+	#endif
 
 	pClippedRects = pClipRects;
 
@@ -288,41 +396,18 @@ ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
 		/* Clip cliprects to screen dimensions (redirected windows) */
 		pClippedRects = malloc(rep.numClipRects * sizeof(drm_clip_rect_t));
 
-		if (pClippedRects) {
-
-			int i, j;
-
-			for (i = 0, j = 0; i < rep.numClipRects; i++) {
-
-				#ifdef COMPOSITE
-				pClippedRects[j].x1 = pClipRects[i].x1 - pWinPixmap->screen_x;
-				pClippedRects[j].y1 = pClipRects[i].y1 - pWinPixmap->screen_y;
-				pClippedRects[j].x2 = pClipRects[i].x2 - pWinPixmap->screen_x;
-				pClippedRects[j].y2 = pClipRects[i].y2 - pWinPixmap->screen_y;
-				#else
-				pClippedRects[j].x1 = pClipRects[i].x1;
-				pClippedRects[j].y1 = pClipRects[i].y1;
-				pClippedRects[j].x2 = pClipRects[i].x2;
-				pClippedRects[j].y2 = pClipRects[i].y2;
-				#endif
-
-				if (pClippedRects[j].x1 < pClippedRects[j].x2 &&
-				pClippedRects[j].y1 < pClippedRects[j].y2) {
-					j++;
-				}
-			}
-
-			rep.numClipRects = j;
-		} else {
-			rep.numClipRects = 0;
-		}
+		#ifdef COMPOSITE
+		ClippedRects(pScreen, pWinPixmap, pClipRects, pClippedRects, (int *)&(rep.numClipRects));
+		#else
+		ClippedRects(pScreen, pWinPixmap,screenX, screenY, pClipRects, pClippedRects, (int *)&(rep.numClipRects));
+		#endif
 
 		rep.length += sizeof(drm_clip_rect_t) * rep.numClipRects;
 	}
 
 	rep.length = bytes_to_int32(rep.length);
 
-	WriteToClient(client, sizeof(xXF86VIVHelpDRAWABLEINFOReply), &rep);
+	WriteToClient(client, sizeof(xVIVEXTDrawableInfoReply), &rep);
 
 	if (rep.numClipRects) {
 	WriteToClient(client,
@@ -336,21 +421,21 @@ ProcXF86VIVHelpDRAWABLEINFO(register ClientPtr client)
 }
 
 static int
-ProcXF86VIVHelpPIXMAPPHYSADDR(register ClientPtr client)
+ProcVIVEXTPixmapPhysaddr(register ClientPtr client)
 {
 
 	int n;
 
-	REQUEST(xXF86VIVHelpPIXMAPPHYSADDRReq);
-	REQUEST_SIZE_MATCH(xXF86VIVHelpPIXMAPPHYSADDRReq);
+	REQUEST(xVIVEXTPixmapPhysaddrReq);
+	REQUEST_SIZE_MATCH(xVIVEXTPixmapPhysaddrReq);
 
 	/* Initialize reply */
-	xXF86VIVHelpPIXMAPPHYSADDRReply rep;
+	xVIVEXTPixmapPhysaddrReply rep;
 	rep.type = X_Reply;
 	rep.sequenceNumber = client->sequence;
 	rep.length = 0;
 	rep.pixmapState = VIV_PixmapUndefined;
-	rep.pixmapPhysAddr = (CARD32)NULL;
+	rep.PixmapPhysaddr = (CARD32)NULL;
 	rep.pixmapStride = 0;
 
 	/* Find the pixmap */
@@ -365,7 +450,7 @@ ProcXF86VIVHelpPIXMAPPHYSADDR(register ClientPtr client)
 		if (surf) {
 
 			rep.pixmapState = VIV_PixmapFramebuffer;
-			rep.pixmapPhysAddr = (CARD32) surf->mVideoNode.mPhysicalAddr;
+			rep.PixmapPhysaddr = (CARD32) surf->mVideoNode.mPhysicalAddr;
 			rep.pixmapStride = surf->mStride;
 		} else {
 			rep.pixmapState = VIV_PixmapOther;
@@ -378,12 +463,12 @@ ProcXF86VIVHelpPIXMAPPHYSADDR(register ClientPtr client)
 #if defined(SWAP_SINGLE_PARAMETER)
 		swaps(&rep.sequenceNumber);
 		swapl(&rep.length);
-		swapl(&rep.pixmapPhysAddr);
+		swapl(&rep.PixmapPhysaddr);
 		swapl(&rep.pixmapStride);
 #else
 		swaps(&rep.sequenceNumber, n);
 		swapl(&rep.length, n);
-		swapl(&rep.pixmapPhysAddr, n);
+		swapl(&rep.PixmapPhysaddr, n);
 		swapl(&rep.pixmapStride, n);
 #endif
 	}
@@ -396,17 +481,17 @@ ProcXF86VIVHelpPIXMAPPHYSADDR(register ClientPtr client)
 
 
 static int
-ProcXF86VIVHelpDispatch(register ClientPtr client)
+ProcVIVEXTDispatch(register ClientPtr client)
 {
 	REQUEST(xReq);
 
 	switch (stuff->data) {
-		case X_XF86VIVHelpDRAWABLEFLUSH:
-			return ProcXF86DRAWABLEFLUSH(client);
-		case X_XF86VIVHelpDRAWABLEINFO:
-			return ProcXF86VIVHelpDRAWABLEINFO(client);
-		case X_XF86VIVHelpPIXMAPPHYSADDR:
-			return ProcXF86VIVHelpPIXMAPPHYSADDR(client);
+		case X_VIVEXTDrawableFlush:
+			return ProcVIVEXTDrawableFlush(client);
+		case X_VIVEXTDrawableInfo:
+			return ProcVIVEXTDrawableInfo(client);
+		case X_VIVEXTPixmapPhysaddr:
+			return ProcVIVEXTPixmapPhysaddr(client);
 		default:
 			return BadRequest;
 	}
@@ -414,20 +499,20 @@ ProcXF86VIVHelpDispatch(register ClientPtr client)
 }
 
 static int
-ProcXF86VIVHelpQueryVersion(
+ProcVIVEXTQueryVersion(
 	register ClientPtr client
 )
 {
-	xXF86VIVHelpQueryVersionReply rep;
+	xVIVEXTQueryVersionReply rep;
 	register int n;
 
-	REQUEST_SIZE_MATCH(xXF86VIVHelpQueryVersionReq);
+	REQUEST_SIZE_MATCH(xVIVEXTQueryVersionReq);
 	rep.type = X_Reply;
 	rep.length = 0;
 	rep.sequenceNumber = client->sequence;
-	rep.majorVersion = XF86VIVHelp_MAJOR_VERSION;
-	rep.minorVersion = XF86VIVHelp_MINOR_VERSION;
-	rep.patchVersion = XF86VIVHelp_PATCH_VERSION;
+	rep.majorVersion = VIVEXT_MAJOR_VERSION;
+	rep.minorVersion = VIVEXT_MINOR_VERSION;
+	rep.patchVersion = VIVEXT_PATCH_VERSION;
 
 	if (client->swapped) {
 #if defined(SWAP_SINGLE_PARAMETER)
@@ -445,28 +530,28 @@ ProcXF86VIVHelpQueryVersion(
 #endif
 	}
 
-	WriteToClient(client, sizeof(xXF86VIVHelpQueryVersionReply), (char *)&rep);
+	WriteToClient(client, sizeof(xVIVEXTQueryVersionReply), (char *)&rep);
 
 	return Success;
 }
 
 static int
-SProcXF86VIVHelpQueryVersion(
+SProcVIVEXTQueryVersion(
 	register ClientPtr	client
 )
 {
 	register int n;
-	REQUEST(xXF86VIVHelpQueryVersionReq);
+	REQUEST(xVIVEXTQueryVersionReq);
 #if defined(SWAP_SINGLE_PARAMETER)
 	swaps(&stuff->length);
 #else
 	swaps(&stuff->length, n);
 #endif
-	return ProcXF86VIVHelpQueryVersion(client);
+	return ProcVIVEXTQueryVersion(client);
 }
 
 static int
-SProcXF86VIVHelpDispatch (
+SProcVIVEXTDispatch (
 	register ClientPtr	client
 )
 {
@@ -477,16 +562,16 @@ SProcXF86VIVHelpDispatch (
 	*/
 	switch (stuff->data)
 	{
-		case X_XF86VIVHelpQueryVersion:
-			return SProcXF86VIVHelpQueryVersion(client);
+		case X_VIVEXTQueryVersion:
+			return SProcVIVEXTQueryVersion(client);
 		default:
-			return VIVHelpErrorBase + XF86VIVHelpClientNotLocal;
+			return VIVEXTErrorBase + VIVEXTClientNotLocal;
 	}
 }
 
 /*ARGSUSED*/
 static void
-XF86VIVHelpResetProc (
+VIVEXTResetProc (
 	ExtensionEntry* extEntry
 )
 {
@@ -494,19 +579,19 @@ XF86VIVHelpResetProc (
 }
 
 void
-XFree86VIVHELPExtensionInit(void)
+VIVExtensionInit(void)
 {
 	ExtensionEntry *extEntry;
 
-	extEntry = AddExtension(XF86VIVHELPNAME,
-				XF86VIVHelpNumberEvents,
-				XF86VIVHelpNumberErrors,
-				ProcXF86VIVHelpDispatch,
-				SProcXF86VIVHelpDispatch,
-				XF86VIVHelpResetProc, StandardMinorOpcode);
+	extEntry = AddExtension(VIVEXTNAME,
+				VIVEXTNumberEvents,
+				VIVEXTNumberErrors,
+				ProcVIVEXTDispatch,
+				SProcVIVEXTDispatch,
+				VIVEXTResetProc, StandardMinorOpcode);
 
-	VIVHelpReqCode = (unsigned char) extEntry->base;
-	VIVHelpErrorBase = extEntry->errorBase;
+	VIVEXTReqCode = (unsigned char) extEntry->base;
+	VIVEXTErrorBase = extEntry->errorBase;
 
 }
 

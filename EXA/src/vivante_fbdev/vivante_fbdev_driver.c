@@ -154,13 +154,13 @@ static XF86ModuleVersionInfo VivVersRec = {
     {0, 0, 0, 0}
 };
 
-static Bool noXFree86VIVHELPExtension;
+static Bool noVIVExtension;
 
-static ExtensionModule XF86VIVExt =
+static ExtensionModule VIVExt =
 {
-	XFree86VIVHELPExtensionInit,
-	XF86VIVHELPNAME,
-	&noXFree86VIVHELPExtension,
+	VIVExtensionInit,
+	VIVEXTNAME,
+	&noVIVExtension,
 	NULL,
 	NULL
 };
@@ -179,7 +179,7 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
         xf86AddDriver(&VIV, module, HaveDriverFuncs);
         ret = (pointer) 1;
 
-        LoadExtension(&XF86VIVExt, FALSE);
+        LoadExtension(&VIVExt, FALSE);
 
     } else {
         if (errmaj) *errmaj = LDR_ONCEONLY;

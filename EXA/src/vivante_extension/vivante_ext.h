@@ -19,39 +19,39 @@
 *****************************************************************************/
 
 
-#ifndef _VIV_HELP
-#define _VIV_HELP
+#ifndef _VIV_EXT
+#define _VIV_EXT
 
-#define X_XF86VIVHelpQueryVersion			0
-#define X_XF86VIVHelpPIXMAPPHYSADDR		1
-#define X_XF86VIVHelpDRAWABLEFLUSH		2
-#define X_XF86VIVHelpDRAWABLEINFO			3
-
-
-#define XF86VIVHelpNumberEvents		0
-
-#define XF86VIVHelpClientNotLocal		0
-#define XF86VIVHelpOperationNotSupported	1
-#define XF86VIVHelpNumberErrors		(XF86VIVHelpOperationNotSupported + 1)
+#define X_VIVEXTQueryVersion                   0
+#define X_VIVEXTPixmapPhysaddr                 1
+#define X_VIVEXTDrawableFlush                  2
+#define X_VIVEXTDrawableInfo                   3
 
 
+#define VIVEXTNumberEvents   		0
 
-#define XF86VIVHELPNAME "vivext"
+#define VIVEXTClientNotLocal		0
+#define VIVEXTOperationNotSupported	1
+#define VIVEXTNumberErrors		    (VIVEXTOperationNotSupported + 1)
+
+
+
+#define VIVEXTNAME "vivext"
 
 /*
 #define XORG_VERSION_CURRENT 10.4
 */
 
-#define XF86VIVHelp_MAJOR_VERSION	1
-#define XF86VIVHelp_MINOR_VERSION	0
-#define XF86VIVHelp_PATCH_VERSION	0
+#define VIVEXT_MAJOR_VERSION   1
+#define VIVEXT_MINOR_VERSION   0
+#define VIVEXT_PATCH_VERSION   0
 
-typedef struct _XF86VIVHelpQueryVersion {
+typedef struct _VIVEXTQueryVersion {
 	CARD8	reqType;
-	CARD8	vivHelpReqType;
+	CARD8	vivEXTReqType;
 	CARD16	length B16;
-} xXF86VIVHelpQueryVersionReq;
-#define sz_xXF86VIVHelpQueryVersionReq	4
+} xVIVEXTQueryVersionReq;
+#define sz_xVIVEXTQueryVersionReq	4
 
 
 typedef struct {
@@ -59,36 +59,36 @@ typedef struct {
 	BYTE	pad1;
 	CARD16	sequenceNumber B16;
 	CARD32	length B32;
-	CARD16	majorVersion B16;		/* major version of vivHelp protocol */
-	CARD16	minorVersion B16;		/* minor version of vivHelp protocol */
-	CARD32	patchVersion B32;		/* patch version of vivHelp protocol */
+	CARD16	majorVersion B16;		/* major version of vivEXT protocol */
+	CARD16	minorVersion B16;		/* minor version of vivEXT protocol */
+	CARD32	patchVersion B32;		/* patch version of vivEXT protocol */
 	CARD32	pad3 B32;
 	CARD32	pad4 B32;
 	CARD32	pad5 B32;
 	CARD32	pad6 B32;
-} xXF86VIVHelpQueryVersionReply;
-#define sz_xXF86VIVHelpQueryVersionReply	32
+} xVIVEXTQueryVersionReply;
+#define sz_xVIVEXTQueryVersionReply	32
 
 
-typedef struct _XF86VIVHelpDRAWABLEFLUSH {
-	CARD8	reqType;		/* always vivHelpReqCode */
-	CARD8	vivHelpReqType;		/* always X_vivHelpDRAWABLEFLUSH */
+typedef struct _VIVEXTDrawableFlush {
+	CARD8	reqType;		/* always vivEXTReqCode */
+	CARD8	vivEXTReqType;		/* always X_vivEXTDrawableFlush */
 	CARD16	length B16;
 	CARD32	screen B32;
 	CARD32	drawable B32;
-} xXF86VIVHelpDRAWABLEFLUSHReq;
-#define sz_xXF86VIVHelpDRAWABLEFLUSHReq	12
+} xVIVEXTDrawableFlushReq;
+#define sz_xVIVEXTDrawableFlushReq	12
 
 
 
-typedef struct _XF86VIVHelpDRAWABLEINFO {
+typedef struct _VIVEXTDrawableInfo {
 	CARD8	reqType;
-	CARD8	vivHelpReqType;
+	CARD8	vivEXTReqType;
 	CARD16	length B16;
 	CARD32	screen B32;
 	CARD32	drawable B32;
-} xXF86VIVHelpDRAWABLEINFOReq;
-#define sz_xXF86VIVHelpDRAWABLEINFOReq	12
+} xVIVEXTDrawableInfoReq;
+#define sz_xVIVEXTDrawableInfoReq	12
 
 typedef struct {
 	BYTE	type;			/* X_Reply */
@@ -107,44 +107,44 @@ typedef struct {
 	CARD32      stride B32;
 	CARD32      backNode B32;
 	CARD32      phyAddress B32;
-} xXF86VIVHelpDRAWABLEINFOReply;
+} xVIVEXTDrawableInfoReply;
 
-#define sz_xXF86VIVHelpDRAWABLEINFOReply	44
+#define sz_xVIVEXTDrawableInfoReply	44
 
 
 /************************************************************************/
 
 typedef struct {
 	CARD8	reqType;	/* always XTestReqCode */
-	CARD8	xtReqType;	/* always X_IMX_EXT_GetPixmapPhysAddr */
+	CARD8	xtReqType;	/* always X_IMX_EXT_GetPixmapPhysaddr */
 	CARD16	length B16;
 	Pixmap	pixmap B32;
-} xXF86VIVHelpPIXMAPPHYSADDRReq;
-#define sz_xXF86VIVHelpPIXMAPPHYSADDRReq 8
+} xVIVEXTPixmapPhysaddrReq;
+#define sz_xVIVEXTPixmapPhysaddrReq 8
 
 typedef enum
 {
 	VIV_PixmapUndefined,	/* pixmap is not defined */
 	VIV_PixmapFramebuffer,	/* pixmap is in framebuffer */
 	VIV_PixmapOther		/* pixmap is not in framebuffer */
-} XF86VIVHelp_PixmapState;
+} VIVEXT_PixmapState;
 
 typedef struct {
 	CARD8	type;			/* must be X_Reply */
 	CARD8	pixmapState;		/* has value of IMX_EXT_PixmapState */
 	CARD16	sequenceNumber B16;	/* of last request received by server */
 	CARD32	length B32;		/* 4 byte quantities beyond size of GenericReply */
-	CARD32	pixmapPhysAddr B32;	/* pixmap phys addr; otherwise NULL */
+	CARD32	PixmapPhysaddr B32;	/* pixmap phys addr; otherwise NULL */
 	CARD32	pixmapStride B32;	/* bytes between lines in pixmap */
 	CARD32	pad0 B32;		/* bytes 17-20 */
 	CARD32	pad1 B32;		/* bytes 21-24 */
 	CARD32	pad2 B32;		/* bytes 25-28 */
 	CARD32	pad3 B32;		/* bytes 29-32 */
-} xXF86VIVHelpPIXMAPPHYSADDRReply;
-#define	sz_xXF86VIVHelpPIXMAPPHYSADDRReply 32
+} xVIVEXTPixmapPhysaddrReply;
+#define	sz_xVIVEXTPixmapPhysaddrReply 32
 
 
-void XFree86VIVHELPExtensionInit(void);
+void VIVExtensionInit(void);
 
 
 #endif
