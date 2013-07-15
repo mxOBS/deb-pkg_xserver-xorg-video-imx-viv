@@ -393,7 +393,12 @@ Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo) {
 Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type) {
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = (GenericSurfacePtr) (ppix->mVidMemInfo);
-    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    VIVGPUPtr gpuctx = gcvNULL;
+    gcoOS Os = gcvNULL;
+    if(galInfo != gcvNULL)
+        gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    if(gpuctx != gcvNULL)
+        Os = gpuctx->mDriver->mOs;
 
     if ( surf == NULL )
         TRACE_EXIT(TRUE);
@@ -402,28 +407,28 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
 
     switch (flush_type) {
         case INVALIDATE:
-            status = gcoOS_CacheInvalidate(gpuctx->mDriver->mOs, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+            status = gcoOS_CacheInvalidate(Os, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
             }
             break;
         case FLUSH:
-            status = gcoOS_CacheFlush(gpuctx->mDriver->mOs, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+            status = gcoOS_CacheFlush(Os, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
             }
             break;
         case CLEAN:
-            status = gcoOS_CacheClean(gpuctx->mDriver->mOs, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+            status = gcoOS_CacheClean(Os, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
             }
             break;
         case MEMORY_BARRIER:
-            status = gcoOS_MemoryBarrier(gpuctx->mDriver->mOs, surf->mVideoNode.mLogicalAddr);
+            status = gcoOS_MemoryBarrier(Os, surf->mVideoNode.mLogicalAddr);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);

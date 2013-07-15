@@ -76,8 +76,9 @@ typedef struct _VIVEXTDrawableFlush {
 	CARD16	length B16;
 	CARD32	screen B32;
 	CARD32	drawable B32;
+	CARD32  op B32; /* 1: invalidate 2: flush; 3: clean */
 } xVIVEXTDrawableFlushReq;
-#define sz_xVIVEXTDrawableFlushReq	12
+#define sz_xVIVEXTDrawableFlushReq	16
 
 
 

@@ -78,7 +78,9 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
     //SURF_SIZE_FOR_SW(pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
     //SURF_SIZE_FOR_SW(pDstPixmap->drawable.width, pDstPixmap->drawable.height);
     // early fail out
-    if(xdir || ydir) {
+    // xdir: -1 for right to left; 1 for left to right
+    // ydir: -1 for bottom to top; 1 for top to bottom
+    if(xdir != 1 || ydir != 1) {
         TRACE_EXIT(FALSE);
     }
 

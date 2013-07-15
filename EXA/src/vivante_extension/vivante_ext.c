@@ -95,24 +95,29 @@ static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 		pWinPixmap = pScreen->GetWindowPixmap(pWin);
 
 		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
-
-		if (ppriv) {
-			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
-			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
-			ppriv->mCpuBusy = FALSE;
-		}
+	}
+	else if (pDrawable->type == DRAWABLE_PIXMAP)
+	{
+		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
 	}
 
-	if (pDrawable->type == DRAWABLE_PIXMAP)
-	{
+	if (ppriv) {
+		VIVFLUSHTYPE flushtype;
 
-		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
-		if ( ppriv )
-		{
-			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
-			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
-			ppriv->mCpuBusy = FALSE;
+		switch(stuff->op) {
+		case 1: flushtype = INVALIDATE; break;
+		case 2: flushtype = FLUSH; break;
+		case 3: flushtype = CLEAN; break;
+		default: flushtype = -1; break;
 		}
+
+		surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
+
+		if(flushtype != -1)
+			VIV2DCacheOperation(gcvNULL, ppriv, flushtype);
+
+//		gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+//		ppriv->mCpuBusy = FALSE;
 	}
 
 	return  Success;
@@ -235,6 +240,12 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 		*relY = 0;
 		/* pixmap (or for GLX 1.3, a PBuffer) */
 		pWinPixmap = (PixmapPtr)pDrawable;
+
+		*X = (int)(pDrawable->x);
+		*Y = (int)(pDrawable->y);
+		*W = (int)(pDrawable->width);
+		*H = (int)(pDrawable->height);
+
 		if (pDrawable->type == DRAWABLE_PIXMAP) {
 			Viv2DPixmapPtr ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
 			GenericSurfacePtr surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);

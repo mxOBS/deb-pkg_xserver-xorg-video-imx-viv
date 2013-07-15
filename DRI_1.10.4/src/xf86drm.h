@@ -459,6 +459,7 @@ do {	register unsigned int __old __asm("o0");		\
 			"1: ldrex %0, [%1]\n"		\
 			"   teq %0, %2\n"		\
 			"   strexeq %0, %3, [%1]\n"	\
+                        "   movne   %0, #1\n"           \
 		: "=&r" (__ret)				\
 		: "r" (lock), "r" (old), "r" (new)	\
 		: "cc","memory");			\
