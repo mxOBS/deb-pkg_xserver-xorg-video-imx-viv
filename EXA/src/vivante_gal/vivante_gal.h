@@ -118,6 +118,8 @@ extern "C" {
     typedef struct _vivPixmapPriv Viv2DPixmap;
     typedef Viv2DPixmap * Viv2DPixmapPtr;
 
+#define VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD 1
+
     struct _vivPixmapPriv {
         /*Video Memory*/
         void * mVidMemInfo;
@@ -126,6 +128,8 @@ extern "C" {
         Bool mCpuBusy;
         Bool mSwAnyWay;
         Viv2DPixmapPtr mNextGpuBusyPixmap;
+        /* Flags */
+        unsigned int mFlags;
         /*reference*/
         int mRef;
     };

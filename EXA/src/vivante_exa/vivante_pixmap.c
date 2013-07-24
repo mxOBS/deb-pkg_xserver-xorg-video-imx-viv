@@ -46,6 +46,7 @@ VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
     vivpixmap->mCpuBusy = FALSE;
     vivpixmap->mSwAnyWay = FALSE;
     vivpixmap->mNextGpuBusyPixmap = NULL;
+    vivpixmap->mFlags = 0;
     vivpixmap->mRef = 0;
     TRACE_EXIT(vivpixmap);
 }

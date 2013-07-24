@@ -123,6 +123,53 @@ static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 	return  Success;
 }
 
+// Return value: 0 for ok; otherwise failed
+static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
+{
+    DrawablePtr 	pDrawable;
+    WindowPtr	pWin;
+    ScreenPtr 	pScreen;
+    PixmapPtr      pWinPixmap;
+    Viv2DPixmapPtr ppriv = NULL;
+    int rc;
+    GenericSurfacePtr surf;
+
+    REQUEST(xVIVEXTDrawableSetFlagReq);
+    REQUEST_SIZE_MATCH(xVIVEXTDrawableSetFlagReq);
+    if (stuff->screen >= screenInfo.numScreens)
+    {
+        client->errorValue = stuff->screen;
+        return -1;
+    }
+
+    rc = dixLookupDrawable(&pDrawable, stuff->drawable, client, 0, DixReadAccess);
+
+    if (rc != Success)
+        return -1;
+
+    if ( pDrawable->type == DRAWABLE_WINDOW)
+    {
+        pWin = (WindowPtr)pDrawable;
+        pScreen = screenInfo.screens[stuff->screen];
+        pWinPixmap = pScreen->GetWindowPixmap(pWin);
+        ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
+    }
+    else if (pDrawable->type == DRAWABLE_PIXMAP)
+    {
+        ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
+    }
+
+    if (ppriv)
+    {
+        ppriv->mFlags = stuff->flag;
+        return  0;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 static Bool VIVGetParentScreenXY(ScreenPtr pScreen, WindowPtr pWin, int *screenX, int *screenY)
 {
 
@@ -503,6 +550,8 @@ ProcVIVEXTDispatch(register ClientPtr client)
 			return ProcVIVEXTDrawableInfo(client);
 		case X_VIVEXTPixmapPhysaddr:
 			return ProcVIVEXTPixmapPhysaddr(client);
+		case X_VIVEXTDrawableSetFlag:
+			return ProcVIVEXTDrawableSetFlag(client);
 		default:
 			return BadRequest;
 	}

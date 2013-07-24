@@ -26,6 +26,8 @@
 #define X_VIVEXTPixmapPhysaddr                 1
 #define X_VIVEXTDrawableFlush                  2
 #define X_VIVEXTDrawableInfo                   3
+#define X_VIVEXTDrawableGetFlag                4
+#define X_VIVEXTDrawableSetFlag                5
 
 
 #define VIVEXTNumberEvents   		0
@@ -143,6 +145,18 @@ typedef struct {
 	CARD32	pad3 B32;		/* bytes 29-32 */
 } xVIVEXTPixmapPhysaddrReply;
 #define	sz_xVIVEXTPixmapPhysaddrReply 32
+
+
+#define VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD 1
+typedef struct _VIVEXTDrawableSetFlag {
+	CARD8	reqType;		/* always vivEXTReqCode */
+	CARD8	vivEXTReqType;		/* always X_VIVEXTDrawableSetFlag */
+	CARD16	length B16;
+	CARD32	screen B32;
+	CARD32	drawable B32;
+	CARD32  flag B32;
+} xVIVEXTDrawableSetFlagReq;
+#define sz_xVIVEXTDrawableSetFlagReq	16
 
 
 void VIVExtensionInit(void);
