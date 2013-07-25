@@ -812,25 +812,25 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
     /*setting the source surface*/
     if (!SetSourceSurface(galInfo)) {
         TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
-        TRACE_EXIT(FALSE);
+        goto failed;
     }
 
     /*Setting the dest surface*/
     if (!SetDestinationSurface(galInfo)) {
         TRACE_ERROR("ERROR SETTING DST SURFACE\n");
-        TRACE_EXIT(FALSE);
+        goto failed;
     }
 
     /*setting the clipping for dest*/
     if (!SetClipping(galInfo)) {
         TRACE_ERROR("ERROR SETTING DST CLIPPING\n");
-        TRACE_EXIT(FALSE);
+        goto failed;
     }
 
     /*Enabling the alpha blending*/
     if (!EnableAlphaBlending(galInfo)) {
         TRACE_ERROR("Alpha Blending Factor\n");
-        TRACE_EXIT(FALSE);
+        goto failed;
     }
 
 
@@ -846,12 +846,12 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
 
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Copy Blit Failed");
-        TRACE_EXIT(FALSE);
+        goto failed;
     }
 
     if (!DisableAlphaBlending(galInfo)) {
         TRACE_ERROR("Disabling Alpha Blend Failed\n");
-        TRACE_EXIT(FALSE);
+        goto failed;
     }
 
 
@@ -859,6 +859,13 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
     free((void *)podstrect);
 
     TRACE_EXIT(TRUE);
+
+failed:
+    if(posrcrect)
+        free((void *)posrcrect);
+    if(podstrect)
+        free((void *)podstrect);
+    TRACE_EXIT(FALSE);
 }
 
 /**

@@ -471,8 +471,10 @@ ProcVIVEXTDrawableInfo(register ClientPtr client)
 	WriteToClient(client,
 	sizeof(drm_clip_rect_t) * rep.numClipRects,
 	pClippedRects);
-	free(pClippedRects);
 	}
+
+    if(pClippedRects && pClippedRects != pClipRects)
+        free(pClippedRects);
 
 	return Success;
 
