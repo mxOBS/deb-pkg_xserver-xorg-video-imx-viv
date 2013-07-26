@@ -156,12 +156,23 @@ static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
     }
     else if (pDrawable->type == DRAWABLE_PIXMAP)
     {
+        pScreen = screenInfo.screens[stuff->screen];
         ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
     }
 
     if (ppriv)
     {
         ppriv->mFlags = stuff->flag;
+        if(stuff->flag & VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD)
+        {
+            // turn this  Pixmap to non-cacheable
+            VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
+            if(pViv)
+            {
+                VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
+                VIV2DGPUSurfaceReAllocNonCached(gpuctx, ppriv);
+            }
+        }
         return  0;
     }
     else

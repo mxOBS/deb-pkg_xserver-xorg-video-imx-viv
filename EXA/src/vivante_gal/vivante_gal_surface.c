@@ -513,11 +513,8 @@ delete_wrapper:
     TRACE_EXIT(gcvTRUE);
 }
 
-
-
-
-static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
-    gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
+static gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
+    gctUINT bytesPerPixel, GenericSurfacePtr * surface, enum PixmapCachePolicy cachePolicy) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = gcvNULL;
@@ -525,7 +522,9 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
     gceSURF_TYPE surftype;
     Bool cacheable;
 
-    surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
+    /* if desired cache policy is same as default, then try get from pool */
+    if(cachePolicy == getPixmapCachePolicy())
+        surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
 
     if ( surf == NULL )
     {
@@ -542,8 +541,7 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
         surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
         surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
 
-
-        switch ( getPixmapCachePolicy() )
+        switch ( cachePolicy )
         {
         case WRITEALLOC:
             surftype = gcvSURF_CACHEABLE_BITMAP;
@@ -601,6 +599,48 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
     *surface = surf;
 
     TRACE_EXIT(TRUE);
+}
+
+static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
+    gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
+    return VIV2DGPUSurfaceAllocEx(gpuctx, alignedWidth, alignedHeight, bytesPerPixel, surface, getPixmapCachePolicy());
+}
+
+gctBOOL VIV2DGPUSurfaceReAllocNonCached(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
+    GenericSurfacePtr oldSurf = gcvNULL;
+    GenericSurfacePtr newSurf = gcvNULL;
+    gctUINT32 alignedWidth;
+    gctUINT32 alignedHeight;
+    gctUINT32 bpp;
+
+    oldSurf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
+
+    if(oldSurf == gcvNULL)
+        return gcvFALSE;
+
+    /* if default to non-cacheable, then no need to realloc */
+    if(getPixmapCachePolicy() == NONCACHEABLE)
+        return gcvTRUE;
+
+    /* save old size */
+    alignedWidth  = oldSurf->mAlignedWidth;
+    alignedHeight = oldSurf->mAlignedHeight;
+    bpp           = oldSurf->mBytesPerPixel;
+
+    /* free old surface */
+    if(FreeGPUSurface(gpuctx, ppriv) == gcvFALSE)
+        return gcvFALSE;
+
+    /* create new surface */
+    if(VIV2DGPUSurfaceAllocEx(gpuctx, alignedWidth, alignedHeight, bpp, &newSurf, NONCACHEABLE))
+    {
+        ppriv->mVidMemInfo = newSurf;
+        return gcvTRUE;
+    }
+    else
+    {
+        return gcvFALSE;
+    }
 }
 
 Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix)

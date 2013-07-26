@@ -219,13 +219,8 @@ void postCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
 
     if(vivpixmap->mFlags & VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD)
     {
-        enum PixmapCachePolicy ePolicy = getPixmapCachePolicy();
-
-        if(ePolicy != NONCACHEABLE)
-        {
-            // remove it from cache to prevent next cpu access with wrong cache
-            VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE);
-        }
+        // this pixmap is noncacheable
+        vivpixmap->mCpuBusy = FALSE;
     }
 }
 
