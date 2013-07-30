@@ -46,15 +46,9 @@ endif
 CFLAGS += -fvisibility=hidden -fPIC -DPIC
 CFLAGS += -I. -I.. -I$(sysroot)/usr/include -I$(sysroot)/usr/include/xorg -I$(sysroot)/usr/include/$(PIXMAN)
 CFLAGS += -I../../EXA/src/vivante_gal
-ifeq ($(YOCTO),1)
-# Yocto: compile will fail (does not support ldrex/strexeq/...)
-# specify armv6 to walkaround it
-# armv7: not supported by the toolchain
-CFLAGS += -march=armv6
-else
+CFLAGS += -march=armv7-a
 CFLAGS += -marm
 # -Wa,-mimplicit-it=thumb
-endif
 
 
 #LFLAGS += -lGAL -lm -ldl -ldrm -lX11 -module -Wl,-soname -Wl,$(target) -Wl,-rpath,/usr/lib/xorg/modules/extensions

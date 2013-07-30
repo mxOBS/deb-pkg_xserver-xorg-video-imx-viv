@@ -69,6 +69,9 @@ extern "C" {
 #include "xf86Crtc.h"
 #include "cursorstr.h"
 
+    /* System API compatability */
+#include "compat-api.h"
+
     /*Debug*/
 #include "vivante_debug.h"
 

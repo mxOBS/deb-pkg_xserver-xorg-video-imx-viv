@@ -18,8 +18,8 @@
 #
 
 
-export XACCVER=3.0.35-4.0.0
-export DEBFILE=xorg1.10.4-acc-viv4.6.9p12-linux$XACCVER.deb
+#export XACCVER=3.0.35-4.1.0
+#export DEBFILE=xorg1.10.4-acc-viv4.6.9p12-linux$XACCVER.deb
 echo "Creating xserver acceleration release package ..."
 rm -r release
 mkdir release || exit 1

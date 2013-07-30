@@ -59,9 +59,8 @@ static const OptionInfoRec *VivAvailableOptions(int chipid, int busid);
 static void VivIdentify(int flags);
 static Bool VivProbe(DriverPtr drv, int flags);
 static Bool VivPreInit(ScrnInfoPtr pScrn, int flags);
-static Bool VivScreenInit(int Index, ScreenPtr pScreen, int argc,
-        char **argv);
-static Bool VivCloseScreen(int scrnIndex, ScreenPtr pScreen);
+static Bool VivScreenInit(SCREEN_INIT_ARGS_DECL);
+static Bool VivCloseScreen(CLOSE_SCREEN_ARGS_DECL);
 static Bool VivDriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op,
         pointer ptr);
 
@@ -197,7 +196,7 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
 
 static Bool InitExaLayer(ScreenPtr pScreen) {
     ExaDriverPtr pExa;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr pViv = GET_VIV_PTR(pScrn);
 
     TRACE_ENTER();
@@ -280,7 +279,7 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
 }
 
 static Bool DestroyExaLayer(ScreenPtr pScreen) {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr pViv = GET_VIV_PTR(pScrn);
     TRACE_ENTER();
     xf86DrvMsg(pScreen->myNum, X_INFO, "Shutdown EXA\n");
@@ -594,7 +593,7 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
 static Bool
 VivCreateScreenResources(ScreenPtr pScreen) {
     PixmapPtr pPixmap;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr fPtr = GET_VIV_PTR(pScrn);
     Bool ret;
 
@@ -616,8 +615,12 @@ VivCreateScreenResources(ScreenPtr pScreen) {
 }
 
 static Bool
-VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+VivScreenInit(SCREEN_INIT_ARGS_DECL) {
+#if defined(XF86_SCRN_INTERFACE)
+    int index = pScreen->myNum;
+#endif
+    int scrnIndex = index;
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr fPtr = GET_VIV_PTR(pScrn);
     VisualPtr visual;
     int init_picture = 0;
@@ -656,11 +659,7 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
         TRACE_EXIT(FALSE);
     }
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
-#if defined(NEW_FBDEV_API)
-    fbdevHWAdjustFrame(scrnIndex, 0, 0);
-#else
-    fbdevHWAdjustFrame(scrnIndex, 0, 0, 0);
-#endif
+    fbdevHWAdjustFrame(FBDEVHWADJUSTFRAME_ARGS(0, 0));
 
     /* mi layer */
     miClearVisualTypes();
@@ -753,7 +752,9 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
     }
 
     xf86SetBlackWhitePixels(pScreen);
+#if !defined(FIX_NO_MI_BACKINGSTORE)
     miInitializeBackingStore(pScreen);
+#endif
     xf86SetBackingStore(pScreen);
 
     pScrn->vtSema = TRUE;
@@ -805,8 +806,11 @@ VivScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv) {
 }
 
 static Bool
-VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
-    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+VivCloseScreen(CLOSE_SCREEN_ARGS_DECL) {
+#if defined(XF86_SCRN_INTERFACE)
+    int scrnIndex = pScreen->myNum;
+#endif
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr fPtr = GET_VIV_PTR(pScrn);
     Bool ret = FALSE;
     TRACE_ENTER();
@@ -836,11 +840,7 @@ VivCloseScreen(int scrnIndex, ScreenPtr pScreen) {
 
     pScreen->CreateScreenResources = fPtr->CreateScreenResources;
     pScreen->CloseScreen = fPtr->CloseScreen;
-#if defined(NEW_FBDEV_API)
-    ret = (*pScreen->CloseScreen)(pScreen);
-#else
-    ret = (*pScreen->CloseScreen)(scrnIndex, pScreen);
-#endif
+    ret = (*pScreen->CloseScreen)(CLOSE_SCREEN_ARGS);
     TRACE_EXIT(ret);
 }
 

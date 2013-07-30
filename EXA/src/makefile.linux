@@ -45,12 +45,8 @@ ifeq ($(NODRI),1)
 CFLAGS += -DDISABLE_VIVANTE_DRI
 endif
 
-ifeq ($(SWAP_SINGLE_PARAMETER),1)
-CFLAGS  += -DSWAP_SINGLE_PARAMETER
-endif
-
-ifeq ($(NEW_FBDEV_API),1)
-CFLAGS  += -DNEW_FBDEV_API
+ifeq ($(XSERVER_GREATER_THAN_13),1)
+CFLAGS += -DSWAP_SINGLE_PARAMETER -DFIX_NO_MI_BACKINGSTORE
 endif
 
 ifeq ($(BUSID_HAS_NUMBER),1)
@@ -68,6 +64,7 @@ CFLAGS += -fvisibility=hidden -fPIC -DPIC -O2 -DFREESCALE_EXTENSION
 CFLAGS += -I. -I.. -I$(sysroot)/usr/include -I$(sysroot)/usr/include/xorg -I$(sysroot)/usr/include/$(PIXMAN)
 CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension
 CFLAGS += -I$(sysroot)/usr/include/drm
+CFLAGS += -march=armv7-a
 CFLAGS += -marm
 #CFLAGS += -mthumb-interwork
 #CFLAGS += -mimplicit-it=thumb
