@@ -203,6 +203,12 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
 
     xf86DrvMsg(pScreen->myNum, X_INFO, "test Initializing EXA\n");
 
+    #if defined(COMMIT)
+    #define COMMITSTRING(commit) #commit
+    #define VERSION_STRING(commit) COMMITSTRING(commit)
+    xf86DrvMsg(pScreen->myNum, X_INFO, "(driver build from: " VERSION_STRING(COMMIT) ")\n");
+    #endif
+
     /*Initing EXA*/
     pExa = exaDriverAlloc();
     if (!pExa) {
