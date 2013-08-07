@@ -227,7 +227,7 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
     } else {
 
         /* The same as what prepare does */
-        if ( (0 == PICT_FORMAT_A(pSrc->format) ) &&  !IsSourceAlphaRequired(op)) {
+        if ( (0 == PICT_FORMAT_A(pSrc->format) ) && IsSourceAlphaRequired(op)) {
             TRACE_EXIT(FALSE);
         }
 
@@ -679,7 +679,7 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     /* Currenlty if mask on, it will not fall into this path ,otherwise consider mask */
     /* IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT is small, enable this */
     /* otherwise disable it, it is not meaningful when the size is big */
-    if ( (height < MIN_HW_HEIGHT || width * height < MIN_HW_SIZE_24BIT) && pBlt->mBlendOp.mOp != PIXMAN_OP_OVER)
+    if ( (height < MIN_HW_HEIGHT || width * height < MIN_HW_SIZE_24BIT) /*&& pBlt->mBlendOp.mOp != PIXMAN_OP_OVER*/)
     {
         pBlt->mSwcmp = TRUE;
         /* VIVSWComposite will call pixman_composite to do composition */

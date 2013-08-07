@@ -946,9 +946,10 @@ void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 
     if ( srcsurf->mData == NULL ) {
         srcimage = pixman_image_create_bits((pixman_format_code_t) pBlt->mSrcSurfInfo.mFormat.mExaFmt,
-                    srcsurf->mAlignedWidth,
-                    srcsurf->mAlignedHeight, (uint32_t *) srcsurf->mLogicalAddr,
-                    srcsurf->mStride);
+                    pBlt->mSrcSurfInfo.mWidth,
+                    pBlt->mSrcSurfInfo.mHeight,
+                    (uint32_t *) srcsurf->mLogicalAddr,
+                    pBlt->mSrcSurfInfo.mStride);
         srcsurf->mData = (gctPOINTER)srcimage;
         //if ( pBlt->mSrcSurfInfo.mFormat.mBpp != 32 )
             //pixman_image_set_accessors(srcimage, real_reader, real_writer);
@@ -964,9 +965,10 @@ void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 
     if ( dstsurf->mData == NULL ) {
         dstimage = pixman_image_create_bits((pixman_format_code_t) pBlt->mDstSurfInfo.mFormat.mExaFmt,
-                    dstsurf->mAlignedWidth,
-                    dstsurf->mAlignedHeight, (uint32_t *) dstsurf->mLogicalAddr,
-                    dstsurf->mStride);
+                    pBlt->mDstSurfInfo.mWidth,
+                    pBlt->mDstSurfInfo.mHeight,
+                    (uint32_t *) dstsurf->mLogicalAddr,
+                    pBlt->mDstSurfInfo.mStride);
         dstsurf->mData = (gctPOINTER)dstimage;
         //if ( pBlt->mDstSurfInfo.mFormat.mBpp != 32 )
             //pixman_image_set_accessors(dstimage, real_reader, real_writer);
