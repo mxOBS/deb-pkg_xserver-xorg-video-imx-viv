@@ -38,7 +38,7 @@ CFLAGS  += -DSWAP_SINGLE_PARAMETER
 endif
 
 ifeq ($(BUILD_HARD_VFP),1)
-CFLAGS += -mfpu=neon -mfloat-abi=hard
+CFLAGS += -mfpu=vfp -mfloat-abi=hard
 else
 CFLAGS += -mfpu=vfp -mfloat-abi=softfp
 endif
