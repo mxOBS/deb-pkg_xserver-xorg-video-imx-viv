@@ -98,7 +98,7 @@ static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 	}
 	else if (pDrawable->type == DRAWABLE_PIXMAP)
 	{
-		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
+		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate((PixmapPtr)pDrawable);
 	}
 
 	if (ppriv) {
@@ -157,7 +157,7 @@ static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
     else if (pDrawable->type == DRAWABLE_PIXMAP)
     {
         pScreen = screenInfo.screens[stuff->screen];
-        ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
+        ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate((PixmapPtr)pDrawable);
     }
 
     if (ppriv)
@@ -305,7 +305,7 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 		*H = (int)(pDrawable->height);
 
 		if (pDrawable->type == DRAWABLE_PIXMAP) {
-			Viv2DPixmapPtr ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pDrawable);
+			Viv2DPixmapPtr ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate((PixmapPtr)pDrawable);
 			GenericSurfacePtr surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
 			*alignedWidth = gcmALIGN(pWinPixmap->drawable.width, WIDTH_ALIGNMENT);
 			*alignedHeight = gcmALIGN(pWinPixmap->drawable.height, HEIGHT_ALIGNMENT);

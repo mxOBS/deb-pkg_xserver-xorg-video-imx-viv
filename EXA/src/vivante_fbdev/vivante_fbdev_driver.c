@@ -231,7 +231,7 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     pExa->memorySize = pScrn->videoRam;
     pExa->offScreenBase = pScrn->virtualY * pScrn->displayWidth * (pScrn->bitsPerPixel >> 3);
 
-    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, &pViv->mFB.memPhysBase)) {
+    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, (unsigned int *)&pViv->mFB.memPhysBase)) {
         TRACE_ERROR("ERROR ON MAPPING FB\n");
         TRACE_EXIT(FALSE);
     }
@@ -704,7 +704,7 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL) {
 
     xf86DrvMsg(scrnIndex, X_INFO,
             "FB Start = %p  FB Base = %p  FB Offset = %p\n",
-            fPtr->mFB.mFBStart, fPtr->mFB.mFBMemory, fPtr->mFB.mFBOffset);
+            fPtr->mFB.mFBStart, fPtr->mFB.mFBMemory, (void *)fPtr->mFB.mFBOffset);
 
     switch (pScrn->bitsPerPixel) {
         case 8:

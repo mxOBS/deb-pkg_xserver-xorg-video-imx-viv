@@ -116,7 +116,7 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
     pViv->pDRIInfo = pDRIInfo;
     pDRIInfo->drmDriverName=VivKernelDriverName;
     pDRIInfo->clientDriverName=VivClientDriverName;
-    pDRIInfo->busIdString =(char *)xalloc(64);
+    pDRIInfo->busIdString =(char *)calloc(64, 1);
     /* use = to copy string and it seems good, but when you free it, it will report invalid pointer, use strcpy instead */
     //pDRIInfo->busIdString="platform:Vivante GCCore";
 #if !defined(BUSID_HAS_NUMBER)

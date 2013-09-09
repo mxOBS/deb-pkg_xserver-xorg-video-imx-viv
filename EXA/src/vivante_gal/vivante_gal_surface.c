@@ -76,7 +76,7 @@ static gceSTATUS FreeVideoNode(
         IN gctUINT64 Node) {
     gcsHAL_INTERFACE iface;
 
-    gcmASSERT(Node != gcvNULL);
+    gcmASSERT(Node != 0);
 
     iface.command = gcvHAL_FREE_VIDEO_MEMORY;
     iface.u.FreeVideoMemory.node = Node;
@@ -104,7 +104,7 @@ static gceSTATUS LockVideoNode(
 
     gcmASSERT(Address != gcvNULL);
     gcmASSERT(Memory != gcvNULL);
-    gcmASSERT(Node != gcvNULL);
+    gcmASSERT(Node != 0);
 
     iface.command = gcvHAL_LOCK_VIDEO_MEMORY;
     iface.u.LockVideoMemory.node = Node;
@@ -135,7 +135,7 @@ static gceSTATUS UnlockVideoNode(
     gcsHAL_INTERFACE iface;
     gceSTATUS status;
 
-    gcmASSERT(Node != gcvNULL);
+    gcmASSERT(Node != 0);
 
     iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
     iface.u.UnlockVideoMemory.node = Node;
