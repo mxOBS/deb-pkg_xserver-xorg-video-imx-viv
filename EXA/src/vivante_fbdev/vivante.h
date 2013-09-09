@@ -42,6 +42,7 @@ extern "C" {
         OPTION_VIV,
         OPTION_NOACCEL,
         OPTION_ACCELMETHOD,
+        OPTION_SYNCDRAW,
         OPTION_VIVCACHEMEM
     } VivOpts;
 

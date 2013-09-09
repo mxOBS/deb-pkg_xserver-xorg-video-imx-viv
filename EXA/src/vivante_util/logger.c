@@ -123,14 +123,21 @@ void queuePixmapToGpu(Viv2DPixmapPtr vpixmap)
     }
 }
 
+extern Bool vivEnableCacheMemory;
+
 enum PixmapCachePolicy getPixmapCachePolicy()
 {
-    return WRITEALLOC;
+    if(vivEnableCacheMemory)
+        return WRITEALLOC;
+    else
+        return NONCACHEABLE;
 }
+
+extern Bool vivEnableSyncDraw;
 
 int isGpuSyncMode()
 {
-    return 0;
+    return vivEnableSyncDraw;
 }
 
 void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)

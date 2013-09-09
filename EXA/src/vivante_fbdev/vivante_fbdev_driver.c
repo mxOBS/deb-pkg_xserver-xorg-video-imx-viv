@@ -38,6 +38,7 @@
 
 
 Bool vivEnableCacheMemory = TRUE;
+Bool vivEnableSyncDraw = FALSE;
 
 
 /************************************************************************
@@ -127,6 +128,8 @@ static const OptionInfoRec VivOptions[] = {
     { OPTION_ACCELMETHOD, "AccelMethod", OPTV_STRING,
         {0}, FALSE},
     { OPTION_VIVCACHEMEM, "VivCacheMem", OPTV_BOOLEAN,
+        {0}, FALSE},
+    { OPTION_SYNCDRAW,    "SyncDraw",    OPTV_BOOLEAN,
         {0}, FALSE},
     { -1, NULL, OPTV_NONE,
         {0}, FALSE}
@@ -532,6 +535,7 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     xf86ProcessOptions(pScrn->scrnIndex, fPtr->mEntity->device->options, fPtr->mSupportedOptions);
 
     vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_VIVCACHEMEM, TRUE);
+    vivEnableSyncDraw = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_SYNCDRAW, FALSE);
 
     fPtr->mFakeExa.mNoAccelFlag = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_NOACCEL, FALSE);
 
