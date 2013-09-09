@@ -39,7 +39,9 @@ extern "C" {
      ******************************************************************************/
 #define IGNORE(a)  (a=a)
 #define VIV_ALIGN( value, base ) (((value) + ((base) - 1)) & ~((base) - 1))
+#if !defined(ARRAY_SIZE)
 #define ARRAY_SIZE(a) (sizeof((a)) / (sizeof(*(a))))
+#endif
 #define NO_PICT_FORMAT -1
     /*******************************************************************************
      *

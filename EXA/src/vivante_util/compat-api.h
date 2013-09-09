@@ -58,14 +58,19 @@
 #define FBDEVHWADJUSTFRAME_ARGS(x, y) scrnIndex, (x), (y), 0
 
 #define ADJUST_FRAME_ARGS_DECL int arg, int x, int y, int flags
+#define ADJUST_FRAME_ARGS(scrn, x, y) (scrn), (x), (y), 0
 
 #define SWITCH_MODE_ARGS_DECL int arg, DisplayModePtr mode, int flags
+#define SWITCH_MODE_ARGS(arg, mode) (arg), (mode), 0
 
 #define FREE_SCREEN_ARGS_DECL int arg, int flags
 #define FREE_SCREEN_ARGS(x) (x)->scrnIndex, 0
 
 #define VT_FUNC_ARGS_DECL int arg, int flags
 #define VT_FUNC_ARGS(flags) pScrn->scrnIndex, (flags)
+
+#define VALID_MODE_DECL int arg, DisplayModePtr mode, Bool verbose, int flags
+#define PM_EVENT_DECL int arg, pmEvent event, Bool undo
 
 #define ENABLE_DISABLE_FB_ACCESS_ARGS(pScrn, b) pScrn->scrnIndex, b
 
@@ -89,13 +94,19 @@
 #define FBDEVHWADJUSTFRAME_ARGS(x, y) pScrn, (x), (y)
 
 #define ADJUST_FRAME_ARGS_DECL ScrnInfoPtr arg, int x, int y
+#define ADJUST_FRAME_ARGS(scrn, x, y) (scrn), (x), (y)
+
 #define SWITCH_MODE_ARGS_DECL ScrnInfoPtr arg, DisplayModePtr mode
+#define SWITCH_MODE_ARGS(arg, mode) (arg), (mode)
 
 #define FREE_SCREEN_ARGS_DECL ScrnInfoPtr arg
 #define FREE_SCREEN_ARGS(x) (x)
 
 #define VT_FUNC_ARGS_DECL ScrnInfoPtr arg
 #define VT_FUNC_ARGS(flags) pScrn
+
+#define VALID_MODE_DECL ScrnInfoPtr arg, DisplayModePtr mode, Bool verbose, int flags
+#define PM_EVENT_DECL ScrnInfoPtr arg, pmEvent event, Bool undo
 
 #define ENABLE_DISABLE_FB_ACCESS_ARGS(pScrn, b) pScrn, b
 

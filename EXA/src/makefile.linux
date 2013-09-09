@@ -34,6 +34,7 @@ OBJS := vivante_gal/vivante_gal_blit.o \
 	vivante_extension/vivante_ext.o \
 	vivante_fbdev/vivante_dri.o \
 	vivante_util/logger.o \
+	vivante_fbdev/imx_display.o \
 
 PIXMAN := pixman-1
 

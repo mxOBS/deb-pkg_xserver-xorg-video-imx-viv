@@ -36,16 +36,6 @@ extern "C" {
     /********************************************************************************
      *  Rectangle Structs (START)
      ********************************************************************************/
-
-    /* Supported options */
-    typedef enum {
-        OPTION_VIV,
-        OPTION_NOACCEL,
-        OPTION_ACCELMETHOD,
-        OPTION_SYNCDRAW,
-        OPTION_VIVCACHEMEM
-    } VivOpts;
-
     typedef struct _vivFakeExa {
         ExaDriverPtr mExaDriver;
         /*Feature Switches  For Exa*/
@@ -77,8 +67,8 @@ extern "C" {
         /*EXA STUFF*/
         VivFakeExa mFakeExa;
         /*Entity & Options*/
-        EntityInfoPtr mEntity; /*Entity To Be Used with this driver*/
-        OptionInfoPtr mSupportedOptions; /*Options to be parsed in xorg.conf*/
+        EntityInfoPtr pEnt; /*Entity To Be Used with this driver*/
+        OptionInfoPtr Options; /*Options to be parsed in xorg.conf*/
         /*Funct Pointers*/
         CloseScreenProcPtr CloseScreen; /*Screen Close Function*/
         CreateScreenResourcesProcPtr CreateScreenResources;
@@ -86,6 +76,44 @@ extern "C" {
         /* DRI information */
         void * pDRIInfo;
         int drmSubFD;
+
+        /* ---- from fb ----*/
+        int         lineLength;
+        int         rotate;
+        Bool        shadowFB;
+        void       *shadow;
+        void      (*PointerMoved)(SCRN_ARG_TYPE arg, int x, int y);
+
+        /* DGA info */
+        DGAModePtr  pDGAMode;
+        int         nDGAMode;
+
+        /* ---- imx display section ----*/
+
+        char    fbId[80];
+        char    fbDeviceName[32];
+
+        /* size of FB memory mapped; includes offset for page align */
+        int    fbMemorySize;
+
+        /* virtual addr for start 2nd FB memory for XRandR rotation */
+        unsigned char*    fbMemoryStart2;
+
+        /* total bytes FB memory to reserve for screen(s) */
+        int    fbMemoryScreenReserve;
+
+        /* frame buffer alignment properties */
+        int    fbAlignOffset;
+        int    fbAlignWidth;
+        int    fbAlignHeight;
+
+        /* Driver phase/state information */
+        Bool suspended;
+
+        void* displayPrivate;
+
+        /* sync value: support FSL extension */
+        unsigned int fbSync;
     } VivRec, * VivPtr;
 
     /********************************************************************************
