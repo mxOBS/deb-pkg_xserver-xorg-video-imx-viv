@@ -618,6 +618,8 @@ Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag)
         return TRUE;
     }
 
+    *stretchflag = FALSE;
+    return TRUE;
 }
 
 gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
