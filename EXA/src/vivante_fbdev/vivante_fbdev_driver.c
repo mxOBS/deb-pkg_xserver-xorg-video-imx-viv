@@ -201,6 +201,7 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     ExaDriverPtr pExa;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr pViv = GET_VIV_PTR(pScrn);
+    Bool acc = !pViv->mFakeExa.mNoAccelFlag;
 
     TRACE_ENTER();
 
@@ -249,18 +250,18 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
 
     pExa->WaitMarker = VivEXASync;
 
-    pExa->PrepareSolid = VivPrepareSolid;
+    pExa->PrepareSolid = acc ? VivPrepareSolid : DummyPrepareSolid;
     pExa->Solid = VivSolid;
     pExa->DoneSolid = VivDoneSolid;
 
-    pExa->PrepareCopy = VivPrepareCopy;
+    pExa->PrepareCopy = acc ? VivPrepareCopy : DummyPrepareCopy;
     pExa->Copy = VivCopy;
     pExa->DoneCopy = VivDoneCopy;
 
-    pExa->UploadToScreen = VivUploadToScreen;
+    pExa->UploadToScreen = acc ? VivUploadToScreen : DummyUploadToScreen;
 
-    pExa->CheckComposite = VivCheckComposite;
-    pExa->PrepareComposite = VivPrepareComposite;
+    pExa->CheckComposite = acc ? VivCheckComposite : DummyCheckComposite;
+    pExa->PrepareComposite = acc ? VivPrepareComposite : DummyPrepareComposite;
     pExa->Composite = VivComposite;
     pExa->DoneComposite = VivDoneComposite;
 
@@ -541,6 +542,9 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
 
     if (fPtr->mFakeExa.mNoAccelFlag) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Acceleration disabled\n");
+        fPtr->mFakeExa.mUseExaFlag = TRUE; // use EXA but unaccelerated functions
+        vivEnableCacheMemory = FALSE;
+        vivEnableSyncDraw = TRUE;
     } else {
         char *s = xf86GetOptValString(fPtr->mSupportedOptions, OPTION_ACCELMETHOD);
         fPtr->mFakeExa.mNoAccelFlag = FALSE;
