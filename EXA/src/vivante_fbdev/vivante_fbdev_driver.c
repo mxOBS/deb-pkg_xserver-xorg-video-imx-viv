@@ -761,6 +761,13 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
 
     initPixmapQueue();
 
+    fbdevHWSave(pScrn);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Init mode for fb device\n");
+    if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
+		xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"mode initialization failed\n");
+		return FALSE;
+    }
+
     /*Mapping the Video memory*/
     if (NULL == (fPtr->mFB.mFBMemory = fbdevHWMapVidmem(pScrn))) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mapping of video memory"
@@ -791,12 +798,6 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
     if(gEnableXRandR)
         imxSetShadowBuffer(pScreen);
 
-    fbdevHWSave(pScrn);
-
-    if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
-		xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"mode initialization failed\n");
-		return FALSE;
-    }
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
     fbdevHWAdjustFrame(FBDEVHWADJUSTFRAME_ARGS(0, 0));
     /* mi layer */

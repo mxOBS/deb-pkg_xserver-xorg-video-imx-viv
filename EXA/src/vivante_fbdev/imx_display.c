@@ -1522,6 +1522,13 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
+	/* set virtual y to increase fb size */
+	pScrn->virtualY = 2 * pScrn->virtualY;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"imxDisplayPreInit: virtual set %d x %d\n",
+		pScrn->virtualX, pScrn->virtualY);
+
 	return TRUE;
 }
 
