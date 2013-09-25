@@ -481,6 +481,13 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     default_depth = fbdevHWGetDepth(pScrn, &fbbpp);
+
+    /* let fb device allocate 32-bpp buffer (make gpu happy) */
+    if(gVivFb) {
+        if(fbbpp == 24)
+            fbbpp = 32;
+    }
+
     if (!xf86SetDepthBpp(pScrn, default_depth, default_depth, fbbpp,
             Support24bppFb | Support32bppFb))
 		return FALSE;

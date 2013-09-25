@@ -80,8 +80,8 @@ extern "C" {
 
 //#define ALL_NONCACHE_BIGSURFACE 1
 
-#define WIDTH_ALIGNMENT 8
-#define HEIGHT_ALIGNMENT 1
+#define WIDTH_ALIGNMENT 16
+#define HEIGHT_ALIGNMENT 16
 #define BITSTOBYTES(x) (((x)+7)/8)
 
 #define    IMX_EXA_NONCACHESURF_WIDTH 1024

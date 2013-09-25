@@ -176,9 +176,12 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         LOGD("Wrapper address %08x in fb (%08x-%08x) to pixmap, offset=%d\n",
             pPixData, screenMemoryBegin, screenMemoryEnd, offset);
 
+        /* Free old wrapper */
+        DestroySurface(&pViv->mGrCtx, vivPixmap);
+
         /* Store GPU address. */
         const unsigned long physical = pViv->mFB.memPhysBase + offset;
-        if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
+        if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap, pViv->mFakeExa.mExaDriver->memorySize/2)) { // reserved buffers size is greater than current pixmap used. TODO: move shadow buffer out
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
             TRACE_EXIT(FALSE);

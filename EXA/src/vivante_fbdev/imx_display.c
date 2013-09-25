@@ -136,14 +136,6 @@ Bool imxSetShadowBuffer(ScreenPtr pScreen)
 
     /* reserve second frame buffer for shadow */
 
-
-	// i.mx6q: ipu requires address to be 8-byte aligned; stride 4-byte
-	//             gpu: address to be 64-byte aligned; stride 16-pixel aligned; height should be 8-pixel aligned
-	// considering rotation, width & height both aligned to 16 pixels
-	fPtr->fbAlignOffset = 64;
-	fPtr->fbAlignWidth  = 16;
-	fPtr->fbAlignHeight = 16;
-
 	/* Retrieve the max sizes supported by frame buffer. */
 	int fbMaxWidth;
 	int fbMaxHeight;
@@ -495,7 +487,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 			modeName, strerror(errno));
 		return FALSE;
 	}
-		
+
 	/* Query the FB variable screen info */
 	struct fb_var_screeninfo fbVarScreenInfo;
 	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
@@ -505,7 +497,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 			modeName, strerror(errno));
 		return FALSE;
 	}
-		
+
 	/* If the shadow memory is allocated, then we have some */
 	/* adjustments to do. */
 	if (fPtr->fbShadowAllocated) {
@@ -522,7 +514,9 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 		/* based on the 2 buffers? */
 		const int vyres = yoffset * 2;
 
-		fbVarScreenInfo.xoffset = 0;
+		/* pScrn->displayWidth: not display width in case of rotation. It is desktop width. Use fbFixScreenInfo.line_length */
+		/* to calculate offset */
+		fbVarScreenInfo.xoffset = offsetBytes - yoffset * fbFixScreenInfo.line_length;
 		fbVarScreenInfo.yoffset = yoffset;
 		fbVarScreenInfo.yres_virtual = vyres;
 
@@ -532,9 +526,10 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
 		fbVarScreenInfo.xoffset = 0;
 		fbVarScreenInfo.yoffset = 0;
-
+		fbVarScreenInfo.xres_virtual = pScrn->displayWidth;
+		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
 	}
-	
+
 	/* Make the adjustments to the variable screen info. */
 	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 
@@ -543,6 +538,8 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 			modeName, strerror(errno));
 		return FALSE;
 	}
+
+	// re-mapping video memory (for ipu, it is needless)
 
 	return TRUE;
 }
@@ -744,11 +741,6 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 		"printing discovered frame buffer '%s' supported modes:\n",
 		fbDeviceName);
 
-	/* Add current builtin mode */
-	DisplayModePtr builtinMode = fbdevHWGetBuildinMode(pScrn);
-	xf86PrintModeline(pScrn->scrnIndex, builtinMode);
-	modesList = xf86ModesAdd(modesList, xf86DuplicateMode(builtinMode));
-
 	/* Iterate over all the modes in the frame buffer list. */
 	char modeName[80];
 	while (NULL != fgets(modeName, sizeof(modeName), fpModes)) {
@@ -774,6 +766,16 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 			xf86PrintModeline(pScrn->scrnIndex, mode);
 			modesList = xf86ModesAdd(modesList, mode);
 		}
+	}
+
+	/* if no modes found, use builtin mode. Builtin mode name is 'current', which will result wrong result for mode matching 
+	and searching.
+	*/
+	if(modesList == NULL) {
+		/* Add current builtin mode */
+		DisplayModePtr builtinMode = fbdevHWGetBuildinMode(pScrn);
+		xf86PrintModeline(pScrn->scrnIndex, builtinMode);
+		modesList = xf86ModesAdd(modesList, xf86DuplicateMode(builtinMode));
 	}
 
 errorGetModes:
@@ -864,6 +866,11 @@ imxCrtcResize(ScrnInfoPtr pScrn, int width, int height)
 		-1, 			/* same bitsperpixel */
 		stride,			/* devKind = stride */
 		NULL);			/* same memory ptr */
+
+	/* update displayWidth to new value set by gpu. displayWidth will be used to 
+	update fb device virtual x resolution in imxDisplaySetMode
+	*/
+	pScrn->displayWidth = pScreenPixmap->devKind / bytesPerPixel;
 
 	return TRUE;
 }
@@ -1248,32 +1255,14 @@ imxOutputGetModes(xf86OutputPtr output)
 	/* Access driver private screen display data */
 	ImxDisplayPtr fPtr = IMXDISPLAYPTR(imxPtr);
 
-	/* Access the built in frame buffer mode. */
-	DisplayModePtr builtinMode = fbdevHWGetBuildinMode(pScrn);
-	xf86PrintModeline(pScrn->scrnIndex, builtinMode);
-	DisplayModePtr modesList = xf86DuplicateMode(builtinMode);
+    if(fPtr->fbModesList) {
+        return xf86DuplicateModes(pScrn, fPtr->fbModesList);
+    }
 
-	/* Try to read the monitor EDID info. */
-	xf86MonPtr pMonitor =
-		imxDisplayGetEdid(
-			pScrn,
-			imxPtr->fbId,
-			fPtr->edidDataBytes,
-			sizeof(fPtr->edidDataBytes));
-	if (NULL != pMonitor) {
-
-		xf86OutputSetEDID(output, pMonitor);
-		fPtr->edidModesAvail = TRUE;
-
-	} else {
-
-		fPtr->edidModesAvail = FALSE;
-	}
-
-	/* Access all the modes support by frame buffer driver. */
-	modesList = xf86ModesAdd(modesList, xf86OutputGetEDIDModes(output));
-
-	return modesList;
+    DisplayModePtr builtinMode = fbdevHWGetBuildinMode(pScrn);
+    xf86PrintModeline(pScrn->scrnIndex, builtinMode);
+    DisplayModePtr modesList = xf86DuplicateMode(builtinMode);
+    return modesList;
 }
 
 static void
@@ -1350,6 +1339,13 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
     /*Getting a pointer to Rectangle Structure*/
     vPtr = GET_VIV_PTR(pScrn);
 
+	// i.mx6q: ipu requires address to be 8-byte aligned; stride 4-byte
+	//             gpu: address to be 64-byte aligned; stride 16-pixel aligned; height should be 8-pixel aligned
+	// considering rotation, width & height both aligned to 16 pixels
+	vPtr->fbAlignOffset = 64;
+	vPtr->fbAlignWidth  = WIDTH_ALIGNMENT;
+	vPtr->fbAlignHeight = HEIGHT_ALIGNMENT;
+
     /*Getting the device path*/
     dev_node = xf86FindOptionValue(vPtr->pEnt->device->options, "vivante_fbdev");
 
@@ -1396,7 +1392,7 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 	fPtr->outputPtr = NULL;
 	fPtr->atomEdid = 0;
 	fPtr->fbShadowAllocated = FALSE;
-	fPtr->edidModesAvail = FALSE;
+	fPtr->edidModesAvail = TRUE;
 	strcpy(fPtr->fbModeNameCurrent, "");
 
 	/* Access all the modes supported by frame buffer driver. */
@@ -1522,12 +1518,29 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	/* set virtual y to increase fb size */
-	pScrn->virtualY = 2 * pScrn->virtualY;
+	/* set virtual size to reserve a big enough buffer */
+	/* Access the fd for the FB driver */
+	int fdDev = fbdevHWGetFD(pScrn);
+
+	/* Query the FB variable screen info */
+	struct fb_var_screeninfo fbVarScreenInfo;
+	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+		return FALSE;
+	}
+
+	fbVarScreenInfo.xres_virtual = IMX_ALIGN(fPtr->fbMaxWidth, imxPtr->fbAlignWidth);
+	fbVarScreenInfo.yres_virtual = IMX_ALIGN(fPtr->fbMaxHeight, imxPtr->fbAlignHeight) * 2;
+	fbVarScreenInfo.bits_per_pixel = 32;
+
+	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			"unable to support largest resolution (%s)", strerror(errno));
+		return FALSE;
+	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"imxDisplayPreInit: virtual set %d x %d\n",
-		pScrn->virtualX, pScrn->virtualY);
+		"imxDisplayPreInit: virtual set %d x %d, display width %d\n",
+		pScrn->virtualX, pScrn->virtualY, pScrn->displayWidth);
 
 	return TRUE;
 }
