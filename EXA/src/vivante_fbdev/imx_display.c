@@ -148,6 +148,10 @@ Bool imxSetShadowBuffer(ScreenPtr pScreen)
 	int fbMaxHeight;
 	imxDisplayGetPreInitMaxSize(pScrn, &fbMaxWidth, &fbMaxHeight);
 
+	/* Take user mode into account */
+	fbMaxWidth = max(fbMaxWidth, 1920);
+	fbMaxHeight = max(fbMaxHeight, 1088);
+
 	/* Apply alignment requirements */
 	fbMaxWidth = IMX_ALIGN(fbMaxWidth, fPtr->fbAlignWidth);
 	fbMaxHeight = IMX_ALIGN(fbMaxHeight, fPtr->fbAlignHeight);
@@ -579,6 +583,11 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	/* If the shadow memory is allocated, then we have some */
 	/* adjustments to do. */
 	if (fPtr->fbShadowAllocated) {
+		const int fbBytesPerPixel = (pScrn->bitsPerPixel + 7) / 8;
+		fbVarScreenInfo.xres = mode->HDisplay;
+		fbVarScreenInfo.yres = mode->VDisplay;
+		fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
+		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
 
 		/* How many bytes from start of 1st buffer to start */
 		/* of 2nd buffer? */
@@ -586,17 +595,14 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 			imxPtr->fbMemoryStart2 - imxPtr->mFB.mFBStart;
 
 		/* What should the yoffset by to start of 2nd buffer? */
-		const int yoffset = offsetBytes / fbFixScreenInfo.line_length;
+		const int yoffset = offsetBytes / (fbVarScreenInfo.xres_virtual * fbBytesPerPixel);
 
 		/* What should virtual resolution be adjusted to */
 		/* based on the 2 buffers? */
 		const int vyres = yoffset * 2;
 
-		/* pScrn->displayWidth: not display width in case of rotation. It is desktop width. Use fbFixScreenInfo.line_length */
-		/* to calculate offset */
-		fbVarScreenInfo.xoffset = offsetBytes - yoffset * fbFixScreenInfo.line_length; // old value? FIXME!
+		fbVarScreenInfo.xoffset = offsetBytes - yoffset * fbVarScreenInfo.xres_virtual * fbBytesPerPixel;
 		fbVarScreenInfo.yoffset = yoffset;
-		fbVarScreenInfo.yres_virtual = vyres;
 
 	/* If the shadow memory is not allocated, then we need to */
 	/* reset any FB pan display back to (0,0). */
