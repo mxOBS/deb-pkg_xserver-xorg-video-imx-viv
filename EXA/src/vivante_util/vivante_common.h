@@ -80,6 +80,10 @@ extern "C" {
 
 //#define ALL_NONCACHE_BIGSURFACE 1
 
+// i.mx6q: ipu requires address to be 8-byte aligned; stride 4-byte
+//             gpu: address to be 64-byte aligned; stride 16-pixel aligned; height should be 8-pixel aligned
+// considering rotation, width & height both aligned to 16 pixels
+#define ADDRESS_ALIGNMENT 64
 #define WIDTH_ALIGNMENT 16
 #define HEIGHT_ALIGNMENT 16
 #define BITSTOBYTES(x) (((x)+7)/8)

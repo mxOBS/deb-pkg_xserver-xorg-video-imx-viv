@@ -48,6 +48,13 @@
 typedef VivPtr ImxPtr;
 typedef VivRec ImxRec;
 
+#if !defined(max)
+#define max(a, b) ((a) < (b) ? (b) : (a))
+#endif
+
+extern void OnCrtcModeChanged(ScrnInfoPtr pScrn);
+
+
 #define IMXPTR(pScrnInfo) ((ImxPtr)((pScrnInfo)->driverPrivate))
 
 /* Align an offset to an arbitrary alignment */
@@ -544,6 +551,75 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 	return TRUE;
 }
 
+// currently only overlay supports this feature
+static Bool
+imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
+{
+	/* Access driver private screen data */
+	ImxPtr imxPtr = IMXPTR(pScrn);
+
+	/* Access display private screen data */
+	ImxDisplayPtr fPtr = IMXDISPLAYPTR(imxPtr);
+
+	/* Access the fd for the FB driver */
+	int fdDev = fbdevHWGetFD(pScrn);
+
+	/* Query the FB fixed screen info */
+	struct fb_fix_screeninfo fbFixScreenInfo;
+	if (-1 == ioctl(fdDev, FBIOGET_FSCREENINFO, &fbFixScreenInfo)) {
+		return FALSE;
+	}
+
+	/* Query the FB variable screen info */
+	struct fb_var_screeninfo fbVarScreenInfo;
+	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+		return FALSE;
+	}
+
+	/* If the shadow memory is allocated, then we have some */
+	/* adjustments to do. */
+	if (fPtr->fbShadowAllocated) {
+
+		/* How many bytes from start of 1st buffer to start */
+		/* of 2nd buffer? */
+		const int offsetBytes =
+			imxPtr->fbMemoryStart2 - imxPtr->mFB.mFBStart;
+
+		/* What should the yoffset by to start of 2nd buffer? */
+		const int yoffset = offsetBytes / fbFixScreenInfo.line_length;
+
+		/* What should virtual resolution be adjusted to */
+		/* based on the 2 buffers? */
+		const int vyres = yoffset * 2;
+
+		/* pScrn->displayWidth: not display width in case of rotation. It is desktop width. Use fbFixScreenInfo.line_length */
+		/* to calculate offset */
+		fbVarScreenInfo.xoffset = offsetBytes - yoffset * fbFixScreenInfo.line_length; // old value? FIXME!
+		fbVarScreenInfo.yoffset = yoffset;
+		fbVarScreenInfo.yres_virtual = vyres;
+
+	/* If the shadow memory is not allocated, then we need to */
+	/* reset any FB pan display back to (0,0). */
+	} else {
+
+		fbVarScreenInfo.xoffset = 0;
+		fbVarScreenInfo.yoffset = 0;
+		fbVarScreenInfo.xres = pScrn->virtualX;
+		fbVarScreenInfo.yres = pScrn->virtualY;
+		fbVarScreenInfo.xres_virtual = pScrn->displayWidth;
+		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
+	}
+
+	/* Make the adjustments to the variable screen info. */
+	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+		return FALSE;
+	}
+
+	// re-mapping video memory (for ipu, it is needless)
+
+	return TRUE;
+}
+
 /* -------------------------------------------------------------------- */
 
 static void
@@ -1029,6 +1105,11 @@ imxCrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjMode,
 
 		imxDisplaySetMode(pScrn, imxPtr->fbDeviceName, fbMode->name);
 	}
+	else {
+		imxDisplaySetUserMode(pScrn, mode);
+	}
+
+	OnCrtcModeChanged(pScrn);
 }
 
 static void
@@ -1188,7 +1269,8 @@ imxOutputModeValid(xf86OutputPtr output, DisplayModePtr mode)
 	/* Access the associated screen info. */
 	ScrnInfoPtr pScrn = output->scrn;
 
-	return imxDisplayFrameBufferModeSupport(pScrn, mode);
+	return MODE_OK;
+	//return imxDisplayFrameBufferModeSupport(pScrn, mode);
 }
 
 static Bool
@@ -1339,10 +1421,7 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
     /*Getting a pointer to Rectangle Structure*/
     vPtr = GET_VIV_PTR(pScrn);
 
-	// i.mx6q: ipu requires address to be 8-byte aligned; stride 4-byte
-	//             gpu: address to be 64-byte aligned; stride 16-pixel aligned; height should be 8-pixel aligned
-	// considering rotation, width & height both aligned to 16 pixels
-	vPtr->fbAlignOffset = 64;
+	vPtr->fbAlignOffset = ADDRESS_ALIGNMENT;
 	vPtr->fbAlignWidth  = WIDTH_ALIGNMENT;
 	vPtr->fbAlignHeight = HEIGHT_ALIGNMENT;
 
@@ -1451,8 +1530,8 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
     /* to support XRandR, set larger max size and smaller min size */
 	xf86CrtcSetSizeRange(
 		pScrn,
-		320,
-		200,
+		240, // overlay default size: 240x320
+		240,
 		8192,
 		8192);
 
@@ -1528,8 +1607,9 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	fbVarScreenInfo.xres_virtual = IMX_ALIGN(fPtr->fbMaxWidth, imxPtr->fbAlignWidth);
-	fbVarScreenInfo.yres_virtual = IMX_ALIGN(fPtr->fbMaxHeight, imxPtr->fbAlignHeight) * 2;
+	// user may create a mode which is larger than native mode(s)
+	fbVarScreenInfo.xres_virtual = max(IMX_ALIGN(fPtr->fbMaxWidth, imxPtr->fbAlignWidth), 1920);
+	fbVarScreenInfo.yres_virtual = max(IMX_ALIGN(fPtr->fbMaxHeight, imxPtr->fbAlignHeight), 1088) * 2;
 	fbVarScreenInfo.bits_per_pixel = 32;
 
 	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {

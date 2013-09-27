@@ -31,7 +31,7 @@ extern "C" {
 
 #define VIV_MAX_WIDTH   (1 <<11)
 #define VIV_MAX_HEIGHT (1 <<11)
-#define PIXMAP_PITCH_ALIGN    64
+#define PIXMAP_PITCH_ALIGN    (WIDTH_ALIGNMENT*4)
 
     /********************************************************************************
      *  Rectangle Structs (START)

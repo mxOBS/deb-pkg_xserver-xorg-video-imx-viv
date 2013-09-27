@@ -200,4 +200,15 @@ void VivDRICloseScreen(ScreenPtr pScreen) {
     }
 }
 
+void VivUpdateDriScreen(ScrnInfoPtr pScrn) {
+    VivPtr pViv = GET_VIV_PTR(pScrn);
+    DRIInfoPtr pDRIInfo = (DRIInfoPtr) pViv->pDRIInfo;
+    if(pDRIInfo == NULL)
+        return;
+
+    pDRIInfo->frameBufferSize = pScrn->videoRam; // FIXME!
+    pDRIInfo->frameBufferStride = (pScrn->displayWidth *
+            pScrn->bitsPerPixel / 8);
+}
+
 #endif

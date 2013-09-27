@@ -1469,7 +1469,7 @@ static Bool InitExaLayer(ScreenPtr pScreen)
     pExa->flags = EXA_HANDLES_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX | EXA_OFFSCREEN_PIXMAPS;
 
     /*Subject to change*/
-    pExa->pixmapOffsetAlign = 8;
+    pExa->pixmapOffsetAlign = ADDRESS_ALIGNMENT;
     /*This is for sure*/
     pExa->pixmapPitchAlign = PIXMAP_PITCH_ALIGN;
 
@@ -1544,4 +1544,11 @@ FBDevFreeScreen(FREE_SCREEN_ARGS_DECL)
 #endif
 
     FBDevFreeRec(pScrn);
+}
+
+void
+OnCrtcModeChanged(ScrnInfoPtr pScrn)
+{
+    if(gEnableDRI)
+        VivUpdateDriScreen(pScrn);
 }
