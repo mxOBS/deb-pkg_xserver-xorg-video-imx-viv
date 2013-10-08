@@ -57,10 +57,6 @@ extern void OnCrtcModeChanged(ScrnInfoPtr pScrn);
 
 #define IMXPTR(pScrnInfo) ((ImxPtr)((pScrnInfo)->driverPrivate))
 
-/* Align an offset to an arbitrary alignment */
-#define IMX_ALIGN(offset, align) 	\
-	(((offset) + (align) - 1) - (((offset) + (align) - 1) % (align)))
-
 static int
 GCD(int a, int b)
 {
@@ -911,7 +907,8 @@ imxDisplayDeleteModes(DisplayModePtr modesList)
 }
 
 /* -------------------------------------------------------------------- */
-
+/* This function is always called; but imxDisplaySetMode/imxDisplaySetUserMode
+only is called when mode is changing. */
 static Bool
 imxCrtcResize(ScrnInfoPtr pScrn, int width, int height)
 {

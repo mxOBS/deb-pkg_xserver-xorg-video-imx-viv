@@ -710,6 +710,10 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
     if(gEnableXRandR)
         imxDisplayPreInit(pScrn);
 
+    /* make sure display width is correctly aligned */
+    pScrn->displayWidth = IMX_ALIGN(pScrn->virtualX, fPtr->fbAlignWidth);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "FBDevPreInit: adjust display width %d\n", pScrn->displayWidth);
+
     xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "PreInit done\n");
 	TRACE_EXIT("PreInit");
 	return TRUE;
