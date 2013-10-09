@@ -188,7 +188,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         }
 
         // clear the surface to prevent data leakage
-        CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
+        //CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
 
         TRACE_EXIT(TRUE);
 

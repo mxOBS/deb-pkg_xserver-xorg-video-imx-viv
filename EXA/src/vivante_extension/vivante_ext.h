@@ -26,8 +26,9 @@
 #define X_VIVEXTPixmapPhysaddr                 1
 #define X_VIVEXTDrawableFlush                  2
 #define X_VIVEXTDrawableInfo                   3
-#define X_VIVEXTDrawableGetFlag                4
-#define X_VIVEXTDrawableSetFlag                5
+#define X_VIVEXTFULLScreenInfo                 4
+#define X_VIVEXTDrawableGetFlag                10
+#define X_VIVEXTDrawableSetFlag                11
 
 
 #define VIVEXTNumberEvents   		0
@@ -78,9 +79,8 @@ typedef struct _VIVEXTDrawableFlush {
 	CARD16	length B16;
 	CARD32	screen B32;
 	CARD32	drawable B32;
-	CARD32  op B32; /* 1: invalidate 2: flush; 3: clean */
 } xVIVEXTDrawableFlushReq;
-#define sz_xVIVEXTDrawableFlushReq	16
+#define sz_xVIVEXTDrawableFlushReq	12
 
 
 
@@ -114,6 +114,29 @@ typedef struct {
 
 #define sz_xVIVEXTDrawableInfoReply	44
 
+
+typedef struct _VIVEXTFULLScreenInfo {
+	CARD8	reqType;
+	CARD8	vivEXTReqType;
+	CARD16	length B16;
+	CARD32	screen B32;
+	CARD32	drawable B32;
+} xVIVEXTFULLScreenInfoReq;
+#define sz_xVIVEXTFULLScreenInfoReq	12
+
+typedef struct {
+	BYTE	type;			/* X_Reply */
+	BYTE	pad1;
+	CARD16	sequenceNumber B16;
+	CARD32	length B32;
+	CARD32	fullscreenCovered B32;	/* if fullscreen is covered by windows, set to 1 otherwise 0 */
+	CARD32	pad3 B32;
+	CARD32	pad4 B32;
+	CARD32	pad5 B32;
+	CARD32	pad6 B32;
+	CARD32	pad7 B32;		/* bytes 29-32 */
+} xVIVEXTFULLScreenInfoReply;
+#define	sz_xVIVEXTFULLScreenInfoReply 32
 
 /************************************************************************/
 

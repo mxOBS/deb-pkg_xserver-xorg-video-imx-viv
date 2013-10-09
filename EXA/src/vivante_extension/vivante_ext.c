@@ -95,29 +95,25 @@ static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 		pWinPixmap = pScreen->GetWindowPixmap(pWin);
 
 		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
-	}
-	else if (pDrawable->type == DRAWABLE_PIXMAP)
-	{
-		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate((PixmapPtr)pDrawable);
-	}
 
-	if (ppriv) {
-		VIVFLUSHTYPE flushtype;
+		if (ppriv) {
+			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
+			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+			ppriv->mCpuBusy = FALSE;
 
-		switch(stuff->op) {
-		case 1: flushtype = INVALIDATE; break;
-		case 2: flushtype = FLUSH; break;
-		case 3: flushtype = CLEAN; break;
-		default: flushtype = -1; break;
 		}
+	}
 
-		surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
+	if (pDrawable->type == DRAWABLE_PIXMAP)
+	{
 
-		if(flushtype != -1)
-			VIV2DCacheOperation(gcvNULL, ppriv, flushtype);
-
-//		gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
-//		ppriv->mCpuBusy = FALSE;
+		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate((PixmapPtr)pDrawable);
+		if ( ppriv )
+		{
+			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
+			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+			ppriv->mCpuBusy = FALSE;
+		}
 	}
 
 	return  Success;
@@ -378,6 +374,138 @@ static void ClippedRects(ScreenPtr pScreen,
 
 }
 
+
+static Bool VIVFULLScreenCovered(ScreenPtr pScreen, WindowPtr pWin)
+{
+	WindowPtr preWin;
+	WindowPtr pNext;
+	PixmapPtr      pWinPixmap;
+	Viv2DPixmapPtr ppriv;
+	GenericSurfacePtr surf = NULL;
+	int numClipRects = 0;
+	drm_clip_rect_t *pClipRects = NULL;
+
+	if ( pWin == NULL )
+		return TRUE;
+
+	pWinPixmap = pScreen->GetWindowPixmap(pWin);
+	ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
+
+	if (ppriv) {
+		surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
+		if (surf) {
+			if ( surf->mVideoNode.mNode == 0 )
+			{
+				numClipRects = RegionNumRects(&pWin->clipList);
+				pClipRects = (drm_clip_rect_t *)RegionRects(&pWin->clipList);
+				if ( numClipRects != 1)
+					return TRUE;
+				if ( (pClipRects[0].x2 - pClipRects[0].x1) != pWin->drawable.width
+					|| (pClipRects[0].y2 - pClipRects[0].y1) != pWin->drawable.height )
+				return TRUE;
+
+				return FALSE;
+			}
+ 		} else {
+ 			return TRUE;
+ 		}
+	} else {
+		return TRUE;
+	}
+
+	if ( pWin->parent == NULL )
+		return TRUE;
+
+	if ( pWin->firstChild )
+	{
+		return TRUE;
+	}
+
+
+	numClipRects = RegionNumRects(&pWin->clipList);
+	pClipRects = (drm_clip_rect_t *)RegionRects(&pWin->clipList);
+
+	/* if not 1 and size is not equal to Win size, his sibs cover this win */
+	if ( numClipRects != 1)
+		return TRUE;
+	if ( (pClipRects[0].x2 - pClipRects[0].x1) != pWin->drawable.width
+		|| (pClipRects[0].y2 - pClipRects[0].y1) != pWin->drawable.height )
+		return TRUE;
+
+	preWin = pWin;
+	while( preWin )
+	{
+		if ( preWin->parent )
+		{
+			pNext = preWin->parent->firstChild;
+			while( pNext )
+			{
+				if ( pNext->mapped && pNext->visibility != VisibilityNotViewable && preWin->redirectDraw == pNext->redirectDraw )
+					break;
+
+				pNext = pNext->nextSib;
+			}
+
+			if ( preWin == pNext )
+			{
+				preWin = preWin->parent;
+			}
+			else
+				return TRUE;
+		} else {
+			break;
+		}
+	}
+	return FALSE;
+}
+
+static int
+ProcVIVEXTFULLScreenInfo(register ClientPtr client)
+{
+	DrawablePtr pDrawable;
+	Bool isCovered = FALSE;
+	int rc;
+
+	xVIVEXTFULLScreenInfoReply rep = {
+		.type = X_Reply,
+		.sequenceNumber = client->sequence,
+		.length = 0
+	};
+
+	REQUEST(xVIVEXTFULLScreenInfoReq);
+	REQUEST_SIZE_MATCH(xVIVEXTFULLScreenInfoReq);
+
+
+	if (stuff->screen >= screenInfo.numScreens) {
+		client->errorValue = stuff->screen;
+		return BadValue;
+	}
+
+
+
+	rc = dixLookupDrawable(&pDrawable, stuff->drawable, client, 0,
+		DixReadAccess);
+	if (rc != Success)
+	return rc;
+
+
+	ScreenPtr pScreen = screenInfo.screens[stuff->screen];
+
+	if (pDrawable->type == DRAWABLE_WINDOW) {
+		isCovered = VIVFULLScreenCovered(pScreen, (WindowPtr)pDrawable);
+	}
+
+
+	rep.fullscreenCovered = (CARD32)isCovered;
+
+
+
+	WriteToClient(client, sizeof(xVIVEXTFULLScreenInfoReply), (char *)&rep);
+
+
+	return Success;
+}
+
 static int
 ProcVIVEXTDrawableInfo(register ClientPtr client)
 {
@@ -561,6 +689,8 @@ ProcVIVEXTDispatch(register ClientPtr client)
 			return ProcVIVEXTDrawableFlush(client);
 		case X_VIVEXTDrawableInfo:
 			return ProcVIVEXTDrawableInfo(client);
+		case X_VIVEXTFULLScreenInfo:
+			return ProcVIVEXTFULLScreenInfo(client);
 		case X_VIVEXTPixmapPhysaddr:
 			return ProcVIVEXTPixmapPhysaddr(client);
 		case X_VIVEXTDrawableSetFlag:
