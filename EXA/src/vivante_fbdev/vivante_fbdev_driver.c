@@ -527,10 +527,6 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
 	pScrn->progClock = TRUE;
 	pScrn->rgbBits   = 8;
     pScrn->chipset = "vivante";
-    pScrn->videoRam = fbdevHWGetVidmem(pScrn);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "hardware: %s (video memory:"
-            " %dkB)\n", fbdevHWGetName(pScrn), pScrn->videoRam / 1024);
 
     /* handle options */
     xf86CollectOptions(pScrn, NULL);
@@ -778,6 +774,11 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
 		xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"mode initialization failed\n");
 		return FALSE;
     }
+
+    /* now video ram size is change */
+    pScrn->videoRam = fbdevHWGetVidmem(pScrn);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "hardware: %s (video memory:"
+            " %dkB)\n", fbdevHWGetName(pScrn), pScrn->videoRam / 1024);
 
     /*Mapping the Video memory*/
     if (NULL == (fPtr->mFB.mFBMemory = fbdevHWMapVidmem(pScrn))) {

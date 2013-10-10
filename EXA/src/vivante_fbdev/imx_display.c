@@ -1645,6 +1645,12 @@ imxDisplayStartScreenInit(int scrnIndex, ScreenPtr pScreen)
 		xf86DrvMsg(scrnIndex, X_ERROR, "mode initialization failed\n");
 		return FALSE;
 	}
+
+    /* now video ram size is change */
+    pScrn->videoRam = fbdevHWGetVidmem(pScrn);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "hardware: %s (video memory:"
+            " %dkB)\n", fbdevHWGetName(pScrn), pScrn->videoRam / 1024);
+
 	pScrn->displayWidth =
 		fbdevHWGetLineLength(pScrn) / (pScrn->bitsPerPixel / 8);
 
