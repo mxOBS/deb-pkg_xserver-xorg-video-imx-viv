@@ -612,6 +612,44 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
 	}
 
+	/* timings */
+	/* See xfree2fbdev_timing. XServer 1.14 does not support following flags:
+	FB_VMODE_ODD_FLD_FIRST
+	FB_SYNC_ON_GREEN
+	FB_SYNC_EXT
+	And FSL extensions (See video-mx3fb.h)
+	FB_SYNC_OE_ACT_HIGH (0x80000000)
+	FB_SYNC_CLK_INVERT (0x40000000)
+	FB_SYNC_DATA_INVERT (0x20000000)
+	FB_SYNC_CLK_IDLE_EN (0x10000000)
+	FB_SYNC_SHARP_MODE (0x08000000)
+	FB_SYNC_SWAP_RGB (0x04000000)
+	FB_SYNC_CLK_SEL_EN (0x02000000)
+	User mode is described through modeline so assume it is standard and recognized
+	by xserver.
+	*/
+	fbVarScreenInfo.pixclock = mode->Clock ? 1000000000 / mode->Clock : 0;
+	fbVarScreenInfo.left_margin = mode->HTotal - mode->HSyncEnd;
+	fbVarScreenInfo.right_margin = mode->HSyncStart - mode->HDisplay;
+	fbVarScreenInfo.upper_margin = mode->VTotal - mode->VSyncEnd;
+	fbVarScreenInfo.lower_margin = mode->VSyncStart - mode->VDisplay;
+	fbVarScreenInfo.hsync_len = mode->HSyncEnd - mode->HSyncStart;
+	fbVarScreenInfo.vsync_len = mode->VSyncEnd - mode->VSyncStart;
+	fbVarScreenInfo.vmode = 0;
+	if(mode->Flags & V_INTERLACE)
+		fbVarScreenInfo.vmode |= FB_VMODE_INTERLACED;
+	if(mode->Flags & V_DBLSCAN)
+		fbVarScreenInfo.vmode |= FB_VMODE_DOUBLE;
+	fbVarScreenInfo.sync = 0;
+	if(mode->Flags & V_PHSYNC)
+		fbVarScreenInfo.sync |= FB_SYNC_HOR_HIGH_ACT;
+	if(mode->Flags & V_PVSYNC)
+		fbVarScreenInfo.sync |= FB_SYNC_VERT_HIGH_ACT;
+	if(mode->Flags & V_PCSYNC)
+		fbVarScreenInfo.sync |= FB_SYNC_COMP_HIGH_ACT;
+	if(mode->Flags & V_BCAST)
+		fbVarScreenInfo.sync |= FB_SYNC_BROADCAST;
+
 	/* Make the adjustments to the variable screen info. */
 	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 		return FALSE;
