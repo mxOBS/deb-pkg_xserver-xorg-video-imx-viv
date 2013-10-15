@@ -46,7 +46,7 @@
 #define SCREEN_ARG_TYPE int
 #define SCREEN_PTR(arg1) ScreenPtr pScreen = screenInfo.screens[(arg1)]
 
-#define SCREEN_INIT_ARGS_DECL int index, ScreenPtr pScreen, int argc, char **argv
+#define SCREEN_INIT_ARGS_DECL int scrnIndex, ScreenPtr pScreen, int argc, char **argv
 
 #define BLOCKHANDLER_ARGS_DECL int arg, pointer blockData, pointer pTimeout, pointer pReadmask
 #define BLOCKHANDLER_ARGS arg, blockData, pTimeout, pReadmask
@@ -58,10 +58,10 @@
 #define FBDEVHWADJUSTFRAME_ARGS(x, y) scrnIndex, (x), (y), 0
 
 #define ADJUST_FRAME_ARGS_DECL int arg, int x, int y, int flags
-#define ADJUST_FRAME_ARGS(scrn, x, y) (scrn), (x), (y), 0
+#define ADJUST_FRAME_ARGS(scrn, x, y) (scrn->scrnIndex), (x), (y), 0
 
 #define SWITCH_MODE_ARGS_DECL int arg, DisplayModePtr mode, int flags
-#define SWITCH_MODE_ARGS(arg, mode) (arg), (mode), 0
+#define SWITCH_MODE_ARGS(arg, mode) (arg->scrnIndex), (mode), 0
 
 #define FREE_SCREEN_ARGS_DECL int arg, int flags
 #define FREE_SCREEN_ARGS(x) (x)->scrnIndex, 0
