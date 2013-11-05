@@ -911,6 +911,36 @@ static Bool VDestroySurf32() {
 
 }
 
+#if defined(GPU_NO_OVERLAP_BLIT)
+// Allocate a buffer, desired size is width x height
+gcoSURF VAllocBuffer(GALINFOPTR galInfo,int width, int height, int bpp)
+{
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    gceSTATUS status = gcvSTATUS_OK;
+    gcoSURF    surf;
+
+    status=gcoSURF_Construct(gpuctx->mDriver->mHal,
+        width,
+        height,
+        1,
+        gcvSURF_BITMAP,
+        (bpp==16 ? gcvSURF_R5G6B5 : gcvSURF_A8R8G8B8),
+        gcvPOOL_DEFAULT,
+        &surf);
+
+    if (status!=gcvSTATUS_OK)
+        return NULL;
+
+    return surf;
+}
+
+void VFreeBuffer(gcoSURF surf)
+{
+    if(surf != NULL)
+        gcoSURF_Destroy(surf);
+}
+#endif
+
 // FIXME! cacheable buffer, shared by two users!
 Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
  {

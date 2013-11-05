@@ -80,9 +80,17 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
     // early fail out
     // xdir: -1 for right to left; 1 for left to right
     // ydir: -1 for bottom to top; 1 for top to bottom
+#if defined(GPU_NO_OVERLAP_BLIT)
     if(xdir != 1 || ydir != 1) {
-        TRACE_EXIT(FALSE);
+        if(pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp == 16 && pViv->mGrCtx.mBlitInfo.mHelperRgb565Surf == NULL)
+            TRACE_EXIT(FALSE);
+        if(pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mFormat.mBpp == 32 && pViv->mGrCtx.mBlitInfo.mHelperRgba8888Surf == NULL)
+            TRACE_EXIT(FALSE);
+        // not support dimension exceeding SLICE_WIDTH
+        if(pSrcPixmap->drawable.width >= SLICE_WIDTH && pDstPixmap->drawable.width >= SLICE_WIDTH)
+            TRACE_EXIT(FALSE);
     }
+#endif
 
     // FIXME! planemask? should be ALL_ONES
 
@@ -118,6 +126,10 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
     pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride = pSrcPixmap->devKind;
     pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv = psrc;
 
+#if defined(GPU_NO_OVERLAP_BLIT)
+    pViv->mGrCtx.mBlitInfo.xdir = xdir;
+    pViv->mGrCtx.mBlitInfo.ydir = ydir;
+#endif
 
     pViv->mGrCtx.mBlitInfo.mBgRop = fgop;
     pViv->mGrCtx.mBlitInfo.mFgRop = bgop;
@@ -163,21 +175,12 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
 
     Viv2DPixmapPtr psrc = NULL;
     Viv2DPixmapPtr pdst = NULL;
+    int overlap = 1;
 
     startDrawingCopy(width, height, pViv->mGrCtx.mBlitInfo.mOperationCode);
 
     pdst = pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv;
     psrc = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv;
-    /*Setting up the rectangle*/
-    pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
-    pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
-    pViv->mGrCtx.mBlitInfo.mDstBox.x2 = dstX + width;
-    pViv->mGrCtx.mBlitInfo.mDstBox.y2 = dstY + height;
-
-    pViv->mGrCtx.mBlitInfo.mSrcBox.x1 = srcX;
-    pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
-    pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
-    pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
 
     /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
     if (( height < MIN_HW_HEIGHT || ( width * height ) < MIN_HW_SIZE_24BIT ) && pViv->mGrCtx.mBlitInfo.mOperationCode == GXcopy)
@@ -210,28 +213,360 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
         }
     }
 
+    /*Setting up the rectangle*/
+    pViv->mGrCtx.mBlitInfo.mDstBox.x1 = dstX;
+    pViv->mGrCtx.mBlitInfo.mDstBox.y1 = dstY;
+    pViv->mGrCtx.mBlitInfo.mDstBox.x2 = dstX + width;
+    pViv->mGrCtx.mBlitInfo.mDstBox.y2 = dstY + height;
+
+    pViv->mGrCtx.mBlitInfo.mSrcBox.x1 = srcX;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.y1 = srcY;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.x2 = srcX + width;
+    pViv->mGrCtx.mBlitInfo.mSrcBox.y2 = srcY + height;
+
+#if defined(GPU_NO_OVERLAP_BLIT)
+    if(pViv->mGrCtx.mBlitInfo.xdir != 1 || pViv->mGrCtx.mBlitInfo.ydir != 1) {
+        // possible overlap copy
+
+        if(srcX <= dstX + width || dstX <= srcX + width ||
+           srcY <= dstY + height || dstY <= srcY + height)
+            overlap = 0;
+        /*
+              |-------|
+              |  S        |
+              |      |-------|
+              |      | D         |
+               ----|            |
+                      |            |
+                      ---------
+              (xdir = -1, ydir = -1 -> bottom up)
+
+              |-------|
+              |  S        |
+              |-------|
+              | D         |
+              |            |
+              |            |
+              ---------
+              (xdir = 1, ydir = -1 -> bottom up)
+
+                           |-------|
+                           |  S        |
+                     |-------|    |
+                     | D         |    |
+                     |            |---
+                     |            |
+                      ---------
+              (xdir = 1, ydir = -1 -> bottom up)
+
+                     |-------|-- |
+                     | D         |    |
+                     |            |    |
+                     |            |    |
+                      -----------
+                     (normal case)
+
+
+              |-------|
+              |  D        |
+              |      |-------|
+              |      | S         |
+               ----|            |
+                      |            |
+                      ---------
+                    (normal case)
+
+
+              |-------|
+              |  D        |
+              |-------|
+              | S         |
+              |            |
+              |            |
+              ---------
+                    (normal case)
+
+
+                           |-------|
+                           |  D        |
+                     |-------|    |
+                     | S         |    |
+                     |            |---
+                     |            |
+                      --------
+                    (xdir = -1, ydir = 1, if dy >= TILE_HEIGHT, normal case; else, down)
+
+
+                     |-------|-- |
+                     | S         |    |
+                     |            |    |
+                     |            |    |
+                      -----------
+                    (xdir = -1, ydir = 1 -> up/down)
+
+        */
+        if(overlap && pViv->mGrCtx.mBlitInfo.ydir == 1 && srcY - dstY >= BLIT_TILE_HEIGHT)
+            overlap = 0;
+    }
+    else
+        overlap = 0;
+#else
+    // dont care about overlap; hw can handle it
+    overlap = 0;
+#endif
+
+
     // sync with cpu cache
     preGpuDraw(pViv, psrc, TRUE);
     preGpuDraw(pViv, pdst, FALSE);
 
-    if (!SetDestinationSurface(&pViv->mGrCtx)) {
-        TRACE_ERROR("Copy Blit Failed\n");
-        goto quit;
-    }
+    if(!overlap) {
+        if (!SetDestinationSurface(&pViv->mGrCtx)) {
+            TRACE_ERROR("Copy Blit Failed\n");
+            goto quit;
+        }
 
-    if (!SetSourceSurface(&pViv->mGrCtx)) {
-        TRACE_ERROR("Copy Blit Failed\n");
-        goto quit;
-    }
+        if (!SetSourceSurface(&pViv->mGrCtx)) {
+            TRACE_ERROR("Copy Blit Failed\n");
+            goto quit;
+        }
 
-    if (!SetClipping(&pViv->mGrCtx)) {
-        TRACE_ERROR("Copy Blit Failed\n");
-        goto quit;
-    }
+        if (!SetClipping(&pViv->mGrCtx)) {
+            TRACE_ERROR("Copy Blit Failed\n");
+            goto quit;
+        }
 
-    if (!DoCopyBlit(&pViv->mGrCtx)) {
-        TRACE_ERROR("Copy Blit Failed\n");
-        goto quit;
+        if (!DoCopyBlit(&pViv->mGrCtx)) {
+            TRACE_ERROR("Copy Blit Failed\n");
+            goto quit;
+        }
+    }
+    else {
+#if defined(GPU_NO_OVERLAP_BLIT)
+        gceSTATUS status = gcvSTATUS_OK;
+        VIVGPUPtr gpuctx = (VIVGPUPtr) (pViv->mGrCtx.mGpu);
+        VIV2DBLITINFOPTR pBlt = &(pViv->mGrCtx.mBlitInfo);
+        gcoSURF surfTemp;
+        int surfTempAlignedWidth;
+        int surfTempAlignedHeight;
+        int surfTempStride;
+        int surfTempPhyAddr;
+        int surfTempLogAddr;
+        gcsRECT srcRect;
+        gcsRECT dstRect;
+        gcsRECT sliceRect;
+        int yc = (height + SLICE_HEIGHT - 1) / SLICE_HEIGHT;
+
+        if(pBlt->mSrcSurfInfo.mFormat.mBpp == 16)
+            surfTemp = pBlt->mHelperRgb565Surf;
+        else
+            surfTemp = pBlt->mHelperRgba8888Surf;
+
+        status = gcoSURF_GetAlignedSize(surfTemp, &surfTempAlignedWidth, &surfTempAlignedHeight, &surfTempStride);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("gcoSURF_GetAlignedSize failed\n");
+            goto quit;
+        }
+
+        status = gcoSURF_Lock(surfTemp,  &surfTempPhyAddr, (void *)&surfTempLogAddr);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("gcoSURF_Lock failed\n");
+            goto quit;
+        }
+
+        sliceRect.left = 0;
+        sliceRect.top = 0;
+        sliceRect.right = width;
+        sliceRect.bottom = (height >= SLICE_HEIGHT ? SLICE_HEIGHT : height);
+
+        srcRect.left = srcX;
+        srcRect.right = srcRect.left + width;
+
+        dstRect.left = dstX;
+        dstRect.right = dstRect.left + width;
+
+        if(pViv->mGrCtx.mBlitInfo.ydir == 1) {
+            // top-down
+            srcRect.top = srcY;
+            dstRect.top = dstY;
+            if(height >= SLICE_HEIGHT) {
+                srcRect.bottom = srcRect.top + SLICE_HEIGHT;
+                dstRect.bottom = dstRect.top + SLICE_HEIGHT;
+            }
+            else {
+                srcRect.bottom = srcRect.top + height;
+                dstRect.bottom = dstRect.top + height;
+            }
+        }
+        else {
+            // bottom-up
+            srcRect.bottom = srcY + height;
+            dstRect.bottom = dstY + height;
+            if(height >= SLICE_HEIGHT) {
+                srcRect.top = srcRect.bottom - SLICE_HEIGHT;
+                dstRect.top = dstRect.bottom - SLICE_HEIGHT;
+            }
+            else {
+                srcRect.top = srcRect.bottom - height;
+                dstRect.top = dstRect.bottom - height;
+            }
+        }
+
+        while(yc--) {
+            GenericSurfacePtr surf;
+            // set source
+            surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+            status = gco2D_SetGenericSource
+                    (
+                    gpuctx->mDriver->m2DEngine,
+                    &surf->mVideoNode.mPhysicalAddr,
+                    1,
+                    &surf->mStride,
+                    1,
+                    surf->mTiling,
+                    pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+                    gcvSURF_0_DEGREE,
+                    surf->mAlignedWidth,
+                    surf->mAlignedHeight
+                    );
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_SetGenericSource failed\n");
+                goto quit;
+            }
+
+            // set temp as dest
+            status = gco2D_SetGenericTarget
+                    (
+                    gpuctx->mDriver->m2DEngine,
+                    &surfTempPhyAddr,
+                    1,
+                    &surfTempStride,
+                    1,
+                    surf->mTiling, // use source surface tiling
+                    pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+                    gcvSURF_0_DEGREE,
+                    surfTempAlignedWidth,
+                    surfTempAlignedHeight
+                    );
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_SetGenericTarget failed\n");
+                goto quit;
+            }
+
+            // clip
+            status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &sliceRect);
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_SetClipping failed\n");
+                goto quit;
+            }
+
+            // blit this slice to helper surface
+            status = gco2D_BatchBlit(
+                    gpuctx->mDriver->m2DEngine,
+                    1,
+                    &srcRect,
+                    &sliceRect,
+                    0xCC, /* copy */
+                    0xCC,
+                    pBlt->mSrcSurfInfo.mFormat.mVivFmt
+                    );
+
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_BatchBlit failed\n");
+                goto quit;
+            }
+
+            // set temp as src
+            status = gco2D_SetGenericSource
+                    (
+                    gpuctx->mDriver->m2DEngine,
+                    &surfTempPhyAddr,
+                    1,
+                    &surfTempStride,
+                    1,
+                    surf->mTiling, // use source surface tiling
+                    pBlt->mSrcSurfInfo.mFormat.mVivFmt,
+                    gcvSURF_0_DEGREE,
+                    surfTempAlignedWidth,
+                    surfTempAlignedHeight
+                    );
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_SetGenericSource failed\n");
+                goto quit;
+            }
+
+            // set dest
+            surf = (GenericSurfacePtr) (pBlt->mDstSurfInfo.mPriv->mVidMemInfo);
+            status = gco2D_SetGenericTarget
+                    (
+                    gpuctx->mDriver->m2DEngine,
+                    &surf->mVideoNode.mPhysicalAddr,
+                    1,
+                    &surf->mStride,
+                    1,
+                    surf->mTiling,
+                    pBlt->mDstSurfInfo.mFormat.mVivFmt,
+                    surf->mRotation,
+                    surf->mAlignedWidth,
+                    surf->mAlignedHeight
+                    );
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_SetGenericSource failed\n");
+                goto quit;
+            }
+
+            // clip
+            if (!SetClipping(&pViv->mGrCtx)) {
+                TRACE_ERROR("Copy Blit Failed\n");
+                goto quit;
+            }
+
+            // blit this slice to dest surface
+            status = gco2D_BatchBlit(
+                    gpuctx->mDriver->m2DEngine,
+                    1,
+                    &sliceRect,
+                    &dstRect,
+                    pBlt->mFgRop,
+                    pBlt->mBgRop,
+                    pBlt->mDstSurfInfo.mFormat.mVivFmt
+                    );
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("gco2D_BatchBlit failed\n");
+                goto quit;
+            }
+
+            // move rects
+            if(pViv->mGrCtx.mBlitInfo.ydir == 1) {
+                // top-down
+                int delta;
+                srcRect.top = srcRect.bottom;
+                dstRect.top = dstRect.bottom;
+                if(yc == 1)
+                    delta = height % SLICE_HEIGHT;
+                else
+                    delta = SLICE_HEIGHT;
+                srcRect.bottom = srcRect.top + delta;
+                dstRect.bottom = dstRect.top + delta;
+            }
+            else {
+                // bottom-up
+                int delta;
+                srcRect.bottom = srcRect.top;
+                dstRect.bottom = dstRect.top;
+                if(yc == 1)
+                    delta = height % SLICE_HEIGHT;
+                else
+                    delta = SLICE_HEIGHT;
+                srcRect.top = srcRect.bottom - delta;
+                dstRect.top = dstRect.bottom - delta;
+            }
+            if(yc == 1)
+                sliceRect.bottom = height % SLICE_HEIGHT;
+        }
+
+        status = gcoSURF_Unlock(surfTemp, &surfTempLogAddr);
+#endif
     }
 
     queuePixmapToGpu(psrc);

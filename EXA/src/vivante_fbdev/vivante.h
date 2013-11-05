@@ -33,6 +33,12 @@ extern "C" {
 #define VIV_MAX_HEIGHT (1 <<11)
 #define PIXMAP_PITCH_ALIGN    (WIDTH_ALIGNMENT*4)
 
+#if defined(GPU_NO_OVERLAP_BLIT)
+#define SLICE_WIDTH 1920
+#define SLICE_HEIGHT 256
+#define BLIT_TILE_HEIGHT 16
+#endif
+
     /********************************************************************************
      *  Rectangle Structs (START)
      ********************************************************************************/

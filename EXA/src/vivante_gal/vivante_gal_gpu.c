@@ -334,6 +334,13 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
     }
     inited = gcvTRUE;
     galInfo->mGpu = gpuctx;
+
+#if defined(GPU_NO_OVERLAP_BLIT)
+    // create helper surfaces
+    galInfo->mBlitInfo.mHelperRgb565Surf = VAllocBuffer(galInfo, SLICE_WIDTH, SLICE_HEIGHT, 16);
+    galInfo->mBlitInfo.mHelperRgba8888Surf = VAllocBuffer(galInfo, SLICE_WIDTH, SLICE_HEIGHT, 32);
+#endif
+
     TRACE_EXIT(TRUE);
 }
 
@@ -347,6 +354,12 @@ Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo) {
     }
 
     VDestroySurf();
+
+#if defined(GPU_NO_OVERLAP_BLIT)
+    // destroy helper surfaces
+    VFreeBuffer(galInfo->mBlitInfo.mHelperRgb565Surf);
+    VFreeBuffer(galInfo->mBlitInfo.mHelperRgba8888Surf);
+#endif
 
     gpuctx = (VIVGPUPtr) (galInfo->mGpu);
     ret = DestroyDevice(gpuctx->mDevice);

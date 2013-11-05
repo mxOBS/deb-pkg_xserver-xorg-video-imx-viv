@@ -155,6 +155,11 @@ extern "C" {
         VIV2DSURFINFO mSrcSurfInfo;
         /*Mask*/
         VIV2DSURFINFO mMskSurfInfo;
+#if defined(GPU_NO_OVERLAP_BLIT)
+        /*Helper*/
+        gcoSURF mHelperRgb565Surf;
+        gcoSURF mHelperRgba8888Surf;
+#endif
         /*BlitCode*/
         BlitCode mOperationCode;
         /*Operation Related*/
@@ -180,6 +185,11 @@ extern "C" {
         /* record old srcBox and dstBox */
         VivBox mOSrcBox;
         VivBox mODstBox;
+#if defined(GPU_NO_OVERLAP_BLIT)
+        /* copy */
+        int xdir;
+        int ydir;
+#endif
     } VIV2DBLITINFO, *VIV2DBLITINFOPTR;
 
     /*Gal Encapsulation*/
@@ -230,6 +240,10 @@ extern "C" {
     void VFlushSurf(int surf16, void *logAddr, int size);
 #endif
     void VDestroySurf();
+#if defined(GPU_NO_OVERLAP_BLIT)
+    gcoSURF VAllocBuffer(GALINFOPTR galInfo,int width, int height, int bpp);
+    void VFreeBuffer(gcoSURF surf);
+#endif
     /************************************************************************
      *EXA RELATED UTILITY (END)
      ************************************************************************/
