@@ -415,16 +415,13 @@ VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
     // wait hw done and invalidate the cache
     Bool ret;
 
+    // DONE_BY_SWCPY is slower than xserver unaccel function!
+    if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
+        return FALSE;
+
     startDrawingUpload(w, h);
 
-    if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
-    {
-        ftype = DONE_BY_SWCPY;
-    }
-    else
-    {
-        ftype = DONE_BY_VSURF;
-    }
+    ftype = DONE_BY_VSURF;
 
     ret = _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
 
