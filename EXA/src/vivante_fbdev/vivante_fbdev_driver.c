@@ -577,6 +577,7 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
 	  }
 	}
 
+    // override options specified in xorg.conf
     if(fPtr->shadowFB) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Shadow buffer enabled, 2D GPU acceleration disabled.\n");
         fPtr->mFakeExa.mUseExaFlag = FALSE;
@@ -590,10 +591,6 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
         if (fPtr->mFakeExa.mNoAccelFlag) {
             vivEnableCacheMemory = FALSE;
             vivEnableSyncDraw = TRUE;
-        }
-        else {
-            vivEnableCacheMemory = TRUE;
-            vivEnableSyncDraw = FALSE;
         }
     }
     else {
