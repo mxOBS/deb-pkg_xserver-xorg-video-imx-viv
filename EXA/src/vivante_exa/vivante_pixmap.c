@@ -187,11 +187,11 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
             TRACE_EXIT(FALSE);
         }
 
+        // fb buffer is noncacheable
+        vivPixmap->mFlags = VIVPIXMAP_FLAG_NONCACHEABLE;
+
         // clear the surface to prevent data leakage
         //CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
-
-        TRACE_EXIT(TRUE);
-
     } else if (pPixData) {
 
         TRACE_ERROR("NO ACCERELATION\n");
@@ -211,8 +211,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         }
 
         vivPixmap->mVidMemInfo = NULL;
-        TRACE_EXIT(FALSE);
+        vivPixmap->mFlags = 0;
 
+        TRACE_EXIT(FALSE);
     } else {
 
         // check gpu access: wait it done
@@ -241,6 +242,8 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
             pPixmap->devKind = GetStride(vivPixmap);
         }
+
+        vivPixmap->mFlags = 0;
 
         // clear the surface to prevent data leakage
         CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);

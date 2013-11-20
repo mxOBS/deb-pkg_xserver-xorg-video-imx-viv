@@ -120,7 +120,7 @@ extern "C" {
     typedef struct _vivPixmapPriv Viv2DPixmap;
     typedef Viv2DPixmap * Viv2DPixmapPtr;
 
-#define VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD 1
+#define VIVPIXMAP_FLAG_NONCACHEABLE 1
 
     struct _vivPixmapPriv {
         /*Video Memory*/

@@ -147,6 +147,13 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
     if(vpixmap == NULL || !vpixmap->mCpuBusy)
         return;
 
+    // if this pixmap is noncacheable, then do nothing
+    if((vpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE) == 1)
+    {
+        vpixmap->mCpuBusy = FALSE;
+        return;
+    }
+
     if(bSrc)
     {
         // this is a source pixmap
@@ -215,7 +222,8 @@ void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
         }
 
         // set flag
-        vivpixmap->mCpuBusy = TRUE;
+        if((vivpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE) == 0)
+            vivpixmap->mCpuBusy = TRUE;
     }
 }
 
@@ -224,7 +232,7 @@ void postCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
     if(pViv == NULL || vivpixmap == NULL)
         return;
 
-    if(vivpixmap->mFlags & VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD)
+    if(vivpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE)
     {
         // this pixmap is noncacheable
         vivpixmap->mCpuBusy = FALSE;

@@ -158,8 +158,9 @@ static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
 
     if (ppriv)
     {
-        ppriv->mFlags = stuff->flag;
         if(stuff->flag & VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD)
+            ppriv->mFlags |= VIVPIXMAP_FLAG_NONCACHEABLE;
+        if(ppriv->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE)
         {
             // turn this  Pixmap to non-cacheable
             VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
