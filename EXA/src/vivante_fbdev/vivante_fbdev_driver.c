@@ -582,21 +582,18 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Shadow buffer enabled, 2D GPU acceleration disabled.\n");
         fPtr->mFakeExa.mUseExaFlag = FALSE;
         fPtr->mFakeExa.mNoAccelFlag = TRUE;
-        vivEnableCacheMemory = FALSE;
         vivEnableSyncDraw = TRUE;
     }
     else if(gVivFb) {
         fPtr->mFakeExa.mUseExaFlag = TRUE;
         fPtr->mFakeExa.mNoAccelFlag = xf86ReturnOptValBool(fPtr->Options, OPTION_NOACCEL, FALSE);
         if (fPtr->mFakeExa.mNoAccelFlag) {
-            vivEnableCacheMemory = FALSE;
             vivEnableSyncDraw = TRUE;
         }
     }
     else {
         fPtr->mFakeExa.mUseExaFlag = FALSE;
         fPtr->mFakeExa.mNoAccelFlag = TRUE;
-        vivEnableCacheMemory = FALSE;
         vivEnableSyncDraw = TRUE;
     }
 
