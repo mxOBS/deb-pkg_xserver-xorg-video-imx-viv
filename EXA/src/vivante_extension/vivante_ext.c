@@ -679,6 +679,37 @@ ProcVIVEXTPixmapPhysaddr(register ClientPtr client)
 
 }
 
+static int
+ProcVIVEXTPixmapSync(register ClientPtr client)
+{
+    PixmapPtr pPixmap;
+    int rc;
+
+    REQUEST(xVIVEXTPixmapSyncReq);
+    REQUEST_SIZE_MATCH(xVIVEXTPixmapSyncReq);
+
+    if (stuff->screen >= screenInfo.numScreens) {
+        client->errorValue = stuff->screen;
+        return BadValue;
+    }
+
+    /* Find the pixmap */
+    rc = dixLookupResourceByType((pointer*)&pPixmap, stuff->pixmap, RT_PIXMAP, client,
+                            DixGetAttrAccess);
+    if (Success == rc)
+    {
+        ScreenPtr pScreen = screenInfo.screens[stuff->screen];
+        VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
+        if(pViv)
+        {
+            Viv2DPixmapPtr ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pPixmap);
+            preCpuDraw(pViv, ppriv);
+            return 0;
+        }
+    }
+
+    return -1;
+}
 
 static int
 ProcVIVEXTDispatch(register ClientPtr client)
@@ -696,6 +727,8 @@ ProcVIVEXTDispatch(register ClientPtr client)
 			return ProcVIVEXTPixmapPhysaddr(client);
 		case X_VIVEXTDrawableSetFlag:
 			return ProcVIVEXTDrawableSetFlag(client);
+		case X_VIVEXTPixmapSync:
+			return ProcVIVEXTPixmapSync(client);
 		default:
 			return BadRequest;
 	}

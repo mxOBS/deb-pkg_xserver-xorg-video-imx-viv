@@ -215,10 +215,10 @@ void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
         // wait until gpu done
         if(vivpixmap->mGpuBusy)
         {
-            FSLASSERT(!isGpuSyncMode());
-
             VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
             freePixmapQueue();
+            // is it possible this pixmap not in the queue?
+            vivpixmap->mGpuBusy = FALSE;
         }
 
         // set flag

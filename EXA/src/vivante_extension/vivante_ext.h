@@ -29,6 +29,7 @@
 #define X_VIVEXTFULLScreenInfo                 4
 #define X_VIVEXTDrawableGetFlag                10
 #define X_VIVEXTDrawableSetFlag                11
+#define X_VIVEXTPixmapSync                     12
 
 
 #define VIVEXTNumberEvents   		0
@@ -181,6 +182,14 @@ typedef struct _VIVEXTDrawableSetFlag {
 } xVIVEXTDrawableSetFlagReq;
 #define sz_xVIVEXTDrawableSetFlagReq	16
 
+typedef struct {
+	CARD8	reqType;	/* always vivEXTReqCode */
+	CARD8	xtReqType;	/* always X_VIVEXTPixmapSync */
+	CARD16	length B16;
+	CARD32	screen B32;
+	Pixmap	pixmap B32;
+} xVIVEXTPixmapSyncReq;
+#define sz_xVIVEXTPixmapSyncReq 12
 
 void VIVExtensionInit(void);
 
