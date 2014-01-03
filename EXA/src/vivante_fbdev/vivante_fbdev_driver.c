@@ -32,6 +32,7 @@
 #include "imx_display.h"
 #include <errno.h>
 #include <linux/fb.h>
+#include <xorg/shmint.h>
 
 #define USE_VIV_FB
 
@@ -110,6 +111,7 @@ static Bool FBDevShadowInit(ScreenPtr pScreen);
 static void FBDevFreeScreen(FREE_SCREEN_ARGS_DECL);
 static Bool InitExaLayer(ScreenPtr pScreen);
 static Bool DestroyExaLayer(ScreenPtr pScreen);
+static void InitShmPixmap(ScreenPtr pScreen);
 
 static Bool noVIVExtension;
 
@@ -967,6 +969,9 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
                     "internal error: initExaLayer failed "
                     "in FBDevScreenInit()\n");
         }
+
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Init SHM pixmap support\n");
+        InitShmPixmap(pScreen);
     }
 
     xf86SetBlackWhitePixels(pScreen);
@@ -1551,3 +1556,15 @@ OnCrtcModeChanged(ScrnInfoPtr pScrn)
     if(gEnableDRI)
         VivUpdateDriScreen(pScrn);
 }
+
+static ShmFuncs gShmFuncs =
+{
+    .CreatePixmap = ShmCreatePixmap,
+    .PutImage     = NULL//ShmPutImage
+};
+
+static void InitShmPixmap(ScreenPtr pScreen)
+{
+    ShmRegisterFuncs(pScreen, &gShmFuncs);
+}
+

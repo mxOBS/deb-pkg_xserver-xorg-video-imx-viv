@@ -151,6 +151,27 @@ extern "C" {
      * UTILITY FUNCTIONS (END)
      ************************************************************************/
 
+    /************************************************************************
+     * SHMPIXMAP  (START)
+     ************************************************************************/
+    PixmapPtr ShmCreatePixmap(ScreenPtr pScreen, int width, int height, int depth, char *addr);
+    void ShmPutImage(DrawablePtr dst,
+            GCPtr pGC,
+            int depth,
+            unsigned int format,
+            int w,
+            int h,
+            int sx,
+            int sy,
+            int sw,
+            int sh,
+            int dx,
+            int dy,
+            char *data);
+    /************************************************************************
+     * SHMPIXMAP (END)
+     ************************************************************************/
+
 #ifdef __cplusplus
 }
 #endif

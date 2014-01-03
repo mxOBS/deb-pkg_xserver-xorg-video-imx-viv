@@ -346,4 +346,43 @@ VivFinishAccess(PixmapPtr pPix, int index) {
     TRACE_EXIT();
 }
 
+PixmapPtr
+ShmCreatePixmap(ScreenPtr pScreen, int width, int height, int depth, char *addr)
+{
+    PixmapPtr pPixmap;
+    int bitsPerPixel = BitsPerPixel(depth);
+    int devKind = PixmapBytePad(width, depth);
+
+       /* width and height of 0 means don't allocate any pixmap data */
+       pPixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth, 0);
+    if (!pPixmap)
+           return NullPixmap;
+
+       if ((*pScreen->ModifyPixmapHeader)(pPixmap, width, height, depth,
+                                          bitsPerPixel, devKind, (pointer)addr))
+           return pPixmap;
+    else
+    {
+        (*pScreen->DestroyPixmap)(pPixmap);
+        return NULL;
+    }
+}
+
+void
+ShmPutImage(DrawablePtr dst,
+            GCPtr pGC,
+            int depth,
+            unsigned int format,
+            int w,
+            int h,
+            int sx,
+            int sy,
+            int sw,
+            int sh,
+            int dx,
+            int dy,
+            char *data)
+{
+    // TODO:
+}
 
