@@ -329,6 +329,8 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     // TODO: can delay?
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
     freePixmapQueue();
+
+    TRACE_EXIT(TRUE);
 }
 
 static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
