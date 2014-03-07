@@ -65,6 +65,12 @@ extern "C" {
         int mFBOffset; /*framebuffer offset*/
     } FBINFO, *FBINFOPTR;
 
+    typedef struct _fbSyncFlags {
+        char * modeName;
+        unsigned int syncFlags;
+    } FBSYNCFLAGS;
+
+#define MAX_MODES_SUPPORTED 256
     typedef struct _vivRec {
         /*Graphics Context*/
         GALINFO mGrCtx;
@@ -119,7 +125,7 @@ extern "C" {
         void* displayPrivate;
 
         /* sync value: support FSL extension */
-        unsigned int fbSync;
+        FBSYNCFLAGS fbSync[MAX_MODES_SUPPORTED];
     } VivRec, * VivPtr;
 
     /********************************************************************************

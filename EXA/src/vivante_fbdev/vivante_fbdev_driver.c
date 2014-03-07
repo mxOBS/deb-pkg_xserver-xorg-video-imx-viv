@@ -112,6 +112,8 @@ static void FBDevFreeScreen(FREE_SCREEN_ARGS_DECL);
 static Bool InitExaLayer(ScreenPtr pScreen);
 static Bool DestroyExaLayer(ScreenPtr pScreen);
 static void InitShmPixmap(ScreenPtr pScreen);
+static Bool SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn);
+static Bool RestoreSyncFlags(ScrnInfoPtr pScrn);
 
 static Bool noVIVExtension;
 
@@ -278,6 +280,7 @@ FBDevGetRec(ScrnInfoPtr pScrn)
 		return TRUE;
 
     pScrn->driverPrivate = xnfcalloc(sizeof (FBDevRec), 1);
+    imxInitSyncFlagsStorage(pScrn);
 	return TRUE;
 }
 
@@ -286,6 +289,8 @@ FBDevFreeRec(ScrnInfoPtr pScrn)
 {
 	if (pScrn->driverPrivate == NULL)
 		return;
+
+    imxFreeSyncFlagsStorage(pScrn);
     free(pScrn->driverPrivate);
     pScrn->driverPrivate = NULL;
 }
@@ -467,20 +472,8 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
 		return FALSE;
 
     /* save sync value */
-    if(gEnableFbSyncExt) {
-        int fdDev = fbdevHWGetFD(pScrn);
-        struct fb_var_screeninfo fbVarScreenInfo;
-        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
-
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                "unable to get VSCREENINFO %s\n",
-                strerror(errno));
-            return FALSE;
-        }
-        else {
-            fPtr->fbSync = fbVarScreenInfo.sync;
-        }
-    }
+    if(!SaveBuildInModeSyncFlags(pScrn))
+        return FALSE;
 
     default_depth = fbdevHWGetDepth(pScrn, &fbbpp);
 
@@ -1061,32 +1054,8 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
     }
 
     /* restore sync for FSL extension */
-    if(gEnableFbSyncExt) {
-        struct fb_var_screeninfo fbVarScreenInfo;
-        int fdDev = fbdevHWGetFD(pScrn);
-        if (-1 == fdDev) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                "frame buffer device not available or initialized\n");
-            return TRUE;
-        }
-
-        /* Query the FB variable screen info */
-        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                "unable to get FB VSCREENINFO for current mode: %s\n",
-                strerror(errno));
-            return TRUE;
-        }
-
-        fbVarScreenInfo.sync = fPtr->fbSync;
-
-        if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                "unable to restore FB VSCREENINFO: %s\n",
-                strerror(errno));
-            return TRUE;
-        }
-    }
+    if(!RestoreSyncFlags(pScrn))
+        return FALSE;
 
     TRACE_EXIT("FBDevScreenInit");
 
@@ -1568,3 +1537,69 @@ static void InitShmPixmap(ScreenPtr pScreen)
     ShmRegisterFuncs(pScreen, &gShmFuncs);
 }
 
+// call this function at startup
+static Bool
+SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn)
+{
+    if(gEnableFbSyncExt) {
+        int fdDev = fbdevHWGetFD(pScrn);
+        struct fb_var_screeninfo fbVarScreenInfo;
+        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to get VSCREENINFO %s\n",
+                strerror(errno));
+            return FALSE;
+        }
+        else {
+            imxStoreSyncFlags(pScrn, "current", fbVarScreenInfo.sync);
+        }
+    }
+
+    return TRUE;
+}
+
+static Bool
+RestoreSyncFlags(ScrnInfoPtr pScrn)
+{
+    if(gEnableFbSyncExt) {
+        char *modeName = "current";
+        unsigned int fbSync = 0;
+        if(pScrn->currentMode)
+            modeName = pScrn->currentMode->name;
+
+        if(!imxLoadSyncFlags(pScrn, modeName, &fbSync)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                "Failed to load FB_SYNC_ flags from storage for mode %s\n",
+                modeName);
+            return TRUE;
+        }
+
+        struct fb_var_screeninfo fbVarScreenInfo;
+        int fdDev = fbdevHWGetFD(pScrn);
+        if (-1 == fdDev) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "frame buffer device not available or initialized\n");
+            return FALSE;
+        }
+
+        /* Query the FB variable screen info */
+        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to get FB VSCREENINFO for current mode: %s\n",
+                strerror(errno));
+            return FALSE;
+        }
+
+        fbVarScreenInfo.sync = fbSync;
+
+        if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to restore FB VSCREENINFO: %s\n",
+                strerror(errno));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}

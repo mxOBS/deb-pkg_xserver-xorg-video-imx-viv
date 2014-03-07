@@ -66,5 +66,15 @@ imxPMEvent(PM_EVENT_DECL);
 extern Bool
 imxSetShadowBuffer(ScreenPtr pScreen);
 
+// Support non-standard display
+extern void
+imxInitSyncFlagsStorage(ScrnInfoPtr pScrn);
+extern void
+imxFreeSyncFlagsStorage(ScrnInfoPtr pScrn);
+extern Bool
+imxStoreSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int value);
+extern Bool
+imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSyncFlags);
+
 #endif
 

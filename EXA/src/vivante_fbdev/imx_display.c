@@ -795,6 +795,8 @@ imxDisplayGetCurrentMode(ScrnInfoPtr pScrn, int fd, const char* modeName)
 	mode->prev = NULL;
 	mode->next = NULL;
 
+	imxStoreSyncFlags(pScrn, modeName, fbVarScreenInfo.sync);
+
 	return mode;
 }
 
@@ -1845,5 +1847,85 @@ imxPMEvent(PM_EVENT_DECL)
 		ErrorF("Vivante PMEvent: received APM event %d\n", event);
 	}
 	return TRUE;
+}
+
+void imxInitSyncFlagsStorage(ScrnInfoPtr pScrn)
+{
+    ImxPtr fPtr = IMXPTR(pScrn);
+    memset(fPtr->fbSync, 0, sizeof(fPtr->fbSync));
+}
+
+void imxFreeSyncFlagsStorage(ScrnInfoPtr pScrn)
+{
+    ImxPtr fPtr = IMXPTR(pScrn);
+    int i;
+    for(i=0; i<MAX_MODES_SUPPORTED; i++)
+    {
+        if(fPtr->fbSync[i].modeName)
+        {
+            free(fPtr->fbSync[i].modeName);
+            fPtr->fbSync[i].modeName = NULL;
+        }
+    }
+}
+
+Bool imxStoreSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int value)
+{
+    ImxPtr fPtr = IMXPTR(pScrn);
+    int i;
+
+    // is there a duplicate?
+    for(i=0; i<MAX_MODES_SUPPORTED; i++)
+    {
+        if(fPtr->fbSync[i].modeName == NULL)
+            break;
+
+        if(strcmp(fPtr->fbSync[i].modeName, modeName) != 0)
+        {
+            continue;
+        }
+        else
+        {
+            // find duplicate; do not overwrite
+            return TRUE;
+        }
+    }
+
+    // insert a new entry
+
+    if(i == MAX_MODES_SUPPORTED)
+    {
+        return FALSE;
+    }
+    else
+    {
+        fPtr->fbSync[i].modeName = strdup(modeName);
+        fPtr->fbSync[i].syncFlags = value;
+        return TRUE;
+    }
+}
+
+Bool imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSyncFlags)
+{
+    ImxPtr fPtr = IMXPTR(pScrn);
+    int i;
+
+    for(i=0; i<MAX_MODES_SUPPORTED; i++)
+    {
+        if(fPtr->fbSync[i].modeName == NULL)
+            break;
+
+        if(strcmp(fPtr->fbSync[i].modeName, modeName) != 0)
+        {
+            continue;
+        }
+        else
+        {
+            *pSyncFlags = fPtr->fbSync[i].syncFlags;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
