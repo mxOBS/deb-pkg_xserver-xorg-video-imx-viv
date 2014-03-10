@@ -126,7 +126,8 @@ static void
 imxDisplayGetPreInitMaxSize(ScrnInfoPtr pScrn, int* pMaxWidth, int* pMaxHeight);
 static Bool
 imxDisplayStartScreenInit(int scrnIndex, ScreenPtr pScreen);
-
+static void
+imxSetPreferFlag(ScrnInfoPtr pScrn, DisplayModePtr mode);
 
 Bool imxSetShadowBuffer(ScreenPtr pScreen)
 {
@@ -880,6 +881,9 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 		if ((NULL != mode) &&
 			(mode->HDisplay > 0) &&
 				(mode->VDisplay > 0)) {
+
+			/* device preferred mode ? */
+			imxSetPreferFlag(pScrn, mode);
 
 			xf86PrintModeline(pScrn->scrnIndex, mode);
 			modesList = xf86ModesAdd(modesList, mode);
@@ -1929,3 +1933,51 @@ Bool imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSy
     return FALSE;
 }
 
+/* Get device preferred video mode, not monitor preferred. Must be called
+ * at xserver start up (it is not necessary to be same as kernel command line,
+ * considering xserver be configured to a new mode and restart xserverr
+ */
+Bool imxGetDevicePreferredMode(ScrnInfoPtr pScrn, const char* fbDeviceName)
+{
+    ImxPtr fPtr = IMXPTR(pScrn);
+    char sysnodeName[80];
+    char modeName[64];
+    FILE *fpMode;
+    Bool got = FALSE;
+
+    sprintf(sysnodeName, "/sys/class/graphics/%s/mode", fbDeviceName);
+
+    fpMode = fopen(sysnodeName, "r");
+
+    if (NULL == fpMode)
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to open sysnode '%s':%s \n",
+            sysnodeName, strerror(errno));
+        return FALSE;
+    }
+
+    if(NULL != fgets(modeName, sizeof(modeName), fpMode))
+    {
+        imxRemoveTrailingNewLines(modeName);
+        strncpy(fPtr->bootupVideoMode, modeName, 64-1);
+        fPtr->bootupVideoMode[64-1] = 0;
+        got = TRUE;
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+            "Device preferred mode '%s':%s \n",
+            fbDeviceName, modeName);
+    }
+
+    fclose(fpMode);
+    return got;
+}
+
+/* Preferred flag: need query EDID, but we simply use start up mode as perferred */
+static void imxSetPreferFlag(ScrnInfoPtr pScrn, DisplayModePtr mode)
+{
+    ImxPtr fPtr = IMXPTR(pScrn);
+    if(strcmp(mode->name, fPtr->bootupVideoMode) == 0)
+    {
+        mode->type |= M_T_PREFERRED;
+    }
+}

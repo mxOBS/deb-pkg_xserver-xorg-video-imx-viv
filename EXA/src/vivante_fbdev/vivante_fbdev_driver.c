@@ -439,6 +439,7 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
     int default_depth, fbbpp;
     const char *s;
     int type;
+    const char *fbDeviceName;
 
 	if (flags & PROBE_DETECT) return FALSE;
 
@@ -468,8 +469,12 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 #endif
     /* open device */
-    if (!fbdevHWInit(pScrn,NULL,(char *)xf86FindOptionValue(fPtr->pEnt->device->options,"fbdev")))
+    fbDeviceName = xf86FindOptionValue(fPtr->pEnt->device->options,"fbdev");
+    if (!fbdevHWInit(pScrn,NULL,(char *)fbDeviceName))
 		return FALSE;
+
+    /* get device preferred video mode */
+    imxGetDevicePreferredMode(pScrn, fbDeviceName+5); // skip "/dev/"
 
     /* save sync value */
     if(!SaveBuildInModeSyncFlags(pScrn))

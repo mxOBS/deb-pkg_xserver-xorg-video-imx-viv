@@ -76,5 +76,8 @@ imxStoreSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int value);
 extern Bool
 imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSyncFlags);
 
+extern Bool
+imxGetDevicePreferredMode(ScrnInfoPtr pScrn, const char* fbDeviceName);
+
 #endif
 
