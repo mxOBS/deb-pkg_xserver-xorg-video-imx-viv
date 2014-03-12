@@ -1462,45 +1462,25 @@ imxDisplayGetPreInitMaxSize(ScrnInfoPtr pScrn, int* pMaxWidth, int* pMaxHeight)
 Bool
 imxDisplayPreInit(ScrnInfoPtr pScrn)
 {
-    VivPtr vPtr;
-    const char *dev_node;
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+    int fd = fbdevHWGetFD(pScrn);
+    ImxPtr imxPtr = vPtr;
 
-    /*Getting a pointer to Rectangle Structure*/
-    vPtr = GET_VIV_PTR(pScrn);
-
-	vPtr->fbAlignOffset = ADDRESS_ALIGNMENT;
-	vPtr->fbAlignWidth  = WIDTH_ALIGNMENT;
-	vPtr->fbAlignHeight = HEIGHT_ALIGNMENT;
-
-    /*Getting the device path*/
-    dev_node = xf86FindOptionValue(vPtr->pEnt->device->options, "vivante_fbdev");
-
-	/* Open the frame buffer device */
-	int fd = open(dev_node,O_RDWR,0);
-	if (fd == -1) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"open %s: %s\n", dev_node, strerror(errno));
-        TRACE_EXIT(FALSE);
-	}
-
-	/* Get frame buffer fixed screen info */
+    /*****************************************************************/
+    /* retrieve fb id */
+    /*****************************************************************/
 	struct fb_fix_screeninfo fbFixScreenInfo;
 	if (-1 == ioctl(fd,FBIOGET_FSCREENINFO,(void*)(&fbFixScreenInfo))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "FBIOGET_FSCREENINFO: %s\n", strerror(errno));
-		close(fd);
         TRACE_EXIT(FALSE);
 	}
 
-	/* Same the frame buffer driver name and the device name. */
 	strcpy(vPtr->fbId, fbFixScreenInfo.id);
-	strcpy(vPtr->fbDeviceName, dev_node + 5); // skip past "/dev/"
 
-	close(fd);
-
-	/* Access driver private screen data */
-	ImxPtr imxPtr = IMXPTR(pScrn);
-
+    /*****************************************************************/
+    /* set ImxDisplayRec */
+    /*****************************************************************/
 	/* Private data structure must not already be in use. */
 	if (NULL != imxPtr->displayPrivate) {
 		return FALSE;
@@ -1644,13 +1624,11 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
+    /*****************************************************************/
 	/* set virtual size to reserve a big enough buffer */
-	/* Access the fd for the FB driver */
-	int fdDev = fbdevHWGetFD(pScrn);
-
-	/* Query the FB variable screen info */
+    /*****************************************************************/
 	struct fb_var_screeninfo fbVarScreenInfo;
-	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+	if (-1 == ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 		return FALSE;
 	}
 
@@ -1659,7 +1637,7 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 	fbVarScreenInfo.yres_virtual = max(IMX_ALIGN(fPtr->fbMaxHeight, imxPtr->fbAlignHeight), 1088) * 2;
 	fbVarScreenInfo.bits_per_pixel = 32;
 
-	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+	if (-1 == ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			"unable to support largest resolution (%s)", strerror(errno));
 		return FALSE;
@@ -1683,13 +1661,13 @@ imxDisplayStartScreenInit(int scrnIndex, ScreenPtr pScreen)
 		xf86DrvMsg(scrnIndex, X_ERROR, "mode initialization failed\n");
 		return FALSE;
 	}
-
+/*
 	if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
 
 		xf86DrvMsg(scrnIndex, X_ERROR, "mode initialization failed\n");
 		return FALSE;
 	}
-
+*/
     /* now video ram size is change */
     pScrn->videoRam = fbdevHWGetVidmem(pScrn);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "hardware: %s (video memory:"
@@ -1937,15 +1915,24 @@ Bool imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSy
  * at xserver start up (it is not necessary to be same as kernel command line,
  * considering xserver be configured to a new mode and restart xserverr
  */
-Bool imxGetDevicePreferredMode(ScrnInfoPtr pScrn, const char* fbDeviceName)
+Bool imxGetDevicePreferredMode(ScrnInfoPtr pScrn)
 {
     ImxPtr fPtr = IMXPTR(pScrn);
     char sysnodeName[80];
     char modeName[64];
     FILE *fpMode;
     Bool got = FALSE;
+    int fd = fbdevHWGetFD(pScrn);
 
-    sprintf(sysnodeName, "/sys/class/graphics/%s/mode", fbDeviceName);
+    // Turn on frame buffer blanking to setup sys node mode
+    if (-1 == ioctl(fd, FBIOBLANK, FB_BLANK_UNBLANK))
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to blank frame buffer device '%s':%s \n",
+            fPtr->fbDeviceName, strerror(errno));
+    }
+
+    sprintf(sysnodeName, "/sys/class/graphics/%s/mode", fPtr->fbDeviceName);
 
     fpMode = fopen(sysnodeName, "r");
 
@@ -1965,7 +1952,13 @@ Bool imxGetDevicePreferredMode(ScrnInfoPtr pScrn, const char* fbDeviceName)
         got = TRUE;
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
             "Device preferred mode '%s':%s \n",
-            fbDeviceName, modeName);
+            fPtr->fbDeviceName, modeName);
+    }
+    else
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+            "Cannot get device preferred mode '%s (%s)' \n",
+            sysnodeName, strerror(errno));
     }
 
     fclose(fpMode);
@@ -1981,3 +1974,60 @@ static void imxSetPreferFlag(ScrnInfoPtr pScrn, DisplayModePtr mode)
         mode->type |= M_T_PREFERRED;
     }
 }
+
+/* fix fbdevHWModeInit
+  *
+  * fbdevHWModeInit does not support non-standard FB_SYNC_ flags
+  * fbdevHWModeInit translates timing and there's a slight deviation but causes FB driver to
+  * create a non-fully-supported video mode
+  *
+  * This function will update sys node (mode)
+  */
+Bool
+imxPostHWModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
+{
+#if 0
+    ImxPtr fPtr = IMXPTR(pScrn);
+    const char *pModeName;
+    FILE *fpMode;
+    char sysnodeName[80];
+
+    // mode != NULL
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "executing imxPostHWModeInit\n");
+
+    if(strcmp("current", mode->name) != 0)
+    {
+        pModeName = mode->name;
+    }
+    else
+    {
+        pModeName = fPtr->bootupVideoMode;
+    }
+
+    sprintf(sysnodeName, "/sys/class/graphics/%s/mode", fPtr->fbDeviceName);
+
+    fpMode = fopen(sysnodeName, "w");
+
+    if (NULL == fpMode)
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to open sysnode '%s':%s \n",
+            sysnodeName, strerror(errno));
+        return FALSE;
+    }
+
+    if(fwrite(mode->name, strlen(mode->name), 1, fpMode) != 1)
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to write sysnode '%s':%s \n",
+            sysnodeName, strerror(errno));
+        fclose(fpMode);
+        return FALSE;
+    }
+
+    fclose(fpMode);
+#endif
+	return TRUE;
+}
+

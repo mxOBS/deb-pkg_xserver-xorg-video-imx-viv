@@ -77,7 +77,7 @@ extern Bool
 imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSyncFlags);
 
 extern Bool
-imxGetDevicePreferredMode(ScrnInfoPtr pScrn, const char* fbDeviceName);
+imxGetDevicePreferredMode(ScrnInfoPtr pScrn);
 
 #endif
 

@@ -280,6 +280,15 @@ FBDevGetRec(ScrnInfoPtr pScrn)
 		return TRUE;
 
     pScrn->driverPrivate = xnfcalloc(sizeof (FBDevRec), 1);
+    if(!pScrn->driverPrivate)
+        return FALSE;
+
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+
+    vPtr->fbAlignOffset = ADDRESS_ALIGNMENT;
+    vPtr->fbAlignWidth  = WIDTH_ALIGNMENT;
+    vPtr->fbAlignHeight = HEIGHT_ALIGNMENT;
+
     imxInitSyncFlagsStorage(pScrn);
 	return TRUE;
 }
@@ -470,11 +479,12 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
 #endif
     /* open device */
     fbDeviceName = xf86FindOptionValue(fPtr->pEnt->device->options,"fbdev");
+    strcpy(fPtr->fbDeviceName, fbDeviceName + 5); // skip past "/dev/"
     if (!fbdevHWInit(pScrn,NULL,(char *)fbDeviceName))
 		return FALSE;
 
     /* get device preferred video mode */
-    imxGetDevicePreferredMode(pScrn, fbDeviceName+5); // skip "/dev/"
+    imxGetDevicePreferredMode(pScrn);
 
     /* save sync value */
     if(!SaveBuildInModeSyncFlags(pScrn))
