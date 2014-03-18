@@ -825,6 +825,12 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
 
     if(gEnableXRandR)
         imxSetShadowBuffer(pScreen);
+    else {
+        fPtr->fbMemorySize = pScrn->videoRam - fPtr->mFB.mFBOffset;
+        fPtr->fbMemoryScreenReserve = fPtr->fbMemorySize;
+        fPtr->fbMemoryStart2 = NULL;
+    }
+
 
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
     fbdevHWAdjustFrame(FBDEVHWADJUSTFRAME_ARGS(0, 0));
