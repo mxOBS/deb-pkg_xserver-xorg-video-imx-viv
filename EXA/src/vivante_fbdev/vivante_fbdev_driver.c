@@ -114,6 +114,7 @@ static Bool DestroyExaLayer(ScreenPtr pScreen);
 static void InitShmPixmap(ScreenPtr pScreen);
 static Bool SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn);
 static Bool RestoreSyncFlags(ScrnInfoPtr pScrn);
+static void CheckChipSet(ScrnInfoPtr pScrn);
 
 static Bool noVIVExtension;
 
@@ -412,6 +413,9 @@ FBDevProbe(DriverPtr drv, int flags)
 		}
             if (pScrn) {
                 foundScreen = TRUE;
+
+                /* detect chipset */
+                CheckChipSet(pScrn);
 
                 pScrn->driverVersion = FBDEV_VERSION;
                 pScrn->driverName = FBDEV_DRIVER_NAME;
@@ -1635,4 +1639,30 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
     }
 
     return TRUE;
+}
+
+static void
+CheckChipSet(ScrnInfoPtr pScrn)
+{
+    int isSL = 0;
+    FILE *fp = fopen("/proc/cpuinfo", "r");
+    if(fp == NULL)
+        return;
+
+    char *buf = (char *)malloc(4096);
+    while (NULL != fgets(buf, 4096, fp)) {
+        // look for 'Hardware'
+        if(strncmp("Hardware", buf, strlen("Hardware")) == 0) {
+            if(strstr(buf, "Freescale i.MX6 SoloLite") != NULL) {
+                isSL = 1;
+            }
+            break;
+        }
+    }
+
+    if(isSL) {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+            "SoloLite: disable XRandR\n");
+        gEnableXRandR = FALSE;
+    }
 }
