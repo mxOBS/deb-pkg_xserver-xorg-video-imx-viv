@@ -1559,7 +1559,7 @@ SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn)
     if(gEnableFbSyncExt) {
         int fdDev = fbdevHWGetFD(pScrn);
         struct fb_var_screeninfo fbVarScreenInfo;
-        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+        if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "unable to get VSCREENINFO %s\n",
@@ -1599,7 +1599,7 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
         }
 
         /* Query the FB variable screen info */
-        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+        if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "unable to get FB VSCREENINFO for current mode: %s\n",
                 strerror(errno));
@@ -1608,7 +1608,7 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
 
         fbVarScreenInfo.sync = fbSync;
 
-        if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+        if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "unable to restore FB VSCREENINFO: %s\n",
                 strerror(errno));

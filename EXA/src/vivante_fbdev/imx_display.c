@@ -488,7 +488,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
 	/* Query the FB fixed screen info */
 	struct fb_fix_screeninfo fbFixScreenInfo;
-	if (-1 == ioctl(fdDev, FBIOGET_FSCREENINFO, &fbFixScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOGET_FSCREENINFO, &fbFixScreenInfo)) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"unable to get FSCREENINFO for mode '%s': %s\n",
@@ -498,7 +498,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
 	/* Query the FB variable screen info */
 	struct fb_var_screeninfo fbVarScreenInfo;
-	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"unable to get VSCREENINFO for mode '%s': %s\n",
@@ -539,7 +539,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 	}
 
 	/* Make the adjustments to the variable screen info. */
-	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"unable to set VSCREENINFO for mode '%s': %s\n",
@@ -567,13 +567,13 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
 	/* Query the FB fixed screen info */
 	struct fb_fix_screeninfo fbFixScreenInfo;
-	if (-1 == ioctl(fdDev, FBIOGET_FSCREENINFO, &fbFixScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOGET_FSCREENINFO, &fbFixScreenInfo)) {
 		return FALSE;
 	}
 
 	/* Query the FB variable screen info */
 	struct fb_var_screeninfo fbVarScreenInfo;
-	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 		return FALSE;
 	}
 
@@ -652,7 +652,7 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 		fbVarScreenInfo.sync |= FB_SYNC_BROADCAST;
 
 	/* Make the adjustments to the variable screen info. */
-	if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 		return FALSE;
 	}
 
@@ -774,7 +774,7 @@ imxDisplayGetCurrentMode(ScrnInfoPtr pScrn, int fd, const char* modeName)
 {
 	/* Query the frame buffer variable screen info. */
 	struct fb_var_screeninfo fbVarScreenInfo;
-	if (-1 == ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"unable to get VSCREENINFO for mode '%s': %s\n",
@@ -820,7 +820,7 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 	}
 
 	/* Query the FB variable screen info */
-	if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"unable to get FB VSCREENINFO for current mode: %s\n",
@@ -848,7 +848,7 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 	strcat(fullDeviceName, fbDeviceName);
 
 	/* Turn on frame buffer blanking. */
-	if (-1 == ioctl(fdDev, FBIOBLANK, FB_BLANK_NORMAL)) {
+	if (0 != ioctl(fdDev, FBIOBLANK, FB_BLANK_NORMAL)) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 	   		"unable to blank frame buffer device '%s': %s\n",
@@ -911,7 +911,7 @@ errorGetModes:
 	/* Restore FB back to the current mode */
 	if (savedVarScreenInfo) {
 
-		if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+		if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 	
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				"unable to restore FB VSCREENINFO: %s\n",
@@ -1470,7 +1470,7 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
     /* retrieve fb id */
     /*****************************************************************/
 	struct fb_fix_screeninfo fbFixScreenInfo;
-	if (-1 == ioctl(fd,FBIOGET_FSCREENINFO,(void*)(&fbFixScreenInfo))) {
+	if (0 != ioctl(fd,FBIOGET_FSCREENINFO,(void*)(&fbFixScreenInfo))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "FBIOGET_FSCREENINFO: %s\n", strerror(errno));
         TRACE_EXIT(FALSE);
@@ -1628,7 +1628,7 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 	/* set virtual size to reserve a big enough buffer */
     /*****************************************************************/
 	struct fb_var_screeninfo fbVarScreenInfo;
-	if (-1 == ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
 		return FALSE;
 	}
 
@@ -1637,7 +1637,7 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 	fbVarScreenInfo.yres_virtual = max(IMX_ALIGN(fPtr->fbMaxHeight, imxPtr->fbAlignHeight), 1088) * 2;
 	fbVarScreenInfo.bits_per_pixel = 32;
 
-	if (-1 == ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+	if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			"unable to support largest resolution (%s)", strerror(errno));
 		return FALSE;
@@ -1925,7 +1925,7 @@ Bool imxGetDevicePreferredMode(ScrnInfoPtr pScrn)
     int fd = fbdevHWGetFD(pScrn);
 
     // Turn on frame buffer blanking to setup sys node mode
-    if (-1 == ioctl(fd, FBIOBLANK, FB_BLANK_UNBLANK))
+    if (0 != ioctl(fd, FBIOBLANK, FB_BLANK_UNBLANK))
     {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
             "unable to blank frame buffer device '%s':%s \n",
