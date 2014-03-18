@@ -127,6 +127,7 @@ extern "C" {
         /* sync value: support FSL extension */
         FBSYNCFLAGS fbSync[MAX_MODES_SUPPORTED];
         char  bootupVideoMode[64];
+        DisplayModePtr  lastVideoMode;
     } VivRec, * VivPtr;
 
     /********************************************************************************

@@ -712,6 +712,52 @@ ProcVIVEXTPixmapSync(register ClientPtr client)
 }
 
 static int
+ProcVIVEXTRefreshVideoModes(register ClientPtr client)
+{
+    int rc;
+    char suggestMode[128];
+    xVIVEXTRefreshVideoModesReply rep = {
+        .type = X_Reply,
+        .sequenceNumber = client->sequence,
+        .length = 0,
+        .preferModeLen = 0
+    };
+
+    suggestMode[0] = 0;
+
+    REQUEST(xVIVEXTRefreshVideoModesReq);
+    REQUEST_SIZE_MATCH(xVIVEXTRefreshVideoModesReq);
+
+
+    if (stuff->screen >= screenInfo.numScreens) {
+        client->errorValue = stuff->screen;
+        return BadValue;
+    }
+
+    ScreenPtr pScreen = screenInfo.screens[stuff->screen];
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+
+    rc = imxRefreshModes(pScrn, stuff->fb, suggestMode);
+
+    if(rc != 0) {
+        return BadValue;
+    }
+
+    int extraLen = strlen(suggestMode);
+
+    rep.length = bytes_to_int32(extraLen);
+    rep.preferModeLen = extraLen;
+
+    extraLen = rep.length << 2; // with padding
+
+    WriteToClient(client, sizeof(xVIVEXTRefreshVideoModesReply), (char *)&rep);
+    if(extraLen > 0)
+        WriteToClient(client, extraLen, suggestMode);
+
+    return Success;
+}
+
+static int
 ProcVIVEXTDispatch(register ClientPtr client)
 {
 	REQUEST(xReq);
@@ -729,6 +775,8 @@ ProcVIVEXTDispatch(register ClientPtr client)
 			return ProcVIVEXTDrawableSetFlag(client);
 		case X_VIVEXTPixmapSync:
 			return ProcVIVEXTPixmapSync(client);
+		case X_VIVEXTRefreshVideoModes:
+			return ProcVIVEXTRefreshVideoModes(client);
 		default:
 			return BadRequest;
 	}

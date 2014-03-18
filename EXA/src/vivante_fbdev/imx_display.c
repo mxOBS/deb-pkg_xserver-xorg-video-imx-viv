@@ -1151,10 +1151,25 @@ imxCrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjMode,
 	if (NULL != fbMode) {
 
 		imxDisplaySetMode(pScrn, imxPtr->fbDeviceName, fbMode->name);
+
+		/* record last video mode for later hdmi hot plugout/in */
+		if(imxPtr->lastVideoMode) {
+			xf86DeleteMode(&imxPtr->lastVideoMode, imxPtr->lastVideoMode);
+		}
+		imxPtr->lastVideoMode = xf86DuplicateMode(fbMode);
+
 	}
 	else {
 		imxDisplaySetUserMode(pScrn, mode);
+
+		/* record last video mode for later hdmi hot plugout/in */
+		if(imxPtr->lastVideoMode) {
+			xf86DeleteMode(&imxPtr->lastVideoMode, imxPtr->lastVideoMode);
+		}
+		imxPtr->lastVideoMode = xf86DuplicateMode(mode);
 	}
+
+//    crtc->desiredMode = *mode;
 
 	OnCrtcModeChanged(pScrn);
 }
@@ -1707,6 +1722,7 @@ imxDisplaySwitchMode(SWITCH_MODE_ARGS_DECL)
 #else
 	ScrnInfoPtr pScrn = arg;
 #endif
+    // deprecated?
 
 	return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
 }
@@ -2031,3 +2047,168 @@ imxPostHWModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	return TRUE;
 }
 
+int
+imxRefreshModes(ScrnInfoPtr pScrn, int fbIndex, char *suggestMode)
+{
+    FILE* fpModes = NULL;
+    int fdDev = -1;
+    DisplayModePtr modesList = NULL;
+    ImxPtr fPtr = IMXPTR(pScrn);
+    ImxDisplayPtr imxDispPtr = IMXDISPLAYPTR(fPtr);
+    int rc = -1;
+
+    suggestMode[0] = 0;
+
+    /* check fb index */
+    char fbName[32];
+    sprintf(fbName, "fb%d", fbIndex);
+    if(strcmp(fbName, fPtr->fbDeviceName) != 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "HDMI not used by xserver\n");
+        return -1;
+    }
+
+    /* Access the frame buffer device. */
+    fdDev = fbdevHWGetFD(pScrn);
+    if (-1 == fdDev) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "frame buffer device not available or initialized\n");
+        goto errorGetModes;
+    }
+
+    /* Create the name of the sysnode file that contains the */
+    /* names of all the frame buffer modes. */
+    char sysnodeName[80];
+    sprintf(sysnodeName, "/sys/class/graphics/%s/modes", fPtr->fbDeviceName);
+    fpModes = fopen(sysnodeName, "r");
+    if (NULL == fpModes) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to open sysnode '%s':%s \n",
+            sysnodeName, strerror(errno));
+        goto errorGetModes;
+    }
+
+    // do not use pScrn->currentMode to check last mode: volatile
+
+    /* Turn on frame buffer blanking. */
+    if (0 != ioctl(fdDev, FBIOBLANK, FB_BLANK_NORMAL)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to blank frame buffer device '%s': %s\n",
+            fPtr->fbDeviceName, strerror(errno));
+        goto errorGetModes;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+        "printing discovered frame buffer '%s' supported modes:\n",
+        fPtr->fbDeviceName);
+
+    /* Iterate over all the modes in the frame buffer list. */
+    char modeName[80];
+    while (NULL != fgets(modeName, sizeof(modeName), fpModes)) {
+        imxRemoveTrailingNewLines(modeName);
+
+        /* Attempt to set the mode */
+        if (!imxDisplaySetMode(pScrn, fPtr->fbDeviceName, modeName)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to set frame buffer mode '%s'\n",
+                modeName);
+            continue;
+        }
+
+        DisplayModePtr mode =
+            imxDisplayGetCurrentMode(pScrn, fdDev, modeName);
+
+        if ((NULL != mode) &&
+            (mode->HDisplay > 0) &&
+            (mode->VDisplay > 0)) {
+            /* device preferred mode ? */
+            imxSetPreferFlag(pScrn, mode);
+
+            xf86PrintModeline(pScrn->scrnIndex, mode);
+            modesList = xf86ModesAdd(modesList, mode);
+        }
+    }
+
+    if(modesList == NULL) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "unable to find mode for device '%s'\n",
+            fPtr->fbDeviceName);
+        goto errorGetModes;
+    }
+
+    rc = 0;
+
+errorGetModes:
+
+    /* Close file with list of modes. */
+    if (NULL != fpModes) {
+        fclose(fpModes);
+    }
+
+    /* Remove any duplicate modes found. */
+    modesList = xf86PruneDuplicateModes(modesList);
+
+    while (imxDispPtr->fbModesList)
+        xf86DeleteMode(&imxDispPtr->fbModesList, imxDispPtr->fbModesList);
+
+    imxDispPtr->fbModesList = modesList;
+
+    /* find a good mode to return */
+    if(rc == 0) {
+        // 1. same mode name as previous (xrandr will skip?)
+        // 2. same resolution as previous
+        // 3. largest resolution
+        DisplayModePtr pSameNameMode = NULL;
+        DisplayModePtr pSameSizeMode = NULL;
+        DisplayModePtr pLargestSizeMode = imxDispPtr->fbModesList;
+        DisplayModePtr p = imxDispPtr->fbModesList;
+
+        while (p) {
+            if(fPtr->lastVideoMode) {
+                // Use the previous mode. Set video mode here
+                if(fPtr->lastVideoMode->name != NULL && strcmp(p->name, fPtr->lastVideoMode->name) == 0) {
+                    imxDisplaySetMode(pScrn, fPtr->fbDeviceName, p->name);
+                    pSameNameMode = p;
+                    break;
+                }
+
+                // is the mode same size as previous one?
+                if(p->HDisplay == fPtr->lastVideoMode->HDisplay &&
+                    p->VDisplay == fPtr->lastVideoMode->VDisplay)
+                    pSameSizeMode = p;
+            }
+
+            // is this mode largest size?
+            if(p->HDisplay > pLargestSizeMode->HDisplay)
+                pLargestSizeMode = p;
+
+            p = p->next;
+        }
+
+        if(pSameNameMode)
+            strcpy(suggestMode, pSameNameMode->name);
+        else if(pSameSizeMode)
+            strcpy(suggestMode, pSameSizeMode->name);
+        else //pLargestSizeMode != NULL
+            strcpy(suggestMode, pLargestSizeMode->name);
+
+        if(suggestMode[0] != 0)
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Choose %s as new mode\n", suggestMode);
+    }
+
+#if 0
+    while (pScrn->modes)
+    xf86DeleteMode(&pScrn->modes, pScrn->modes);
+
+    while (pScrn->modePool)
+    xf86DeleteMode(&pScrn->modePool, pScrn->modePool);
+
+    pScrn->currentMode;
+#endif
+
+    /* Turn off frame buffer blanking */
+    if (-1 != fdDev) {
+        ioctl(fdDev, FBIOBLANK, FB_BLANK_UNBLANK);
+    }
+
+    return rc;
+}

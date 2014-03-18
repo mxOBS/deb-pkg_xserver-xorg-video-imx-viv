@@ -79,5 +79,8 @@ imxLoadSyncFlags(ScrnInfoPtr pScrn, const char *modeName, unsigned int *pSyncFla
 extern Bool
 imxGetDevicePreferredMode(ScrnInfoPtr pScrn);
 
+extern int
+imxRefreshModes(ScrnInfoPtr pScrn, int fbIndex, char *suggestMode);
+
 #endif
 

@@ -296,8 +296,14 @@ FBDevGetRec(ScrnInfoPtr pScrn)
 static void
 FBDevFreeRec(ScrnInfoPtr pScrn)
 {
+    FBDevPtr fPtr = FBDEVPTR(pScrn);
+
 	if (pScrn->driverPrivate == NULL)
 		return;
+
+    if(fPtr->lastVideoMode) {
+        xf86DeleteMode(&fPtr->lastVideoMode, fPtr->lastVideoMode);
+    }
 
     imxFreeSyncFlagsStorage(pScrn);
     free(pScrn->driverPrivate);
@@ -778,6 +784,12 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
 		xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"mode initialization failed\n");
 		return FALSE;
     }
+
+    /* record last video mode for later hdmi hot plugout/in */
+    if(fPtr->lastVideoMode) {
+        xf86DeleteMode(&fPtr->lastVideoMode, fPtr->lastVideoMode);
+    }
+    fPtr->lastVideoMode = xf86DuplicateMode(pScrn->currentMode); // pScrn->currentMode != NULL
 
     /* now video ram size is change */
     pScrn->videoRam = fbdevHWGetVidmem(pScrn);
