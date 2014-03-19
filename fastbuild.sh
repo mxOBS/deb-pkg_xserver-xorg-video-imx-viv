@@ -50,6 +50,7 @@ if [ "$XSERVER_GREATER_THAN_13" != "1" ]; then
   make -C DRI_1.10.4/src/ -f makefile.linux $* || exit 1
 fi
 make -C FslExt/src/ -f makefile.linux $* || exit 1
+make -C util/autohdmi/ -f makefile.linux $* || exit 1
 
 exit 0
 
