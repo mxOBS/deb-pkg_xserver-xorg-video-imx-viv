@@ -62,6 +62,7 @@ extern "C" {
         unsigned long memPhysBase;
         unsigned char* mFBStart; /*logical memory start address*/
         unsigned char* mFBMemory; /*memory  address*/
+        unsigned long memGpuBase; /*address in gpu-2D space (gpu address space: 2D is same as 3D, but different with VG355)*/
         int mFBOffset; /*framebuffer offset*/
     } FBINFO, *FBINFOPTR;
 

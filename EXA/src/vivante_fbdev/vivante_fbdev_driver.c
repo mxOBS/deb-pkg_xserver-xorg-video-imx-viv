@@ -824,8 +824,8 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
     fPtr->mFB.mFBStart = fPtr->mFB.mFBMemory + fPtr->mFB.mFBOffset;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-            "FB Start = %p  FB Base = %p  FB Offset = %p\n",
-            fPtr->mFB.mFBStart, fPtr->mFB.mFBMemory, (void *)fPtr->mFB.mFBOffset);
+            "FB Start = %p  FB Base = %p  FB Offset = %p FB PhyBase %p\n",
+            fPtr->mFB.mFBStart, fPtr->mFB.mFBMemory, (void *)fPtr->mFB.mFBOffset, (void *)fPtr->mFB.memPhysBase);
 
     if(gEnableXRandR)
         imxSetShadowBuffer(pScreen);
@@ -1470,7 +1470,7 @@ static Bool InitExaLayer(ScreenPtr pScreen)
     pExa->memorySize = pViv->fbMemorySize;
     pExa->offScreenBase = pViv->fbMemoryScreenReserve;
 
-    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, (unsigned int *)&pViv->mFB.memPhysBase)) {
+    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, (unsigned int *)&pViv->mFB.memGpuBase)) {
         TRACE_ERROR("ERROR ON MAPPING FB\n");
         return FALSE;
     }
@@ -1530,7 +1530,7 @@ static Bool DestroyExaLayer(ScreenPtr pScreen)
     xf86DrvMsg(pScreen->myNum, X_INFO, "Shutdown EXA\n");
 
     ExaDriverPtr pExa = pViv->mFakeExa.mExaDriver;
-    if (!VIV2DGPUUserMemUnMap((char*) pExa->memoryBase, pExa->memorySize, pViv->mFB.mMappingInfo, pViv->mFB.memPhysBase)) {
+    if (!VIV2DGPUUserMemUnMap((char*) pExa->memoryBase, pExa->memorySize, pViv->mFB.mMappingInfo, pViv->mFB.memGpuBase)) {
         TRACE_ERROR("Unmapping User memory Failed\n");
     }
 
