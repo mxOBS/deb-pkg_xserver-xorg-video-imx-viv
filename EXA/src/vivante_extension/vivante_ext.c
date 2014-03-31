@@ -240,7 +240,11 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 	drm_clip_rect_t ** pClipRects,
 	int *relX,
 	int *relY,
+#if defined(GPU_VERSION_5)
+	unsigned int *nodeName,
+#else
 	unsigned int *backNode,
+#endif
 	unsigned int *phyAddress,
 	unsigned int *alignedWidth,
 	unsigned int *alignedHeight,
@@ -251,8 +255,12 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 	PixmapPtr      pWinPixmap;
 	Viv2DPixmapPtr ppriv;
 	GenericSurfacePtr surf = NULL;
-	int			i;
-	unsigned int * pPointer;
+
+#if defined(GPU_VERSION_5)
+	*nodeName = 0;
+#else
+	*backNode = 0;
+#endif
 
 	if (pDrawable->type == DRAWABLE_WINDOW) {
 
@@ -277,13 +285,17 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 		#endif
 
 		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
-		*backNode = 0;
 		*phyAddress = 0;
 		*stride = 0;
 		if (ppriv) {
 			surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
 			if (surf) {
+#if defined(GPU_VERSION_5)
+				if (surf->mVideoNode.mNode)
+				    gcoHAL_NameVideoMemory(surf->mVideoNode.mNode, (gctUINT32 *)nodeName);
+#else
 				*backNode = (unsigned int)surf->mVideoNode.mNode;
+#endif
 				*phyAddress = (unsigned int)surf->mVideoNode.mPhysicalAddr;
 				*stride = surf->mStride;
 			}
@@ -307,11 +319,15 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 			*alignedWidth = gcmALIGN(pWinPixmap->drawable.width, WIDTH_ALIGNMENT);
 			*alignedHeight = gcmALIGN(pWinPixmap->drawable.height, HEIGHT_ALIGNMENT);
 			if (surf) {
+#if defined(GPU_VERSION_5)
+				if (surf->mVideoNode.mNode)
+				    gcoHAL_NameVideoMemory(surf->mVideoNode.mNode, (gctUINT32 *)nodeName);
+#else
 				*backNode = (unsigned int)surf->mVideoNode.mNode;
+#endif
 				*phyAddress = (unsigned int)surf->mVideoNode.mPhysicalAddr;
 				*stride = surf->mStride;
 			} else {
-				*backNode = 0;
 				*phyAddress = 0;
 				*stride = 0;
 			}
@@ -321,7 +337,6 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 		} else {
 			*alignedWidth = 0;
 			*alignedHeight = 0;
-			*backNode = 0;
 			*phyAddress = 0;
 			*stride = 0;
 			return FALSE;
@@ -550,7 +565,11 @@ ProcVIVEXTDrawableInfo(register ClientPtr client)
 		&pClipRects,
 		&relX,
 		&relY,
+#if defined(GPU_VERSION_5)
+		(unsigned int *)&rep.nodeName,
+#else
 		(unsigned int *)&rep.backNode,
+#endif
 		(unsigned int *)&rep.phyAddress,
 		(unsigned int *)&rep.alignedWidth,
 		(unsigned int *)&rep.alignedHeight,

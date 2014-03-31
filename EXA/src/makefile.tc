@@ -44,6 +44,10 @@ endif
 # strict check
 CFLAGS += -Werror
 
+ifeq ($(GPU_VERSION_5),1)
+CFLAGS += -DGPU_VERSION_5
+endif
+
 # prefix: install path. This driver will be copied to $(prefix)/lib/xorg/modules/drivers/
 # when call make -f makefile.linux prefix=... install
 prefix ?= /usr

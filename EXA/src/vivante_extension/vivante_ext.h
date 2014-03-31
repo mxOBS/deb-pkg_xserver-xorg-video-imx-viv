@@ -110,7 +110,11 @@ typedef struct {
 	CARD32      alignedWidth B32;
 	CARD32      alignedHeight B32;
 	CARD32      stride B32;
+#if defined(GPU_VERSION_5)
+	CARD32      nodeName B32;
+#else
 	CARD32      backNode B32;
+#endif
 	CARD32      phyAddress B32;
 } xVIVEXTDrawableInfoReply;
 
