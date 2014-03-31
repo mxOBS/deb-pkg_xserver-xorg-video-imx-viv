@@ -1656,6 +1656,9 @@ CheckChipSet(ScrnInfoPtr pScrn)
             if(strstr(buf, "Freescale i.MX6 SoloLite") != NULL) {
                 isSL = 1;
             }
+            else if(strstr(buf, "Freescale i.MX6 SoloX") != NULL) {
+                isSL = 1;
+            }
             break;
         }
     }
