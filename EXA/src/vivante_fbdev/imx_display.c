@@ -128,6 +128,8 @@ static Bool
 imxDisplayStartScreenInit(int scrnIndex, ScreenPtr pScreen);
 static void
 imxSetPreferFlag(ScrnInfoPtr pScrn, DisplayModePtr mode);
+static BOOL
+imxDisplayCheckModeXRandR(ScrnInfoPtr pScrn);
 
 Bool imxSetShadowBuffer(ScreenPtr pScreen)
 {
@@ -877,6 +879,14 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 
 		DisplayModePtr mode =
 			imxDisplayGetCurrentMode(pScrn, fdDev, modeName);
+
+        /* Check whether meet XRandR requirement (SL/SX: some modes are not supported) */
+        if (!imxDisplayCheckModeXRandR(pScrn)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "Mode '%s' is eliminated from XRandR support\n",
+                modeName);
+            continue;
+        }
 
 		if ((NULL != mode) &&
 			(mode->HDisplay > 0) &&
@@ -2114,6 +2124,14 @@ imxRefreshModes(ScrnInfoPtr pScrn, int fbIndex, char *suggestMode)
             continue;
         }
 
+        /* Check whether meet XRandR requirement (SL/SX: some modes are not supported) */
+        if (!imxDisplayCheckModeXRandR(pScrn)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "Mode '%s' is eliminated from XRandR support\n",
+                modeName);
+            continue;
+        }
+
         DisplayModePtr mode =
             imxDisplayGetCurrentMode(pScrn, fdDev, modeName);
 
@@ -2211,4 +2229,28 @@ errorGetModes:
     }
 
     return rc;
+}
+
+static BOOL
+imxDisplayCheckModeXRandR(ScrnInfoPtr pScrn)
+{
+    int fdDev = fbdevHWGetFD(pScrn);
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+    ImxPtr imxPtr = vPtr;
+
+    /* Query the FB variable screen info */
+    struct fb_var_screeninfo fbVarScreenInfo;
+    if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+        return FALSE;
+    }
+
+    fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
+    fbVarScreenInfo.yres_virtual = 2 * IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
+
+    /* Make the adjustments to the variable screen info. */
+    if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+        return FALSE;
+    }
+
+    return TRUE;
 }
