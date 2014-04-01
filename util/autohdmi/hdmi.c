@@ -34,11 +34,9 @@
 
 #define UEVENT_BUFFER_SIZE 2048
 #define UEVENT_PARAMS_MAX 32
-/* For Linux Kernel 3.10.9 HDMI device path */
-#define HDMI_DEV_PATH  "/devices/soc0/soc.1/20e0000.hdmi_video"
-#define HDMI_DEV_SUBSYSTEM "mxc_hdmi"
 
 enum uevent_action { action_add, action_remove, action_change };
+enum uevent_source { unknown=0, from_6qdlsolo, from_6slsx };
 
 struct uevent {
     char *path;
@@ -46,9 +44,30 @@ struct uevent {
     char *subsystem;
     char *param[UEVENT_PARAMS_MAX];
     unsigned int seqnum;
+    enum uevent_source source;
 };
 
 #define FSLPRINTF printf
+
+static int is_hdmi_event(struct uevent *e)
+{
+    if(strcmp(e->subsystem, "i2c") == 0) {
+        // SL
+        int i;
+        for(i=0; e->param[i]!=0; i++) {
+            if(strcmp(e->param[i], "DRIVER=sii902x") == 0) {
+                e->source = from_6slsx;
+                return 1;
+            }
+        }
+    }
+    else if(strcmp(e->subsystem, "mxc_hdmi") == 0) {
+        e->source = from_6qdlsolo;
+        return 1;
+    }
+
+    return 0;
+}
 
 static int init_hotplug_sock(void)
 {
@@ -123,7 +142,7 @@ imxRemoveTrailingNewLines(char* str)
 	}
 }
 
-static int find_hdmi_fb()
+static int find_hdmi_fb(struct uevent *event)
 {
     int index;
     char sysnodeName[80];
@@ -149,6 +168,12 @@ static int find_hdmi_fb()
 
         if(rc != -1)
             break;
+    }
+
+    if(rc == -1) {
+        if(event->source == from_6slsx) {
+            rc = 0;
+        }
     }
 
     return rc;
@@ -289,12 +314,12 @@ static int refresh_video_modes(Display* dpy, int screen, int fbIndex, char *sugg
     return 0;
 }
 
-static int handle_hdmi_plugin()
+static int handle_hdmi_plugin(struct uevent *event)
 {
     char mode[64];
     mode[0] = 0;
 
-    int fbIndex = find_hdmi_fb();
+    int fbIndex = find_hdmi_fb(event);
     if(fbIndex == -1) {
         FSLPRINTF("No fb uses hdmi\n");
         return -1;
@@ -401,15 +426,13 @@ int main(int argc, const char **argv)
 //        dump_uevent(event);
 
         /* check uevent */
-		if (!strcmp(HDMI_DEV_PATH, event->path)||
-			!strcmp(HDMI_DEV_SUBSYSTEM, event->subsystem)){
-
+        if(is_hdmi_event(event)) {
 			const char *state = get_uevent_param(event, "EVENT");
 			if (!strcmp(state, "hdcpint")) {
                 FSLPRINTF("EVENT hdcpint\n");
 			}else if (!strcmp(state, "plugin")) {
                 FSLPRINTF("EVENT plugin\n");
-                handle_hdmi_plugin();
+                handle_hdmi_plugin(event);
 			} else if (!strcmp(state, "plugout")){
                 FSLPRINTF("EVENT plugout\n");
 			} else if (!strcmp(state, "hdcpenable")){

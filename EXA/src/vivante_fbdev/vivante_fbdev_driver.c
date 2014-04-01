@@ -1664,8 +1664,11 @@ CheckChipSet(ScrnInfoPtr pScrn)
     }
 
     if(isSL) {
+        // enable XRandR for SL/SX, with some limitations
+#if 0
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
             "SoloLite: disable XRandR\n");
         gEnableXRandR = FALSE;
+#endif
     }
 }

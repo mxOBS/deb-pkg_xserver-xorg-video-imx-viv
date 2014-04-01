@@ -128,6 +128,10 @@ static Bool
 imxDisplayStartScreenInit(int scrnIndex, ScreenPtr pScreen);
 static void
 imxSetPreferFlag(ScrnInfoPtr pScrn, DisplayModePtr mode);
+static BOOL
+imxDisplayCheckModeXRandR(ScrnInfoPtr pScrn);
+static BOOL
+imxDisplayCheckBpp(ScrnInfoPtr pScrn);
 
 Bool imxSetShadowBuffer(ScreenPtr pScreen)
 {
@@ -877,6 +881,14 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 
 		DisplayModePtr mode =
 			imxDisplayGetCurrentMode(pScrn, fdDev, modeName);
+
+        /* Check whether meet XRandR requirement (SL/SX: some modes are not supported) */
+        if (!imxDisplayCheckModeXRandR(pScrn)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "Mode '%s' is eliminated from XRandR support\n",
+                modeName);
+            continue;
+        }
 
 		if ((NULL != mode) &&
 			(mode->HDisplay > 0) &&
@@ -1648,9 +1660,11 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 	}
 
 	// user may create a mode which is larger than native mode(s)
-	fbVarScreenInfo.xres_virtual = max(IMX_ALIGN(fPtr->fbMaxWidth, imxPtr->fbAlignWidth), 1920);
-	fbVarScreenInfo.yres_virtual = max(IMX_ALIGN(fPtr->fbMaxHeight, imxPtr->fbAlignHeight), 1088) * 2;
-	fbVarScreenInfo.bits_per_pixel = 32;
+	// SL/SX does not support larger xres_virtual; so we extend yres_virtual only
+	const int max_algined_width = IMX_ALIGN(1920, imxPtr->fbAlignWidth);
+	const int max_aligned_height = IMX_ALIGN(1080, imxPtr->fbAlignHeight);
+	const int max_size = max_algined_width * max_aligned_height * 2;
+	fbVarScreenInfo.yres_virtual = max_size / fbVarScreenInfo.xres_virtual + 2;
 
 	if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -2097,6 +2111,11 @@ imxRefreshModes(ScrnInfoPtr pScrn, int fbIndex, char *suggestMode)
         goto errorGetModes;
     }
 
+    /* SL: external HDMI device may choose different bpp from LVDS; restore back */
+    if(!imxDisplayCheckBpp(pScrn)) {
+        goto errorGetModes;
+    }
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
         "printing discovered frame buffer '%s' supported modes:\n",
         fPtr->fbDeviceName);
@@ -2110,6 +2129,14 @@ imxRefreshModes(ScrnInfoPtr pScrn, int fbIndex, char *suggestMode)
         if (!imxDisplaySetMode(pScrn, fPtr->fbDeviceName, modeName)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "unable to set frame buffer mode '%s'\n",
+                modeName);
+            continue;
+        }
+
+        /* Check whether meet XRandR requirement (SL/SX: some modes are not supported) */
+        if (!imxDisplayCheckModeXRandR(pScrn)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "Mode '%s' is eliminated from XRandR support\n",
                 modeName);
             continue;
         }
@@ -2212,3 +2239,59 @@ errorGetModes:
 
     return rc;
 }
+
+static BOOL
+imxDisplayCheckModeXRandR(ScrnInfoPtr pScrn)
+{
+    int fdDev = fbdevHWGetFD(pScrn);
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+    ImxPtr imxPtr = vPtr;
+
+    /* Query the FB variable screen info */
+    struct fb_var_screeninfo fbVarScreenInfo;
+    if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+        return FALSE;
+    }
+
+    fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
+    fbVarScreenInfo.yres_virtual = 2 * IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
+
+    /* Make the adjustments to the variable screen info. */
+    if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static BOOL
+imxDisplayCheckBpp(ScrnInfoPtr pScrn)
+{
+    int fdDev = fbdevHWGetFD(pScrn);
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+    ImxPtr imxPtr = vPtr;
+
+    /* Query the FB variable screen info */
+    struct fb_var_screeninfo fbVarScreenInfo;
+    if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+        return FALSE;
+    }
+
+    if(fbVarScreenInfo.bits_per_pixel == pScrn->bitsPerPixel)
+        return TRUE;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Change bpp from %d to %d\n",
+        fbVarScreenInfo.bits_per_pixel,
+        pScrn->bitsPerPixel);
+
+    fbVarScreenInfo.bits_per_pixel = pScrn->bitsPerPixel;
+
+    /* Make the adjustments to the variable screen info. */
+    if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Change bpp failed\n");
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
