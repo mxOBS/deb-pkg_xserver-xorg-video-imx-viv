@@ -61,9 +61,14 @@ static int is_hdmi_event(struct uevent *e)
             }
         }
     }
-    else if(strcmp(e->subsystem, "mxc_hdmi") == 0) {
-        e->source = from_6qdlsolo;
-        return 1;
+    else {
+        int i;
+        for(i=0; e->param[i]!=0; i++) {
+            if(strcmp(e->param[i], "DRIVER=mxc_hdmi") == 0) {
+                e->source = from_6qdlsolo;
+                return 1;
+            }
+        }
     }
 
     return 0;
