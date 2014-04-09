@@ -1528,6 +1528,28 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 	fPtr->edidModesAvail = TRUE;
 	strcpy(fPtr->fbModeNameCurrent, "");
 
+	/* Set video buffer */
+    /*****************************************************************/
+	/* set virtual size to reserve a big enough buffer */
+    /*****************************************************************/
+	struct fb_var_screeninfo fbVarScreenInfo;
+	if (0 != ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+		return FALSE;
+	}
+	// user may create a mode which is larger than native mode(s)
+	// SL/SX does not support larger xres_virtual; so we extend yres_virtual only
+	const int max_algined_width = IMX_ALIGN(1920, imxPtr->fbAlignWidth);
+	const int max_aligned_height = IMX_ALIGN(1080, imxPtr->fbAlignHeight);
+	const int max_size = max_algined_width * max_aligned_height * 2;
+	fbVarScreenInfo.yres_virtual = max_size / fbVarScreenInfo.xres_virtual + 2;
+	fbVarScreenInfo.bits_per_pixel = pScrn->bitsPerPixel;
+
+	if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			"unable to support largest resolution (%s)", strerror(errno));
+		return FALSE;
+	}
+
 	/* Access all the modes supported by frame buffer driver. */
 	fPtr->fbModesList = imxDisplayGetModes(pScrn, imxPtr->fbDeviceName);
 
@@ -1651,26 +1673,6 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-    /*****************************************************************/
-	/* set virtual size to reserve a big enough buffer */
-    /*****************************************************************/
-	struct fb_var_screeninfo fbVarScreenInfo;
-	if (0 != ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
-		return FALSE;
-	}
-
-	// user may create a mode which is larger than native mode(s)
-	// SL/SX does not support larger xres_virtual; so we extend yres_virtual only
-	const int max_algined_width = IMX_ALIGN(1920, imxPtr->fbAlignWidth);
-	const int max_aligned_height = IMX_ALIGN(1080, imxPtr->fbAlignHeight);
-	const int max_size = max_algined_width * max_aligned_height * 2;
-	fbVarScreenInfo.yres_virtual = max_size / fbVarScreenInfo.xres_virtual + 2;
-
-	if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			"unable to support largest resolution (%s)", strerror(errno));
-		return FALSE;
-	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"imxDisplayPreInit: virtual set %d x %d, display width %d\n",
