@@ -538,7 +538,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
 		fbVarScreenInfo.xoffset = 0;
 		fbVarScreenInfo.yoffset = 0;
-		fbVarScreenInfo.xres_virtual = pScrn->displayWidth;
+		fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
 		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
 	}
 
@@ -613,7 +613,7 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 		fbVarScreenInfo.yoffset = 0;
 		fbVarScreenInfo.xres = pScrn->virtualX;
 		fbVarScreenInfo.yres = pScrn->virtualY;
-		fbVarScreenInfo.xres_virtual = pScrn->displayWidth;
+		fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
 		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
 	}
 
