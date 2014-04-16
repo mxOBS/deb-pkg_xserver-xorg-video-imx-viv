@@ -110,7 +110,7 @@ typedef struct {
 	CARD32      alignedWidth B32;
 	CARD32      alignedHeight B32;
 	CARD32      stride B32;
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
 	CARD32      nodeName B32;
 #else
 	CARD32      backNode B32;

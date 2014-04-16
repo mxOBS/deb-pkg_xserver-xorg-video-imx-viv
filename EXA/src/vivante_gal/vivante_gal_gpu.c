@@ -59,7 +59,11 @@ static gctBOOL SetupDriver
     }
 
     /*If Seperated*/
+    #if GPU_VERSION_GREATER_THAN(5, 0, 11, 17486)
+    pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
+    #else
     pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated3D2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
+    #endif
 
     if (pDrvHandle->mIsSeperated) {
         status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_2D);

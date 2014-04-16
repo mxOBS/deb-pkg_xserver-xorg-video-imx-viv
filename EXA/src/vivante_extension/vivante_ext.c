@@ -54,6 +54,7 @@
 /*
 #include "xf86Extensions.h"
 */
+#include "vivante_debug.h"
 #include "vivante_ext.h"
 #include "vivante_exa.h"
 #include "vivante.h"
@@ -240,7 +241,7 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 	drm_clip_rect_t ** pClipRects,
 	int *relX,
 	int *relY,
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
 	unsigned int *nodeName,
 #else
 	unsigned int *backNode,
@@ -256,7 +257,7 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 	Viv2DPixmapPtr ppriv;
 	GenericSurfacePtr surf = NULL;
 
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
 	*nodeName = 0;
 #else
 	*backNode = 0;
@@ -290,7 +291,7 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 		if (ppriv) {
 			surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
 			if (surf) {
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
 				if (surf->mVideoNode.mNode)
 				    gcoHAL_NameVideoMemory(surf->mVideoNode.mNode, (gctUINT32 *)nodeName);
 #else
@@ -319,7 +320,7 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
 			*alignedWidth = gcmALIGN(pWinPixmap->drawable.width, WIDTH_ALIGNMENT);
 			*alignedHeight = gcmALIGN(pWinPixmap->drawable.height, HEIGHT_ALIGNMENT);
 			if (surf) {
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
 				if (surf->mVideoNode.mNode)
 				    gcoHAL_NameVideoMemory(surf->mVideoNode.mNode, (gctUINT32 *)nodeName);
 #else
@@ -565,7 +566,7 @@ ProcVIVEXTDrawableInfo(register ClientPtr client)
 		&pClipRects,
 		&relX,
 		&relY,
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
 		(unsigned int *)&rep.nodeName,
 #else
 		(unsigned int *)&rep.backNode,

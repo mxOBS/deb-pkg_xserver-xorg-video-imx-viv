@@ -303,7 +303,9 @@ Bool DoSolidBlit(GALINFOPTR galInfo) {
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     VIV2DBLITINFOPTR pBltInfo = &galInfo->mBlitInfo;
     gcsRECT dstRect = {pBltInfo->mDstBox.x1, pBltInfo->mDstBox.y1, pBltInfo->mDstBox.x2, pBltInfo->mDstBox.y2};
-//    status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
+    status = gco2D_Blit(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
+#else
     status = gco2D_Clear(gpuctx->mDriver->m2DEngine,
         1,
         &dstRect,
@@ -311,6 +313,7 @@ Bool DoSolidBlit(GALINFOPTR galInfo) {
         pBltInfo->mFgRop,
         pBltInfo->mBgRop,
         pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
+#endif
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Blit failed\n");
         TRACE_EXIT(FALSE);

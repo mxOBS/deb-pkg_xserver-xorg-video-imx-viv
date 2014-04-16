@@ -78,7 +78,7 @@ static gceSTATUS FreeVideoNode(
 
     gcmASSERT(Node != 0);
 
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
     iface.command = gcvHAL_RELEASE_VIDEO_MEMORY;
     iface.u.ReleaseVideoMemory.node = Node;
 #else
@@ -87,7 +87,7 @@ static gceSTATUS FreeVideoNode(
 #endif
 
     /* Call kernel API. */
-#if defined(GPU_VERSION_5)
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
     return gcoHAL_Call(Hal, &iface);
 #else
     return gcoHAL_ScheduleEvent(Hal, &iface);

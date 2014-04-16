@@ -61,6 +61,13 @@ void LogText(const char *fmt, ...);
 
 #define FSLASSERT(x) do { if(!(x)) {LOG("Assertion failed @%s:%d\n", __FILE__, __LINE__);} } while(0);
 
+#include "HAL/gc_hal_version.h"
+
+#define GPU_VERSION_GREATER_THAN(major, minor, patch, build) \
+    (gcvVERSION_MAJOR > (major) || (gcvVERSION_MAJOR == (major) && \
+    (gcvVERSION_MINOR > (minor) || (gcvVERSION_MINOR == (minor) && \
+    (gcvVERSION_PATCH > (patch) || (gcvVERSION_PATCH == (patch) && \
+    gcvVERSION_BUILD >= (build)))))))
 
 #include "vivante_exa.h"
 #include "vivante.h"
