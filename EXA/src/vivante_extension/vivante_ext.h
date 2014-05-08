@@ -31,6 +31,7 @@
 #define X_VIVEXTDrawableSetFlag                11
 #define X_VIVEXTPixmapSync                     12
 #define X_VIVEXTRefreshVideoModes              15
+#define X_VIVEXTDisplayFlip                    16
 
 
 #define VIVEXTNumberEvents   		0
@@ -218,6 +219,18 @@ typedef struct {
     CARD32  pad7 B32;
 } xVIVEXTRefreshVideoModesReply;
 #define sz_xVIVEXTRefreshVideoModesReply 32
+
+
+/* Fix tearing: update back surface */
+typedef struct _VIVEXTDisplayFlip {
+       CARD8   reqType;                /* always vivEXTReqCode */
+       CARD8   vivEXTReqType;          /* always X_VIVEXTDisplayFlip */
+       CARD16  length B16;
+       CARD32  screen B32;
+       CARD32  restore B32;
+} xVIVEXTDisplayFlipReq;
+#define sz_xVIVEXTDisplayFlipReq   12
+
 
 void VIVExtensionInit(void);
 

@@ -75,6 +75,7 @@ extern "C" {
     typedef struct _vivRec {
         /*Graphics Context*/
         GALINFO mGrCtx;
+        ScreenPtr pScreen;
         /*FBINFO*/
         FBINFO mFB;
         /*EXA STUFF*/

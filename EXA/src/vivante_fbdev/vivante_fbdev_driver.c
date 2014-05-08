@@ -115,6 +115,8 @@ static void InitShmPixmap(ScreenPtr pScreen);
 static Bool SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn);
 static Bool RestoreSyncFlags(ScrnInfoPtr pScrn);
 static void CheckChipSet(ScrnInfoPtr pScrn);
+static Bool tearingSetVideoBuffer(ScrnInfoPtr pScrn);
+static Bool tearingWrapSurfaces(ScrnInfoPtr pScrn);
 
 static Bool noVIVExtension;
 
@@ -132,6 +134,7 @@ static ExtensionModule VIVExt =
 
 Bool vivEnableCacheMemory = TRUE;
 Bool vivEnableSyncDraw = FALSE;
+Bool vivNoTearing = FALSE;
 
 typedef VivRec FBDevRec;
 typedef VivPtr FBDevPtr;
@@ -214,7 +217,8 @@ typedef enum {
     OPTION_NOACCEL,
     OPTION_ACCELMETHOD,
     OPTION_SYNCDRAW,
-    OPTION_VIVCACHEMEM
+    OPTION_VIVCACHEMEM,
+    OPTION_NOTEARING
 } FBDevOpts;
 
 static const OptionInfoRec FBDevOptions[] = {
@@ -227,6 +231,7 @@ static const OptionInfoRec FBDevOptions[] = {
     { OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_STRING,	{0},	FALSE },
     { OPTION_VIVCACHEMEM,	"VivCacheMem",	OPTV_BOOLEAN,	{0},	FALSE },
     { OPTION_SYNCDRAW,	"SyncDraw",	OPTV_BOOLEAN,	{0},	FALSE },
+    { OPTION_NOTEARING,	"NoTearing",	OPTV_BOOLEAN,	{0},	FALSE },
 	{ -1,			    NULL,		OPTV_NONE,		{0},	FALSE }
 };
 
@@ -557,6 +562,16 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
 
     vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->Options, OPTION_VIVCACHEMEM, TRUE);
     vivEnableSyncDraw = xf86ReturnOptValBool(fPtr->Options, OPTION_SYNCDRAW, FALSE);
+    vivNoTearing = xf86ReturnOptValBool(fPtr->Options, OPTION_NOTEARING, FALSE);
+
+    if(vivNoTearing) {
+        gEnableXRandR = FALSE;
+        pScrn->SwitchMode = fbdevHWSwitchModeWeak();
+        pScrn->AdjustFrame = fbdevHWAdjustFrameWeak();
+        pScrn->EnterVT = fbdevHWEnterVTWeak();
+        pScrn->LeaveVT = fbdevHWLeaveVTWeak();
+        pScrn->ValidMode = fbdevHWValidModeWeak();
+    }
 
 	/* dont use shadow framebuffer by default */
 	fPtr->shadowFB = xf86ReturnOptValBool(fPtr->Options, OPTION_SHADOW_FB, FALSE);
@@ -720,6 +735,13 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
     if(gEnableXRandR)
         imxDisplayPreInit(pScrn);
 
+    if(vivNoTearing) {
+        if(!tearingSetVideoBuffer(pScrn)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to create back surface buffers\n");
+            return FALSE;
+        }
+    }
+
     /* make sure display width is correctly aligned */
     pScrn->displayWidth = IMX_ALIGN(pScrn->virtualX, fPtr->fbAlignWidth);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "FBDevPreInit: adjust display width %d\n", pScrn->displayWidth);
@@ -833,6 +855,17 @@ FBDevScreenInit(SCREEN_INIT_ARGS_DECL)
         fPtr->fbMemorySize = pScrn->videoRam - fPtr->mFB.mFBOffset;
         fPtr->fbMemoryScreenReserve = fPtr->fbMemorySize;
         fPtr->fbMemoryStart2 = NULL;
+    }
+
+    if(vivNoTearing) {
+        // virtual size is reset by xserver; change it to our settings
+        tearingSetVideoBuffer(pScrn);
+
+        // wrap these buffers into Gpu surfaces
+        if(!tearingWrapSurfaces(pScrn)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to wrap back surface buffers\n");
+            return FALSE;
+        }
     }
 
 
@@ -1457,6 +1490,8 @@ static Bool InitExaLayer(ScreenPtr pScreen)
     }
 
     pViv->mFakeExa.mExaDriver = pExa;
+    pViv->pScreen = pScreen;
+
     /*Exa version*/
     pExa->exa_major = EXA_VERSION_MAJOR;
     pExa->exa_minor = EXA_VERSION_MINOR;
@@ -1672,3 +1707,236 @@ CheckChipSet(ScrnInfoPtr pScrn)
 #endif
     }
 }
+
+#include "vivante_priv.h"
+#include "vivante_gal.h"
+
+#define MAX_BACK_SURFACES 3
+static Bool
+tearingSetVideoBuffer(ScrnInfoPtr pScrn)
+{
+    int fd = fbdevHWGetFD(pScrn);
+
+	/* Set video buffer */
+	struct fb_var_screeninfo fbVarScreenInfo;
+	if (0 != ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+		return FALSE;
+	}
+
+    fbVarScreenInfo.xres_virtual = gcmALIGN(fbVarScreenInfo.xres_virtual, WIDTH_ALIGNMENT);
+    fbVarScreenInfo.yres_virtual = gcmALIGN(fbVarScreenInfo.yres_virtual, HEIGHT_ALIGNMENT);
+
+	fbVarScreenInfo.yres_virtual *= (1 + MAX_BACK_SURFACES);
+	fbVarScreenInfo.bits_per_pixel = pScrn->bitsPerPixel;
+
+	if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+		return FALSE;
+	}
+
+    return TRUE;
+}
+
+static GenericSurfacePtr
+tearingWrapSurface(ScrnInfoPtr pScrn, int index)
+{
+    GenericSurfacePtr surf = gcvNULL;
+    gceSTATUS status = gcvSTATUS_OK;
+    gctPOINTER mHandle = gcvNULL;
+
+    int fd = fbdevHWGetFD(pScrn);
+
+	/* Set video buffer */
+	struct fb_var_screeninfo fbVarScreenInfo;
+	if (0 != ioctl(fd, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to get fb var info!\n");
+		return NULL;
+	}
+
+    int fbSize = fbdevHWGetLineLength(pScrn) * fbVarScreenInfo.yres_virtual / (1 + MAX_BACK_SURFACES);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+        "frame size %dx%d\n",
+        fbVarScreenInfo.xres_virtual, fbVarScreenInfo.yres_virtual);
+
+    unsigned int phy = (unsigned int)pScrn->memPhysBase + fbdevHWLinearOffset(pScrn) + fbSize * index;
+    unsigned int vir = (unsigned int)fbdevHWMapVidmem(pScrn) + fbdevHWLinearOffset(pScrn) + fbSize * index;
+
+    status = gcoOS_Allocate(gcvNULL, sizeof (GenericSurface), &mHandle);
+    if (status != gcvSTATUS_OK)
+    {
+        return NULL;
+    }
+    memset(mHandle, 0, sizeof (GenericSurface));
+    surf = (GenericSurfacePtr) mHandle;
+
+    surf->mVideoNode.mSizeInBytes = fbSize;
+    surf->mVideoNode.mPool = gcvPOOL_USER;
+
+    surf->mVideoNode.mPhysicalAddr = phy;
+    surf->mVideoNode.mLogicalAddr = (gctPOINTER) vir;
+
+    surf->mBytesPerPixel = pScrn->bitsPerPixel / 8;
+    surf->mTiling = gcvLINEAR;
+    surf->mAlignedWidth = fbVarScreenInfo.xres_virtual;
+    surf->mAlignedHeight = fbVarScreenInfo.yres_virtual / (1 + MAX_BACK_SURFACES);
+    surf->mStride = fbdevHWGetLineLength(pScrn);
+    surf->mRotation = gcvSURF_0_DEGREE;
+    surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
+    surf->mIsWrapped = gcvTRUE;
+
+    return surf;
+}
+
+static GenericSurfacePtr _surfaces[1+MAX_BACK_SURFACES];
+
+static Bool
+tearingWrapSurfaces(ScrnInfoPtr pScrn)
+{
+    int i;
+    for(i=0; i<sizeof(_surfaces) / sizeof(_surfaces[0]); i++)
+        _surfaces[i] = NULL;
+
+    for(i=0; i<sizeof(_surfaces) / sizeof(_surfaces[0]); i++) {
+        _surfaces[i] = tearingWrapSurface(pScrn, i);
+        if(_surfaces[i] == NULL)
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+static int
+tearingFlip(ScrnInfoPtr pScrn, int index)
+{
+    struct fb_var_screeninfo   var;
+    int fd = fbdevHWGetFD(pScrn);
+
+    // calculate xoff and yoff
+    if (-1 == ioctl(fd, FBIOGET_VSCREENINFO, (void*)&var))
+        return BadRequest;
+
+    var.yoffset = var.yres_virtual * index / (1 + MAX_BACK_SURFACES);
+
+    if (-1 == ioctl(fd, FBIOPAN_DISPLAY, (void*)&var))
+        return BadRequest;
+
+    return Success;
+}
+
+static int
+tearingCopy(ScreenPtr pScreen, int index)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
+    GenericSurfacePtr src;
+    GenericSurfacePtr dst;
+    gcsRECT srcRect;
+    VivPictFormat vivFmt;
+    gceSTATUS status = gcvSTATUS_OK;
+
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (pViv->mGrCtx.mGpu);
+
+    GetDefaultFormat(pScrn->bitsPerPixel, &vivFmt);
+
+    // set source
+    src = _surfaces[0];
+    status = gco2D_SetGenericSource
+            (
+            gpuctx->mDriver->m2DEngine,
+            &src->mVideoNode.mPhysicalAddr,
+            1,
+            &src->mStride,
+            1,
+            src->mTiling,
+            vivFmt.mVivFmt,
+            gcvSURF_0_DEGREE,
+            src->mAlignedWidth,
+            src->mAlignedHeight
+            );
+    if (status != gcvSTATUS_OK) {
+        return -1;
+    }
+
+    // set dest
+    dst = _surfaces[index];
+    status = gco2D_SetGenericTarget
+            (
+            gpuctx->mDriver->m2DEngine,
+            &dst->mVideoNode.mPhysicalAddr,
+            1,
+            &dst->mStride,
+            1,
+            dst->mTiling, // use source surface tiling
+            vivFmt.mVivFmt,
+            gcvSURF_0_DEGREE,
+            dst->mAlignedWidth,
+            dst->mAlignedHeight
+            );
+    if (status != gcvSTATUS_OK) {
+        return -1;
+    }
+
+    // clip
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = pScrn->virtualX;
+    srcRect.bottom = pScrn->virtualY;
+
+    status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &srcRect);
+    if (status != gcvSTATUS_OK) {
+        return -1;
+    }
+
+    // blit this slice to helper surface
+    status = gco2D_BatchBlit(
+            gpuctx->mDriver->m2DEngine,
+            1,
+            &srcRect,
+            &srcRect,
+            0xCC, /* copy */
+            0xCC,
+            vivFmt.mVivFmt
+            );
+
+    if (status != gcvSTATUS_OK) {
+        return -1;
+    }
+
+    // must complete
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    freePixmapQueue();
+
+    return 0;
+}
+
+static Bool dirty = FALSE;
+
+Bool FbDoFlip(ScreenPtr pScreen, int restore)
+{
+    static int index = 1;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+
+    if(restore) {
+        return tearingFlip(pScrn, 0);
+    }
+
+    // if !dirty
+
+    if(tearingCopy(pScreen, index) != 0)
+        return FALSE;
+    if(tearingFlip(pScrn, index) != Success)
+        return FALSE;
+
+    index++;
+    if(index >= (1 + MAX_BACK_SURFACES))
+        index = 1;
+
+    dirty = FALSE;
+    return TRUE;
+}
+
+void OnSurfaceDamaged(ScreenPtr pScreen)
+{
+    dirty = TRUE;
+}
+
+

@@ -777,6 +777,22 @@ ProcVIVEXTRefreshVideoModes(register ClientPtr client)
     return Success;
 }
 
+extern Bool FbDoFlip(ScreenPtr pScreen, int restore);
+
+static int
+ProcVIVEXTDisplayFlip(register ClientPtr client)
+{
+    REQUEST(xVIVEXTDisplayFlipReq);
+    REQUEST_SIZE_MATCH(xVIVEXTDisplayFlipReq);
+
+    ScreenPtr pScreen = screenInfo.screens[stuff->screen];
+
+    if(!FbDoFlip(pScreen, stuff->restore))
+        return BadRequest;
+
+    return Success;
+}
+
 static int
 ProcVIVEXTDispatch(register ClientPtr client)
 {
@@ -797,6 +813,8 @@ ProcVIVEXTDispatch(register ClientPtr client)
 			return ProcVIVEXTPixmapSync(client);
 		case X_VIVEXTRefreshVideoModes:
 			return ProcVIVEXTRefreshVideoModes(client);
+		case X_VIVEXTDisplayFlip:
+			return ProcVIVEXTDisplayFlip(client);
 		default:
 			return BadRequest;
 	}
