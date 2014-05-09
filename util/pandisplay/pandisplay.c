@@ -20,12 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <memory.h>
-#include <sys/socket.h>
-#include <linux/netlink.h>
 #include <errno.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xlibint.h>
@@ -57,7 +53,7 @@ typedef struct _VIVEXTDisplayFlip {
 
 static XExtensionInfo _VIVEXT_info_data;
 static XExtensionInfo *VIVEXT_info = &_VIVEXT_info_data;
-static const char *VIVEXT_extension_name = VIVEXTNAME;
+static /*const */char *VIVEXT_extension_name = VIVEXTNAME;
 
 #define VIVEXTCheckExtension(dpy,i,val) \
   XextCheckExtension (dpy, i, VIVEXT_extension_name, val)

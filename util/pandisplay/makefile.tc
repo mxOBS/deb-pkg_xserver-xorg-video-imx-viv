@@ -39,6 +39,18 @@ CFLAGS += -marm
 
 CFLAGS += -O2
 
+ifneq ($(YOCTO),1)
+# ubuntu
+CFLAGS += -I$(sysroot)/usr/include -I$(sysroot)/usr/include/arm-linux-gnueabi
+# crt1.o & crtn.o
+LDFLAGS += -B$(sysroot)/usr/lib -B$(sysroot)/usr/lib/arm-linux-gnueabi
+# rpath
+LFLAGS += -Wl,-rpath-link,$(sysroot)/lib:$(sysroot)/lib/arm-linux-gnueabi:$(sysroot)/usr/lib:$(sysroot)/usr/lib/arm-linux-gnueabi
+# lib path
+LFLAGS += -L$(sysroot)/usr/lib -L$(sysroot)/lib
+
+endif
+
 endif
 
 # strict check
