@@ -1939,4 +1939,17 @@ void OnSurfaceDamaged(ScreenPtr pScreen)
     dirty = TRUE;
 }
 
+unsigned int GetExaSettings()
+{
+    unsigned int flags = 0;
+
+    if(vivEnableCacheMemory)
+        flags |= 1;
+    if(vivEnableSyncDraw)
+        flags |= 2;
+    if(vivNoTearing)
+        flags |= 4;
+
+    return flags;
+}
 

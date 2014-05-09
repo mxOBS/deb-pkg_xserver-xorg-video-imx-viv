@@ -778,6 +778,7 @@ ProcVIVEXTRefreshVideoModes(register ClientPtr client)
 }
 
 extern Bool FbDoFlip(ScreenPtr pScreen, int restore);
+extern unsigned int GetExaSettings();
 
 static int
 ProcVIVEXTDisplayFlip(register ClientPtr client)
@@ -789,6 +790,32 @@ ProcVIVEXTDisplayFlip(register ClientPtr client)
 
     if(!FbDoFlip(pScreen, stuff->restore))
         return BadRequest;
+
+    return Success;
+}
+
+static int
+ProcVIVEXTGetExaSettings(register ClientPtr client)
+{
+    xVIVEXTGetExaSettingsReply rep = {
+        .type = X_Reply,
+        .sequenceNumber = client->sequence,
+        .length = 0,
+        .flags = 0
+    };
+
+    REQUEST(xVIVEXTGetExaSettingsReq);
+    REQUEST_SIZE_MATCH(xVIVEXTGetExaSettingsReq);
+
+
+    if (stuff->screen >= screenInfo.numScreens) {
+        client->errorValue = stuff->screen;
+        return BadValue;
+    }
+
+    rep.flags = GetExaSettings();
+
+    WriteToClient(client, sizeof(xVIVEXTGetExaSettingsReply), (char *)&rep);
 
     return Success;
 }
@@ -815,6 +842,8 @@ ProcVIVEXTDispatch(register ClientPtr client)
 			return ProcVIVEXTRefreshVideoModes(client);
 		case X_VIVEXTDisplayFlip:
 			return ProcVIVEXTDisplayFlip(client);
+		case X_VIVEXTGetExaSettings:
+			return ProcVIVEXTGetExaSettings(client);
 		default:
 			return BadRequest;
 	}

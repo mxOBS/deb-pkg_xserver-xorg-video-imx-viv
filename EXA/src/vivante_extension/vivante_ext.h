@@ -32,6 +32,7 @@
 #define X_VIVEXTPixmapSync                     12
 #define X_VIVEXTRefreshVideoModes              15
 #define X_VIVEXTDisplayFlip                    16
+#define X_VIVEXTGetExaSettings                 17
 
 
 #define VIVEXTNumberEvents   		0
@@ -231,6 +232,27 @@ typedef struct _VIVEXTDisplayFlip {
 } xVIVEXTDisplayFlipReq;
 #define sz_xVIVEXTDisplayFlipReq   12
 
+typedef struct _VIVEXTGetExaSettings {
+    CARD8   reqType;                /* always vivEXTReqCode */
+    CARD8   vivEXTReqType;          /* always X_VIVEXTRefreshVideoModes */
+    CARD16  length B16;
+    CARD32  screen B32;
+} xVIVEXTGetExaSettingsReq;
+#define sz_xVIVEXTGetExaSettingsReq   8
+
+typedef struct {
+    BYTE    type;			/* X_Reply */
+    BYTE    pad1;
+    CARD16  sequenceNumber B16;
+    CARD32  length B32;
+    CARD32  flags B32;
+    CARD32  pad3 B32;
+    CARD32  pad4 B32;
+    CARD32  pad5 B32;
+    CARD32  pad6 B32;
+    CARD32  pad7 B32;
+} xVIVEXTGetExaSettingsReply;
+#define sz_xVIVEXTGetExaSettingsReply 32
 
 void VIVExtensionInit(void);
 
