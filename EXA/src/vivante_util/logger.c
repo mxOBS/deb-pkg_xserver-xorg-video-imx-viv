@@ -148,7 +148,7 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
         return;
 
     // if this pixmap is noncacheable, then do nothing
-    if((vpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE) == 1)
+    if(vpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE)
     {
         vpixmap->mCpuBusy = FALSE;
         return;

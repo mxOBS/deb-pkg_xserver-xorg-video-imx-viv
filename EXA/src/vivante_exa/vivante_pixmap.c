@@ -241,9 +241,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
             }
 
             pPixmap->devKind = GetStride(vivPixmap);
+            vivPixmap->mFlags = 0;
         }
 
-        vivPixmap->mFlags = 0;
 
         // clear the surface to prevent data leakage
         CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
