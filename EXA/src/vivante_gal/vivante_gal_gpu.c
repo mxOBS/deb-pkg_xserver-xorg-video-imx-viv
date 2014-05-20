@@ -308,7 +308,7 @@ static gctBOOL DestroyDevice(Viv2DDevicePtr device) {
 
 Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
     TRACE_ENTER();
-    static gctBOOL inited = gcvFALSE;
+    gctBOOL inited = (galInfo->mGpu != NULL);
     gctBOOL ret = gcvFALSE;
     gctPOINTER mHandle = gcvNULL;
     VIVGPUPtr gpuctx = NULL;
@@ -336,7 +336,7 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
         TRACE_ERROR("GPU DEVICE INIT FAILED\n");
         TRACE_EXIT(FALSE);
     }
-    inited = gcvTRUE;
+
     galInfo->mGpu = gpuctx;
 
 #if defined(GPU_NO_OVERLAP_BLIT)
