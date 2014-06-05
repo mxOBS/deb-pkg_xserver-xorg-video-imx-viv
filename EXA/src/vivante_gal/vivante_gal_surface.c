@@ -452,7 +452,12 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     }
     TRACE_INFO("DESTROYED SURFACE ADDRESS = %x - %x\n", surf, ppriv->mVidMemInfo);
 
-    surf = AddGSurfIntoPool(surf);
+    // check cache flag: reject incompatible surface
+    enum PixmapCachePolicy cachePolicy = (ppriv->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE) ? NONCACHEABLE : UNKNOWNCACHE;
+    if(cachePolicy == getPixmapCachePolicy())
+    {
+        surf = AddGSurfIntoPool(surf);
+    }
 
     if ( surf ==NULL )
     {
@@ -510,14 +515,14 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
             TRACE_ERROR("Unable to Free video node\n");
             TRACE_EXIT(gcvFALSE);
         }
-delete_wrapper:
-        status = gcoOS_Free(gcvNULL, surf);
-        if (status != gcvSTATUS_OK) {
-            TRACE_ERROR("Unable to Free surface\n");
-            TRACE_EXIT(gcvFALSE);
-        }
-        ppriv->mVidMemInfo = NULL;
     }
+delete_wrapper:
+    status = gcoOS_Free(gcvNULL, surf);
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("Unable to Free surface\n");
+        TRACE_EXIT(gcvFALSE);
+    }
+    ppriv->mVidMemInfo = NULL;
 
     TRACE_EXIT(gcvTRUE);
 }

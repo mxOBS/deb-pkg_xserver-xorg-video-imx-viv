@@ -76,7 +76,8 @@ enum PixmapCachePolicy
 {
     NONCACHEABLE,
     WRITETHROUGH,
-    WRITEALLOC // system default
+    WRITEALLOC, // system default
+    UNKNOWNCACHE
 };
 
 enum PixmapCachePolicy getPixmapCachePolicy();
