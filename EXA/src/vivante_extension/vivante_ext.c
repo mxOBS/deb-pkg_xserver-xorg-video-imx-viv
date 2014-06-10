@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,6 @@
 *
 *****************************************************************************/
 
-
-/*
- * Authors:
- * vivantecorp.com
- *
- */
 
 #ifdef HAVE_XORG_CONFIG_H
 #include <xorg-config.h>
@@ -99,7 +93,7 @@ static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 
 		if (ppriv) {
 			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
-			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+			gcoOS_CacheFlush(gcvNULL, (gctUINT32)surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
 			ppriv->mCpuBusy = FALSE;
 
 		}
@@ -109,10 +103,11 @@ static int ProcVIVEXTDrawableFlush(register ClientPtr client)
 	{
 
 		ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate((PixmapPtr)pDrawable);
+
 		if ( ppriv )
 		{
 			surf = (GenericSurfacePtr)ppriv->mVidMemInfo;
-			gcoOS_CacheFlush(gcvNULL, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+			gcoOS_CacheFlush(gcvNULL, (gctUINT32)surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
 			ppriv->mCpuBusy = FALSE;
 		}
 	}
@@ -179,6 +174,8 @@ static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
     }
 }
 
+#ifdef COMPOSITE
+#else
 static Bool VIVGetParentScreenXY(ScreenPtr pScreen, WindowPtr pWin, int *screenX, int *screenY)
 {
 
@@ -229,6 +226,7 @@ static Bool VIVGetParentScreenXY(ScreenPtr pScreen, WindowPtr pWin, int *screenX
 
 	return TRUE;
 }
+#endif
 
 static Bool
 VIVEXTDrawableInfo(ScreenPtr pScreen,
@@ -391,6 +389,123 @@ static void ClippedRects(ScreenPtr pScreen,
 
 }
 
+static int
+ProcVIVEXTDrawableInfo(register ClientPtr client)
+{
+	WindowPtr		pWin;
+	PixmapPtr		pWinPixmap = NULL;
+	xVIVEXTDrawableInfoReply rep = {
+		.type = X_Reply,
+		.sequenceNumber = client->sequence,
+		.length = 0
+	};
+	DrawablePtr pDrawable;
+	int X=0, Y=0, W=0, H=0;
+	drm_clip_rect_t *pClipRects, *pClippedRects;
+	int relX, relY, rc;
+	#ifndef COMPOSITE
+	int screenX;
+	int screenY;
+    #endif
+
+
+	REQUEST(xVIVEXTDrawableInfoReq);
+	REQUEST_SIZE_MATCH(xVIVEXTDrawableInfoReq);
+
+
+	if (stuff->screen >= screenInfo.numScreens) {
+		client->errorValue = stuff->screen;
+		return BadValue;
+	}
+
+	rc = dixLookupDrawable(&pDrawable, stuff->drawable, client, 0,
+		DixReadAccess);
+	if (rc != Success)
+	return rc;
+
+	if (!VIVEXTDrawableInfo(screenInfo.screens[stuff->screen],
+		pDrawable,
+		(int *) &X,
+		(int *) &Y,
+		(int *) &W,
+		(int *) &H,
+		(int *) &rep.numClipRects,
+		&pClipRects,
+		&relX,
+		&relY,
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
+		(unsigned int *)&rep.nodeName,
+#else
+		(unsigned int *)&rep.backNode,
+#endif
+		(unsigned int *)&rep.phyAddress,
+		(unsigned int *)&rep.alignedWidth,
+		(unsigned int *)&rep.alignedHeight,
+		(unsigned int *)&rep.stride)) {
+		return BadValue;
+	}
+
+	ScreenPtr pScreen = screenInfo.screens[stuff->screen];
+	pWin = NULL;
+	if (pDrawable->type == DRAWABLE_WINDOW) {
+		pWin = (WindowPtr)pDrawable;
+		pWinPixmap = pScreen->GetWindowPixmap(pWin);
+	}
+
+	if (pDrawable->type == DRAWABLE_PIXMAP) {
+		pWinPixmap = (PixmapPtr)pDrawable;
+	}
+
+	rep.drawableX = X;
+	rep.drawableY = Y;
+	rep.drawableWidth = W;
+	rep.drawableHeight = H;
+	rep.length = (SIZEOF(xVIVEXTDrawableInfoReply) - SIZEOF(xGenericReply));
+
+	#ifdef COMPOSITE
+	rep.relX = relX;
+	rep.relY = relY;
+	#else
+	if (pWin){
+		if (VIVGetParentScreenXY(pScreen, pWin, &screenX, &screenY) == FALSE)
+			return BadValue;
+	}
+
+	rep.relX = relX - screenX;
+	rep.relY = relY - screenY;
+	#endif
+
+	pClippedRects = pClipRects;
+
+	if (rep.numClipRects) {
+		/* Clip cliprects to screen dimensions (redirected windows) */
+		pClippedRects = malloc(rep.numClipRects * sizeof(drm_clip_rect_t));
+
+		#ifdef COMPOSITE
+		ClippedRects(pScreen, pWinPixmap, pClipRects, pClippedRects, (int *)&(rep.numClipRects));
+		#else
+		ClippedRects(pScreen, pWinPixmap,screenX, screenY, pClipRects, pClippedRects, (int *)&(rep.numClipRects));
+		#endif
+
+		rep.length += sizeof(drm_clip_rect_t) * rep.numClipRects;
+	}
+
+	rep.length = bytes_to_int32(rep.length);
+
+	WriteToClient(client, sizeof(xVIVEXTDrawableInfoReply), &rep);
+
+	if (rep.numClipRects) {
+	WriteToClient(client,
+	sizeof(drm_clip_rect_t) * rep.numClipRects,
+	pClippedRects);
+	}
+
+    if(pClippedRects && pClippedRects != pClipRects)
+        free(pClippedRects);
+
+	return Success;
+
+}
 
 static Bool VIVFULLScreenCovered(ScreenPtr pScreen, WindowPtr pWin)
 {
@@ -524,127 +639,13 @@ ProcVIVEXTFULLScreenInfo(register ClientPtr client)
 }
 
 static int
-ProcVIVEXTDrawableInfo(register ClientPtr client)
-{
-	WindowPtr		pWin;
-	PixmapPtr		pWinPixmap;
-	xVIVEXTDrawableInfoReply rep = {
-		.type = X_Reply,
-		.sequenceNumber = client->sequence,
-		.length = 0
-	};
-	DrawablePtr pDrawable;
-	int X, Y, W, H;
-	drm_clip_rect_t *pClipRects, *pClippedRects;
-	int relX, relY, rc;
-	#ifndef COMPOSITE
-	int screenX;
-	int screenY;
-    #endif
-
-	REQUEST(xVIVEXTDrawableInfoReq);
-	REQUEST_SIZE_MATCH(xVIVEXTDrawableInfoReq);
-
-
-	if (stuff->screen >= screenInfo.numScreens) {
-		client->errorValue = stuff->screen;
-		return BadValue;
-	}
-
-	rc = dixLookupDrawable(&pDrawable, stuff->drawable, client, 0,
-		DixReadAccess);
-	if (rc != Success)
-	return rc;
-
-	if (!VIVEXTDrawableInfo(screenInfo.screens[stuff->screen],
-		pDrawable,
-		(int *) &X,
-		(int *) &Y,
-		(int *) &W,
-		(int *) &H,
-		(int *) &rep.numClipRects,
-		&pClipRects,
-		&relX,
-		&relY,
-#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
-		(unsigned int *)&rep.nodeName,
-#else
-		(unsigned int *)&rep.backNode,
-#endif
-		(unsigned int *)&rep.phyAddress,
-		(unsigned int *)&rep.alignedWidth,
-		(unsigned int *)&rep.alignedHeight,
-		(unsigned int *)&rep.stride)) {
-		return BadValue;
-	}
-
-	ScreenPtr pScreen = screenInfo.screens[stuff->screen];
-	pWin = NULL;
-	if (pDrawable->type == DRAWABLE_WINDOW) {
-		pWin = (WindowPtr)pDrawable;
-		pWinPixmap = pScreen->GetWindowPixmap(pWin);
-	}
-
-	if (pDrawable->type == DRAWABLE_PIXMAP) {
-		pWinPixmap = (PixmapPtr)pDrawable;
-	}
-
-	rep.drawableX = X;
-	rep.drawableY = Y;
-	rep.drawableWidth = W;
-	rep.drawableHeight = H;
-	rep.length = (SIZEOF(xVIVEXTDrawableInfoReply) - SIZEOF(xGenericReply));
-
-	#ifdef COMPOSITE
-	rep.relX = relX;
-	rep.relY = relY;
-	#else
-	if (pWin){
-		if (VIVGetParentScreenXY(pScreen, pWin, &screenX, &screenY) == FALSE)
-			return BadValue;
-	}
-
-	rep.relX = relX - screenX;
-	rep.relY = relY - screenY;
-	#endif
-
-	pClippedRects = pClipRects;
-
-	if (rep.numClipRects) {
-		/* Clip cliprects to screen dimensions (redirected windows) */
-		pClippedRects = malloc(rep.numClipRects * sizeof(drm_clip_rect_t));
-
-		#ifdef COMPOSITE
-		ClippedRects(pScreen, pWinPixmap, pClipRects, pClippedRects, (int *)&(rep.numClipRects));
-		#else
-		ClippedRects(pScreen, pWinPixmap,screenX, screenY, pClipRects, pClippedRects, (int *)&(rep.numClipRects));
-		#endif
-
-		rep.length += sizeof(drm_clip_rect_t) * rep.numClipRects;
-	}
-
-	rep.length = bytes_to_int32(rep.length);
-
-	WriteToClient(client, sizeof(xVIVEXTDrawableInfoReply), &rep);
-
-	if (rep.numClipRects) {
-	WriteToClient(client,
-	sizeof(drm_clip_rect_t) * rep.numClipRects,
-	pClippedRects);
-	}
-
-    if(pClippedRects && pClippedRects != pClipRects)
-        free(pClippedRects);
-
-	return Success;
-
-}
-
-static int
 ProcVIVEXTPixmapPhysaddr(register ClientPtr client)
 {
 
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
+#else
 	int n;
+#endif
 
 	REQUEST(xVIVEXTPixmapPhysaddrReq);
 	REQUEST_SIZE_MATCH(xVIVEXTPixmapPhysaddrReq);
@@ -680,7 +681,7 @@ ProcVIVEXTPixmapPhysaddr(register ClientPtr client)
 	/* Check if any reply values need byte swapping */
 	if (client->swapped)
 	{
-#if defined(SWAP_SINGLE_PARAMETER)
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
 		swaps(&rep.sequenceNumber);
 		swapl(&rep.length);
 		swapl(&rep.PixmapPhysaddr);
@@ -856,7 +857,11 @@ ProcVIVEXTQueryVersion(
 )
 {
 	xVIVEXTQueryVersionReply rep;
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
+#else
 	register int n;
+#endif
+
 
 	REQUEST_SIZE_MATCH(xVIVEXTQueryVersionReq);
 	rep.type = X_Reply;
@@ -867,7 +872,7 @@ ProcVIVEXTQueryVersion(
 	rep.patchVersion = VIVEXT_PATCH_VERSION;
 
 	if (client->swapped) {
-#if defined(SWAP_SINGLE_PARAMETER)
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
 		swaps(&rep.sequenceNumber);
 		swapl(&rep.length);
 		swaps(&rep.majorVersion);
@@ -892,9 +897,14 @@ SProcVIVEXTQueryVersion(
 	register ClientPtr	client
 )
 {
+
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
+#else
 	register int n;
+#endif
+
 	REQUEST(xVIVEXTQueryVersionReq);
-#if defined(SWAP_SINGLE_PARAMETER)
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
 	swaps(&stuff->length);
 #else
 	swaps(&stuff->length, n);
@@ -946,6 +956,3 @@ VIVExtensionInit(void)
 	VIVEXTErrorBase = extEntry->errorBase;
 
 }
-
-
-

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -464,7 +464,7 @@ Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size,
             physical,
             size,
             mappingInfo,
-            gpuAddress
+            (gctUINT32_PTR)gpuAddress
             );
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("User Memory Mapping Failed\n");
@@ -481,7 +481,7 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
             logical,
             size,
             mappingInfo,
-            gpuAddress
+            (gctUINT32)gpuAddress
             );
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("User Memory UnMapping Failed\n");

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -70,5 +70,4 @@ Bool VivDRIScreenInit(ScreenPtr pScreen);
 void VivDRICloseScreen(ScreenPtr pScreen);
 Bool VivDRIFinishScreenInit(ScreenPtr pScreen);
 void VivUpdateDriScreen(ScrnInfoPtr pScrn);
-
 #endif /* _VIVANTE_DRI_H_ */

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -250,17 +250,6 @@ Bool SetClipping(GALINFOPTR galInfo) {
  * @param gpuctx
  * @return
  */
-static Bool ClearSurface(VIV2DBLITINFOPTR pBltInfo, VIVGPUPtr gpuctx) {
-    TRACE_ENTER();
-    gceSTATUS status = gcvSTATUS_OK;
-    gcsRECT dstRect = {pBltInfo->mDstBox.x1, pBltInfo->mDstBox.y1, pBltInfo->mDstBox.x2, pBltInfo->mDstBox.y2};
-    status = gco2D_Clear(gpuctx->mDriver->m2DEngine, 1, &dstRect, pBltInfo->mColorARGB32, pBltInfo->mFgRop, pBltInfo->mBgRop, pBltInfo->mDstSurfInfo.mFormat.mVivFmt);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("gco2D_Clear failed\n");
-        TRACE_EXIT(FALSE);
-    }
-    TRACE_EXIT(TRUE);
-}
 
 /**
  * Copy blitting
@@ -412,12 +401,10 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     gceSTATUS status = gcvSTATUS_OK;
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
-    GenericSurfacePtr surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
     VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
     VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
     VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
     VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
-    Bool nstflag = TRUE;
 
     gcsRECT mSrcClip = {srcbox->x1, srcbox->y1, srcbox->x2, srcbox->y2};
     gcsRECT mDstClip = {dstbox->x1, dstbox->y1, dstbox->x2, dstbox->y2};
@@ -504,8 +491,6 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
 static Bool composite_stretch_blit_onebyonepixel(GALINFOPTR galInfo, VivBoxPtr opbox) {
     gceSTATUS status = gcvSTATUS_OK;
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
-    VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
-    GenericSurfacePtr surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
 
     gcsRECT srcRect = {0, 0, 1, 1};
     gcsRECT dstRect;
@@ -671,7 +656,6 @@ gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
 
 void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 desheight, gctUINT32 *srcwidth, gctUINT32 *srcheight )
 {
-    gceSURF_ROTATION rt=gcvSURF_0_DEGREE;
     Bool stretchflag;
     struct pixman_vector   srcp1x;
     struct pixman_vector   srcp2x;
@@ -710,6 +694,7 @@ void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 des
             *srcwidth = abs(srcp2x.vector[1]);
             *srcheight = abs(srcp2x.vector[0]);
             break;
+        default:;
     }
 
     return ;
@@ -740,7 +725,6 @@ CalNormalBoxes(GALINFOPTR galInfo, gcsRECT *psrcrect, gcsRECT *pdstrect, int dst
     int subwidth;
     int subheight;
 
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     VivBoxPtr srcbox = &galInfo->mBlitInfo.mSrcBox;
     VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
 
@@ -795,7 +779,6 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
 
     int dstrectxnums;
     int dstrectynums;
-    int i,j;
     int subwidth;
     int subheight;
 
@@ -890,50 +873,6 @@ static Bool BlendSimpleRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
     TRACE_EXIT(TRUE);
 }
 
-static uint32_t
-real_reader (const void *src, int size)
-{
-    switch (size)
-    {
-        case 1:
-            return *(uint8_t *)src;
-        case 2:
-            return *(uint16_t *)src;
-        case 3:
-            return (*(uint32_t *)src) & 0x00FFFFFF;
-        case 4:
-            return *(uint32_t *)src;
-        default:
-            assert (0);
-        return 0; /* silence MSVC */
-    }
-}
-
-static void
-real_writer (void *src, uint32_t value, int size)
-{
-    switch (size)
-    {
-        case 1:
-            *(uint8_t *)src = value;
-            break;
-        case 2:
-            *(uint16_t *)src = value;
-            break;
-        case 3:
-            (*(uint16_t *)src) = value & 0xFFFF;
-            (*( ( (uint8_t *)src )+1) ) = value>>16;
-            break;
-        case 4:
-            *(uint32_t *)src = value;
-        break;
-        default:
-            assert (0);
-            break;
-    }
-}
-
-
 void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     int dstX, int dstY, int width, int height) {
 
@@ -991,9 +930,7 @@ static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurface
     VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
     VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
-    VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
     VivBoxPtr srcbox = &galInfo->mBlitInfo.mOSrcBox;
-    VivBoxPtr dstbox = &galInfo->mBlitInfo.mODstBox;
     Bool retvsurf;
     gctUINT32 physicaladdr;
     gctUINT32 linearaddr;
@@ -1033,9 +970,9 @@ static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurface
     {
 
         case 16:
-            retvsurf = VGetSurfAddrBy16(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy16(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), (int *)&aligned_width, (int *)&aligned_height, (int *)&aligned_pitch);
         case 32:
-            retvsurf = VGetSurfAddrBy32(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy32(galInfo, maxsize, (int *) (&physicaladdr), (int *) (&linearaddr), (int *)&aligned_width, (int *)&aligned_height, (int *)&aligned_pitch);
         default:
             return ;
     }
@@ -1158,8 +1095,7 @@ static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurface
 
 static void ReleaseTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSurfacePtr *pinfo)
 {
-    GenericSurfacePtr srcsurf;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
+    GenericSurfacePtr srcsurf = NULL;
     VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
 
     if (pBlt->mRotation == gcvSURF_0_DEGREE)
@@ -1183,7 +1119,7 @@ static void ReleaseTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox, GenericSur
 Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox) {
     TRACE_ENTER();
     Bool ret = TRUE;
-    GenericSurfacePtr psurfinfo;
+    GenericSurfacePtr psurfinfo = NULL;
 
     /* if rotation happens, set temp surf , currently it is not debugged To fix it, when rotation is on*/
     SetTempSurfForRT(galInfo,opbox,&psurfinfo);

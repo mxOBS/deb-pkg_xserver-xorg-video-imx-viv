@@ -244,7 +244,7 @@ Bool VIVEXTPixmapSync(Display *dpy, unsigned int screen, Pixmap pixmap)
 
 static gceSTATUS _LockVideoNode(
         gcoHAL Hal,
-        gctUINT64 Node,
+        gctUINT32 Node,
         gctUINT32 *Address,
         gctPOINTER *Memory)
 {
@@ -272,7 +272,7 @@ OnError:
 
 static gceSTATUS _UnlockVideoNode(
         gcoHAL Hal,
-        gctUINT64 Node)
+        gctUINT32 Node)
 {
     gcsHAL_INTERFACE iface;
     gceSTATUS status;
