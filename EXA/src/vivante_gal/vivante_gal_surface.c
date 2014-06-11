@@ -422,16 +422,17 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     switch ( getPixmapCachePolicy() )
     {
     case WRITEALLOC:
-        surftype = gcvSURF_CACHEABLE_BITMAP;
+        surftype = gcvSURF_BITMAP;
         cacheable = 1;
         surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
         break;
     case WRITETHROUGH:
-        surftype = gcvSURF_CACHEABLE_BITMAP;
+        surftype = gcvSURF_BITMAP;
         cacheable = 2;
         surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
         break;
     case NONCACHEABLE:
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
         surftype = gcvSURF_BITMAP;
         cacheable = 0;
         break;
@@ -509,18 +510,19 @@ static gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gc
         switch ( cachePolicy )
         {
         case WRITEALLOC:
-            surftype = gcvSURF_CACHEABLE_BITMAP;
+            surftype = gcvSURF_BITMAP;
             cacheable = 1;
             surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
             break;
         case WRITETHROUGH:
-            surftype = gcvSURF_CACHEABLE_BITMAP;
+            surftype = gcvSURF_BITMAP;
             cacheable = 2;
             surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
             break;
         case NONCACHEABLE:
             surftype = gcvSURF_BITMAP;
             cacheable = 0;
+            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
             break;
         }
 #else
