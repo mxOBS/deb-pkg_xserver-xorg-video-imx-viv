@@ -292,6 +292,13 @@ static gceSTATUS _UnlockVideoNode(
                &iface, gcmSIZEOF(iface)));
     gcmONERROR(iface.status);
 
+    /* Do we need to schedule an event for the unlock? */
+    if (iface.u.UnlockVideoMemory.asynchroneous)
+    {
+        iface.u.UnlockVideoMemory.asynchroneous = gcvFALSE;
+        gcmONERROR(gcoHAL_ScheduleEvent(Hal, &iface));
+    }
+
 OnError:
     return status;
 }
