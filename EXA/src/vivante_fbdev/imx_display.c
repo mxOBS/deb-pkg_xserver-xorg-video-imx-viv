@@ -956,7 +956,7 @@ imxDisplayDeleteModes(DisplayModePtr modesList)
 		}
 
 		if (NULL != mode->name) {
-			free(mode->name);
+			free((char*)mode->name);
 		}
 		free(mode);
 	}
