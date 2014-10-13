@@ -37,6 +37,7 @@ static gceSTATUS AllocVideoNode(
         IN gcoHAL Hal,
         IN OUT gctUINT_PTR Size,
         IN OUT gcePOOL *Pool,
+        IN gctUINT32 Flag,
         IN gceSURF_TYPE surftype,
         OUT gctUINT32 *Node) {
     gcsHAL_INTERFACE iface;
@@ -51,7 +52,7 @@ static gceSTATUS AllocVideoNode(
     iface.u.AllocateLinearVideoMemory.alignment = 64;
     iface.u.AllocateLinearVideoMemory.pool = *Pool;
     iface.u.AllocateLinearVideoMemory.type = surftype;
-    iface.u.AllocateLinearVideoMemory.flag = 0;
+    iface.u.AllocateLinearVideoMemory.flag = Flag;
 
     /* Call kernel API. */
     gcmONERROR(gcoHAL_Call(Hal, &iface));
@@ -424,12 +425,12 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     case WRITEALLOC:
         surftype = gcvSURF_BITMAP;
         cacheable = 1;
-        surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
         break;
     case WRITETHROUGH:
         surftype = gcvSURF_BITMAP;
         cacheable = 2;
-        surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
         break;
     case NONCACHEABLE:
         surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
@@ -512,12 +513,12 @@ static gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gc
         case WRITEALLOC:
             surftype = gcvSURF_BITMAP;
             cacheable = 1;
-            surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
             break;
         case WRITETHROUGH:
             surftype = gcvSURF_BITMAP;
             cacheable = 2;
-            surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
             break;
         case NONCACHEABLE:
             surftype = gcvSURF_BITMAP;
@@ -543,7 +544,9 @@ static gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gc
         }
 #endif
 
-        status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
+        status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, 
+                                            cacheable?gcvALLOC_FLAG_CACHEABLE|gcvALLOC_FLAG_CONTIGUOUS:gcvALLOC_FLAG_NONE, 
+                                            surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
         if (status != gcvSTATUS_OK) {
             TRACE_ERROR("Unable to allocate video node\n");
             TRACE_EXIT(FALSE);
