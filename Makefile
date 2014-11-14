@@ -27,6 +27,8 @@ install:
 	chmod 700 $(prefix)/bin/autohdmi
 	mkdir -p $(prefix)/lib/
 	cp $(TOPDIR)/FslExt/src/libfsl_x11_ext.so $(prefix)/lib/
+	mkdir -p $(prefix)/lib/xorg/modules/drivers/
+	cp $(TOPDIR)/EXA/src/vivante_drv.so $(prefix)/lib/xorg/modules/drivers/
 
 clean:
 	$(MAKE) -C $(TOPDIR)/util/autohdmi -f makefile.linux $@
