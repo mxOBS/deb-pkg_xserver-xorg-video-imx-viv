@@ -1,0 +1,17 @@
+Source: xserver-xorg-video-imx-viv
+Priority: extra
+Maintainer: unknown <unknown>
+Build-Depends: debhelper (>= 8.0.0), gpu-viv-bin-x11-dev, xserver-xorg-dev
+Standards-Version: 3.9.3
+Section: libs
+Homepage: <insert the upstream URL, if relevant>
+#Vcs-Git: git://git.debian.org/collab-maint/xserver-xorg-video-imx-viv.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/xserver-xorg-video-imx-viv.git;a=summary
+
+Package: xserver-xorg-video-imx-viv
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}
+Provides: xorg-driver-video
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
