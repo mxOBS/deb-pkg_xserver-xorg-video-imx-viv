@@ -16,8 +16,8 @@ DESTDIR=$(CURDIR)/debian/xserver-xorg-video-imx-viv
 	dh $@ --with xsf
 
 override_dh_auto_build:
-	make -C EXA/src/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
-	make -C FslExt/src/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
+	make -C EXA/src/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1 LFLAGS="-L/usr/lib/galcore"
+	make -C FslExt/src/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1 LFLAGS="-L/usr/lib/galcore"
 	make -C util/autohdmi/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
 
 override_dh_auto_install:
