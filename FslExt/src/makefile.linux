@@ -27,7 +27,7 @@ OBJS := fsl_pixmap_ext.o \
 # macro FREESCALE_EXTENSION is reserved for future use
 LOCAL_CFLAGS += -fPIC 
 LOCAL_CFLAGS += -I. -I.. -I$(sysroot)/usr/include -I$(sysroot)/usr/include/xorg
-LOCAL_CFLAGS += -I$(sysroot)/usr/include/drm
+LOCAL_CFLAGS += -I$(sysroot)/usr/include/libdrm
 
 LOCAL_LFLAGS += -fPIC
 LOCAL_LFLAGS += -L$(sysroot)/usr/lib -lGAL -lXext -lX11 -lc -Wl,-soname -Wl,libfsl_x11_ext.so
