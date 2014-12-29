@@ -548,8 +548,13 @@ static gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gc
                                             cacheable?gcvALLOC_FLAG_CACHEABLE|gcvALLOC_FLAG_CONTIGUOUS:gcvALLOC_FLAG_NONE, 
                                             surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
         if (status != gcvSTATUS_OK) {
-            TRACE_ERROR("Unable to allocate video node\n");
-            TRACE_EXIT(FALSE);
+            status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool,
+                                            cacheable?gcvALLOC_FLAG_CACHEABLE:gcvALLOC_FLAG_NONE,
+                                            surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
+            if (status != gcvSTATUS_OK){
+                TRACE_ERROR("Unable to allocate video node\n");
+                TRACE_EXIT(FALSE);
+            }
         }
 
         status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
