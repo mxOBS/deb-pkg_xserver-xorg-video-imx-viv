@@ -516,8 +516,9 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
 		/* How many bytes from start of 1st buffer to start */
 		/* of 2nd buffer? */
+		/* Use fbMemoryStart2_noxshift instead of fbMemoryStart2 to support PXP which does not support xoffset */
 		const int offsetBytes =
-			imxPtr->fbMemoryStart2 - imxPtr->mFB.mFBStart;
+			imxPtr->fbMemoryStart2_noxshift - imxPtr->mFB.mFBStart;
 
 		/* What should the yoffset by to start of 2nd buffer? */
 		const int yoffset = offsetBytes / fbFixScreenInfo.line_length;
@@ -1217,7 +1218,16 @@ imxCrtcShadowAllocate(xf86CrtcPtr crtc, int width, int height)
 	if ((NULL != imxPtr->fbMemoryStart2) && !fPtr->fbShadowAllocated) {
 
 		fPtr->fbShadowAllocated = TRUE;
-		return imxPtr->fbMemoryStart2;
+
+		/* return buffer address to xserver: make sure xoffset == 0 to support PXP */
+		int offsetBytes =
+			imxPtr->fbMemoryStart2 - imxPtr->mFB.mFBStart;
+		const int fbBytesPerPixel = (pScrn->bitsPerPixel + 7) / 8;
+		const int yoffset = (offsetBytes + width * fbBytesPerPixel - 1) / (width * fbBytesPerPixel);
+		offsetBytes = yoffset * (width * fbBytesPerPixel);
+		imxPtr->fbMemoryStart2_noxshift = imxPtr->mFB.mFBStart + offsetBytes;
+
+		return imxPtr->fbMemoryStart2_noxshift;
 	}
 
 	return NULL;
@@ -1282,7 +1292,7 @@ imxCrtcShadowDestroy(xf86CrtcPtr crtc, PixmapPtr pPixmap, void* data)
 	ImxDisplayPtr fPtr = IMXDISPLAYPTR(imxPtr);
 
 	/* Mark the shadow memory as being available */
-	if (imxPtr->fbMemoryStart2 == data) {
+	if (imxPtr->fbMemoryStart2_noxshift == data) {
 
 		fPtr->fbShadowAllocated = FALSE;
 	}

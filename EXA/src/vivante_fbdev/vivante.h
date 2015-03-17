@@ -112,6 +112,7 @@ extern "C" {
 
         /* virtual addr for start 2nd FB memory for XRandR rotation */
         unsigned char*    fbMemoryStart2;
+        unsigned char*    fbMemoryStart2_noxshift; /* A fix to fbMemoryStart2 to make sure xoffset==0 */
 
         /* total bytes FB memory to reserve for screen(s) */
         int    fbMemoryScreenReserve;
