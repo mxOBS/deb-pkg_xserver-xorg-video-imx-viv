@@ -179,6 +179,7 @@ typedef struct {
 
 
 #define VIVPIXMAP_FLAG_SHARED_CLIENTWRITE_SERVERREAD 1
+#define VIVPIXMAP_FLAG_SHARED_TILED 2
 typedef struct _VIVEXTDrawableSetFlag {
 	CARD8	reqType;		/* always vivEXTReqCode */
 	CARD8	vivEXTReqType;		/* always X_VIVEXTDrawableSetFlag */

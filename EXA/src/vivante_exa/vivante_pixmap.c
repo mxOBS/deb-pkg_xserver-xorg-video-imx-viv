@@ -42,6 +42,8 @@ VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
     IGNORE(align);
     IGNORE(size);
     vivpixmap->mVidMemInfo = NULL;
+    vivpixmap->mLinearVidMemInfo = NULL;
+    vivpixmap->mLinearBufferNeedUpdate = FALSE;
     vivpixmap->mGpuBusy = FALSE;
     vivpixmap->mCpuBusy = FALSE;
     vivpixmap->mSwAnyWay = FALSE;
@@ -211,6 +213,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         }
 
         vivPixmap->mVidMemInfo = NULL;
+        vivPixmap->mLinearVidMemInfo = NULL;
         vivPixmap->mFlags = 0;
 
         TRACE_EXIT(FALSE);
@@ -297,6 +300,35 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
     startDrawingSW();
 
     if (vivpixmap->mRef == 0) {
+        GenericSurfacePtr surf = (GenericSurfacePtr) vivpixmap->mVidMemInfo;
+
+        // create an auxiliary linear buffer if the main buffer is tiled
+        if(surf->mTiling != gcvLINEAR)
+        {
+            GenericSurfacePtr linearSurf = (GenericSurfacePtr) vivpixmap->mLinearVidMemInfo;
+
+            if(linearSurf == NULL)
+            {
+                // allocate linear surface
+                VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
+                if(VIV2DGPUSurfaceAllocEx(gpuctx,
+                        surf->mAlignedWidth,
+                        surf->mAlignedHeight,
+                        surf->mBytesPerPixel,
+                        &linearSurf,
+                        getPixmapCachePolicy()))
+                {
+                    vivpixmap->mLinearVidMemInfo = linearSurf;
+                }
+                else
+                {
+                    vivpixmap->mLinearVidMemInfo = NULL;
+                    TRACE_ERROR("No memory available\n");
+                    TRACE_EXIT(FALSE);
+                }
+            }
+        }
+
         pPix->devPrivate.ptr = MapSurface(vivpixmap);
     }
 

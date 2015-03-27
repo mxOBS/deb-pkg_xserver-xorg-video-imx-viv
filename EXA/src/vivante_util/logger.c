@@ -113,6 +113,7 @@ void queuePixmapToGpu(Viv2DPixmapPtr vpixmap)
     {
         // set flag
         vpixmap->mGpuBusy = TRUE;
+        vpixmap->mLinearBufferNeedUpdate = TRUE;
 
         // store
         p->pixmap = vpixmap;
@@ -163,7 +164,7 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
         }
         else if(ePolicy == WRITEALLOC)
         {
-            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH);
+            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH, 0);
             vpixmap->mCpuBusy = FALSE;
         }
         else if(ePolicy == NONCACHEABLE)
@@ -176,12 +177,12 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
         // this is a dest pixmap
         if(ePolicy == WRITETHROUGH)
         {
-            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, INVALIDATE);
+            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, INVALIDATE, 0);
             vpixmap->mCpuBusy = FALSE;
         }
         else if(ePolicy == WRITEALLOC)
         {
-            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH);
+            VIV2DCacheOperation(&pViv->mGrCtx, vpixmap, FLUSH, 0);
             vpixmap->mCpuBusy = FALSE;
         }
         else if(ePolicy == NONCACHEABLE)
@@ -212,6 +213,8 @@ void postGpuDraw(VivPtr pViv)
     OnSurfaceDamaged(pViv->pScreen);
 }
 
+extern gceSTATUS doResovle(VivPtr pViv, Viv2DPixmapPtr vivpixmap);
+
 void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
 {
     if(vivpixmap)
@@ -219,10 +222,29 @@ void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
         // wait until gpu done
         if(vivpixmap->mGpuBusy)
         {
+            // tile -> linear
+            if(vivpixmap->mLinearVidMemInfo != NULL && vivpixmap->mLinearBufferNeedUpdate)
+            {
+                doResovle(pViv, vivpixmap);
+                // no need to wait hw done ...
+                vivpixmap->mLinearBufferNeedUpdate = FALSE;
+            }
+
             VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
             freePixmapQueue();
             // is it possible this pixmap not in the queue?
             vivpixmap->mGpuBusy = FALSE;
+        }
+
+        // tile -> linear
+        if(vivpixmap->mLinearVidMemInfo != NULL && vivpixmap->mLinearBufferNeedUpdate)
+        {
+            if(doResovle(pViv, vivpixmap) == gcvSTATUS_OK)
+                VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+
+            vivpixmap->mLinearBufferNeedUpdate = FALSE;
+
+            VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, INVALIDATE, 1);
         }
 
         // set flag

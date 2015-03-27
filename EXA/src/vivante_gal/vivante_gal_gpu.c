@@ -404,7 +404,7 @@ Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo) {
     TRACE_EXIT(TRUE);
 }
 
-Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type) {
+Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type, int onLinearBuffer) {
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = (GenericSurfacePtr) (ppix->mVidMemInfo);
     VIVGPUPtr gpuctx = gcvNULL;
@@ -413,6 +413,9 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
         gpuctx = (VIVGPUPtr) (galInfo->mGpu);
     if(gpuctx != gcvNULL)
         Os = gpuctx->mDriver->mOs;
+
+    if(onLinearBuffer)
+        surf = (GenericSurfacePtr) (ppix->mLinearVidMemInfo);
 
     if ( surf == NULL )
         TRACE_EXIT(TRUE);

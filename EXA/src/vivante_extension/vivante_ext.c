@@ -164,6 +164,12 @@ static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
             {
                 VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
                 VIV2DGPUSurfaceReAllocNonCached(gpuctx, ppriv);
+                // set tiled if asked
+                if(stuff->flag & VIVPIXMAP_FLAG_SHARED_TILED)
+                {
+                    GenericSurfacePtr surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
+                    surf->mTiling = gcvSUPERTILED;
+                }
             }
         }
         return  0;

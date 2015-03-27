@@ -388,7 +388,87 @@ static GenericSurfacePtr GrabSurfFromPool(gctUINT alignedwidth, gctUINT alignedh
 /************************************************************************
  * PIXMAP RELATED (START)
  ************************************************************************/
-static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
+static gctBOOL FreeLinearVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
+    TRACE_ENTER();
+    gceSTATUS status = gcvSTATUS_OK;
+    GenericSurfacePtr surf = gcvNULL;
+    gceSURF_TYPE surftype;
+    Bool cacheable;
+
+    surf = (GenericSurfacePtr) (ppriv->mLinearVidMemInfo);
+
+    if(surf == NULL) {
+        TRACE_EXIT(gcvTRUE);
+    }
+
+    if (surf->mIsWrapped) {
+        goto delete_wrapper;
+    }
+    TRACE_INFO("DESTROYED SURFACE ADDRESS = %x - %x\n", surf, ppriv->mLinearVidMemInfo);
+
+    // check cache flag: reject incompatible surface
+    enum PixmapCachePolicy cachePolicy = WRITEALLOC;
+    if(cachePolicy == getPixmapCachePolicy())
+    {
+        surf = AddGSurfIntoPool(surf);
+    }
+
+    if ( surf ==NULL )
+    {
+        ppriv->mLinearVidMemInfo = NULL;
+        TRACE_EXIT(gcvTRUE);
+    }
+
+    if ( surf->mData )
+        pixman_image_unref( (pixman_image_t *)surf->mData );
+
+    surf->mData = gcvNULL;
+
+    switch ( cachePolicy )
+    {
+    case WRITEALLOC:
+        surftype = gcvSURF_BITMAP;
+        cacheable = 1;
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
+        break;
+    case WRITETHROUGH:
+        surftype = gcvSURF_BITMAP;
+        cacheable = 2;
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
+        break;
+    case NONCACHEABLE:
+        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
+        surftype = gcvSURF_BITMAP;
+        cacheable = 0;
+        break;
+    }
+
+    if (surf->mVideoNode.mNode != 0) {
+        if (surf->mVideoNode.mLogicalAddr != gcvNULL) {
+            status = UnlockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, surftype);
+            if (status != gcvSTATUS_OK) {
+                TRACE_ERROR("Unable to UnLock video node\n");
+                TRACE_EXIT(gcvFALSE);
+            }
+        }
+        status = FreeVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("Unable to Free video node\n");
+            TRACE_EXIT(gcvFALSE);
+        }
+    }
+delete_wrapper:
+    status = gcoOS_Free(gcvNULL, surf);
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("Unable to Free surface\n");
+        TRACE_EXIT(gcvFALSE);
+    }
+    ppriv->mLinearVidMemInfo = NULL;
+
+    TRACE_EXIT(gcvTRUE);
+}
+
+static gctBOOL FreeVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = gcvNULL;
@@ -475,6 +555,15 @@ delete_wrapper:
         TRACE_EXIT(gcvFALSE);
     }
     ppriv->mVidMemInfo = NULL;
+
+    TRACE_EXIT(gcvTRUE);
+}
+
+static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
+    TRACE_ENTER();
+
+    FreeLinearVideoMemInfo(gpuctx, ppriv);
+    FreeVideoMemInfo(gpuctx, ppriv);
 
     TRACE_EXIT(gcvTRUE);
 }
@@ -678,6 +767,7 @@ Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix) {
     }
 
     pPix->mVidMemInfo = surf;
+    pPix->mLinearVidMemInfo = NULL;
     TRACE_EXIT(TRUE);
 }
 
@@ -738,6 +828,7 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     surf->mIsWrapped = gcvTRUE;
 
     pPix->mVidMemInfo = surf;
+    pPix->mLinearVidMemInfo = NULL;
     TRACE_EXIT(TRUE);
 }
 
@@ -771,7 +862,10 @@ void * MapSurface(Viv2DPixmapPtr priv) {
     TRACE_ENTER();
     void * returnaddr = NULL;
     GenericSurfacePtr surf;
-    surf = (GenericSurfacePtr) priv->mVidMemInfo;
+    if(priv->mLinearVidMemInfo == 0)
+        surf = (GenericSurfacePtr) priv->mVidMemInfo;
+    else
+        surf = (GenericSurfacePtr) priv->mLinearVidMemInfo;
 
     if ( surf == NULL )
     TRACE_EXIT(0);
@@ -797,6 +891,85 @@ unsigned int GetStride(Viv2DPixmapPtr pixmap) {
     GenericSurfacePtr surf = (GenericSurfacePtr) pixmap->mVidMemInfo;
     TRACE_EXIT(surf->mStride);
 }
+
+gceSTATUS doResovle(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
+{
+    VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
+    VIV2DBLITINFOPTR pBlt = &(pViv->mGrCtx.mBlitInfo);
+
+    GenericSurfacePtr srcSurf = (GenericSurfacePtr) (vivpixmap->mVidMemInfo);
+    GenericSurfacePtr dstSurf = (GenericSurfacePtr) (vivpixmap->mLinearVidMemInfo);
+    VivPictFormat srcFormat;
+    VivPictFormat dstFormat;
+    gceSTATUS status = gcvSTATUS_OK;
+
+    if(srcSurf == NULL || dstSurf == NULL)
+        return gcvSTATUS_INVALID_ADDRESS;
+
+    // set source
+    if (!GetDefaultFormat(srcSurf->mBytesPerPixel*8, &srcFormat)) {
+        return gcvSTATUS_INVALID_DATA;
+    }
+
+    status = gco2D_SetGenericSource
+            (
+            gpuctx->mDriver->m2DEngine,
+            &srcSurf->mVideoNode.mPhysicalAddr,
+            1,
+            &srcSurf->mStride,
+            1,
+            srcSurf->mTiling,
+            srcFormat.mVivFmt,
+            gcvSURF_0_DEGREE,
+            srcSurf->mAlignedWidth,
+            srcSurf->mAlignedHeight
+            );
+    if (status != gcvSTATUS_OK) {
+        return status;
+    }
+
+    // set dest
+    if (!GetDefaultFormat(dstSurf->mBytesPerPixel*8, &dstFormat)) {
+        return gcvSTATUS_INVALID_DATA;
+    }
+
+    status = gco2D_SetGenericTarget
+            (
+            gpuctx->mDriver->m2DEngine,
+            &dstSurf->mVideoNode.mPhysicalAddr,
+            1,
+            &dstSurf->mStride,
+            1,
+            dstSurf->mTiling,
+            dstFormat.mVivFmt,
+            dstSurf->mRotation,
+            dstSurf->mAlignedWidth,
+            dstSurf->mAlignedHeight
+            );
+
+    if (status != gcvSTATUS_OK) {
+        return status;
+    }
+
+    // clip
+    gcsRECT dstRect = {0, 0, dstSurf->mAlignedWidth, dstSurf->mAlignedHeight};
+    status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
+    if (status != gcvSTATUS_OK) {
+        return status;
+    }
+
+    // blit this slice to helper surface
+    status = gco2D_BatchBlit(gpuctx->mDriver->m2DEngine,
+        1, // rect count
+        &dstRect,
+        &dstRect,
+        0xCC,
+        0xCC,
+        dstFormat.mVivFmt);
+
+    return status;
+}
+
 
 /************************************************************************
  * PIXMAP RELATED (END)

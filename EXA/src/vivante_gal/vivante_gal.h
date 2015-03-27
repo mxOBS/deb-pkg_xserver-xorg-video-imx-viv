@@ -125,6 +125,8 @@ extern "C" {
     struct _vivPixmapPriv {
         /*Video Memory*/
         void * mVidMemInfo;
+        void * mLinearVidMemInfo;
+        Bool mLinearBufferNeedUpdate;
         /* Tracks pixmaps busy with GPU operation since last GPU sync. */
         Bool mGpuBusy;
         Bool mCpuBusy;
@@ -255,7 +257,7 @@ extern "C" {
     Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo);
     Bool VIV2DGPUCtxInit(GALINFOPTR galInfo);
     Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo);
-    Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type);
+    Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type, int onLinearBuffer);
     Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress);
     Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, unsigned int gpuAddress);
     Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
