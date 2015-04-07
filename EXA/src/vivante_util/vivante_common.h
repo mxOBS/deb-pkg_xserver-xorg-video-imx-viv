@@ -84,8 +84,9 @@ extern "C" {
 //             gpu: address to be 64-byte aligned; stride 16-pixel aligned; height should be 8-pixel aligned
 // considering rotation, width & height both aligned to 16 pixels
 #define ADDRESS_ALIGNMENT 64
-#define WIDTH_ALIGNMENT 16
-#define HEIGHT_ALIGNMENT 16
+// NO_RESOLVE support: must align to 64
+#define WIDTH_ALIGNMENT 64
+#define HEIGHT_ALIGNMENT 64
 #define BITSTOBYTES(x) (((x)+7)/8)
 
 #define    IMX_EXA_NONCACHESURF_WIDTH 1024
