@@ -1,4 +1,10 @@
-xserver-xorg-video-imx-viv (1-1) unstable; urgency=low
+xserver-xorg-video-imx-viv (5.0.11.p4.4) stable; urgency=low
+
+  * initial release
+
+ -- Josua Mayer <privacy@not.given>  Sun, 12 Apr 2015 12:23:34 +0200
+
+xserver-xorg-video-imx-viv (1) unstable; urgency=low
 
   * Initial release
   * xserver-xorg-video-imx-viv-3.10.17-1.0.1
