@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 #define X_VIVEXTDrawableSetFlag                11
 #define X_VIVEXTPixmapSync                     12
 #define X_VIVEXTRefreshVideoModes              15
+#define X_VIVEXTDisplayFlip                    16
+#define X_VIVEXTGetExaSettings                 17
 
 
 #define VIVEXTNumberEvents   		0
@@ -110,7 +112,11 @@ typedef struct {
 	CARD32      alignedWidth B32;
 	CARD32      alignedHeight B32;
 	CARD32      stride B32;
+#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
+	CARD32      nodeName B32;
+#else
 	CARD32      backNode B32;
+#endif
 	CARD32      phyAddress B32;
 } xVIVEXTDrawableInfoReply;
 
@@ -214,6 +220,39 @@ typedef struct {
     CARD32  pad7 B32;
 } xVIVEXTRefreshVideoModesReply;
 #define sz_xVIVEXTRefreshVideoModesReply 32
+
+
+/* Fix tearing: update back surface */
+typedef struct _VIVEXTDisplayFlip {
+       CARD8   reqType;                /* always vivEXTReqCode */
+       CARD8   vivEXTReqType;          /* always X_VIVEXTDisplayFlip */
+       CARD16  length B16;
+       CARD32  screen B32;
+       CARD32  restore B32;
+} xVIVEXTDisplayFlipReq;
+#define sz_xVIVEXTDisplayFlipReq   12
+
+typedef struct _VIVEXTGetExaSettings {
+    CARD8   reqType;                /* always vivEXTReqCode */
+    CARD8   vivEXTReqType;          /* always X_VIVEXTRefreshVideoModes */
+    CARD16  length B16;
+    CARD32  screen B32;
+} xVIVEXTGetExaSettingsReq;
+#define sz_xVIVEXTGetExaSettingsReq   8
+
+typedef struct {
+    BYTE    type;			/* X_Reply */
+    BYTE    pad1;
+    CARD16  sequenceNumber B16;
+    CARD32  length B32;
+    CARD32  flags B32;
+    CARD32  pad3 B32;
+    CARD32  pad4 B32;
+    CARD32  pad5 B32;
+    CARD32  pad6 B32;
+    CARD32  pad7 B32;
+} xVIVEXTGetExaSettingsReply;
+#define sz_xVIVEXTGetExaSettingsReply 32
 
 void VIVExtensionInit(void);
 

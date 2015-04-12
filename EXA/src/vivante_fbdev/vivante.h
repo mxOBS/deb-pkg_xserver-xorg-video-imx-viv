@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@ extern "C" {
         unsigned long memPhysBase;
         unsigned char* mFBStart; /*logical memory start address*/
         unsigned char* mFBMemory; /*memory  address*/
+        unsigned long memGpuBase; /*address in gpu-2D space (gpu address space: 2D is same as 3D, but different with VG355)*/
         int mFBOffset; /*framebuffer offset*/
     } FBINFO, *FBINFOPTR;
 
@@ -74,6 +75,7 @@ extern "C" {
     typedef struct _vivRec {
         /*Graphics Context*/
         GALINFO mGrCtx;
+        ScreenPtr pScreen;
         /*FBINFO*/
         FBINFO mFB;
         /*EXA STUFF*/

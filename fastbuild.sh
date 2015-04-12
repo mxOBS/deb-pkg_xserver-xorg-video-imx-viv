@@ -51,6 +51,7 @@ if [ "$XSERVER_GREATER_THAN_13" != "1" ]; then
 fi
 make -C FslExt/src/ -f makefile.linux $* || exit 1
 make -C util/autohdmi/ -f makefile.linux $* || exit 1
+make -C util/pandisplay/ -f makefile.linux $* || exit 1
 
 exit 0
 

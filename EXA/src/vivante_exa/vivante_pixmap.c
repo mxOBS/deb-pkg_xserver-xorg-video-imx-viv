@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -180,7 +180,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         DestroySurface(&pViv->mGrCtx, vivPixmap);
 
         /* Store GPU address. */
-        const unsigned long physical = pViv->mFB.memPhysBase + offset;
+        const unsigned long physical = pViv->mFB.memGpuBase + offset;
         if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap, pViv->mFakeExa.mExaDriver->memorySize/2)) { // reserved buffers size is greater than current pixmap used. TODO: move shadow buffer out
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
@@ -241,9 +241,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
             }
 
             pPixmap->devKind = GetStride(vivPixmap);
+            vivPixmap->mFlags = 0;
         }
 
-        vivPixmap->mFlags = 0;
 
         // clear the surface to prevent data leakage
         CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);

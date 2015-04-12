@@ -103,7 +103,7 @@ typedef struct {
 
 static XExtensionInfo _VIVEXT_info_data;
 static XExtensionInfo *VIVEXT_info = &_VIVEXT_info_data;
-static const char *VIVEXT_extension_name = VIVEXTNAME;
+static /*const */char *VIVEXT_extension_name = VIVEXTNAME;
 
 #define VIVEXTCheckExtension(dpy,i,val) \
   XextCheckExtension (dpy, i, VIVEXT_extension_name, val)
@@ -244,7 +244,7 @@ Bool VIVEXTPixmapSync(Display *dpy, unsigned int screen, Pixmap pixmap)
 
 static gceSTATUS _LockVideoNode(
         gcoHAL Hal,
-        gctUINT64 Node,
+        gctUINT32 Node,
         gctUINT32 *Address,
         gctPOINTER *Memory)
 {
@@ -272,7 +272,7 @@ OnError:
 
 static gceSTATUS _UnlockVideoNode(
         gcoHAL Hal,
-        gctUINT64 Node)
+        gctUINT32 Node)
 {
     gcsHAL_INTERFACE iface;
     gceSTATUS status;
@@ -291,6 +291,13 @@ static gceSTATUS _UnlockVideoNode(
                &iface, gcmSIZEOF(iface),
                &iface, gcmSIZEOF(iface)));
     gcmONERROR(iface.status);
+
+    /* Do we need to schedule an event for the unlock? */
+    if (iface.u.UnlockVideoMemory.asynchroneous)
+    {
+        iface.u.UnlockVideoMemory.asynchroneous = gcvFALSE;
+        gcmONERROR(gcoHAL_ScheduleEvent(Hal, &iface));
+    }
 
 OnError:
     return status;
