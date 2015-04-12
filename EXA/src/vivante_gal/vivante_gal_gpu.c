@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -59,7 +59,11 @@ static gctBOOL SetupDriver
     }
 
     /*If Seperated*/
+    #if GPU_VERSION_GREATER_THAN(5, 0, 11, 17486)
+    pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
+    #else
     pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated3D2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
+    #endif
 
     if (pDrvHandle->mIsSeperated) {
         status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_2D);
@@ -304,7 +308,7 @@ static gctBOOL DestroyDevice(Viv2DDevicePtr device) {
 
 Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
     TRACE_ENTER();
-    static gctBOOL inited = gcvFALSE;
+    gctBOOL inited = (galInfo->mGpu != NULL);
     gctBOOL ret = gcvFALSE;
     gctPOINTER mHandle = gcvNULL;
     VIVGPUPtr gpuctx = NULL;
@@ -332,7 +336,7 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
         TRACE_ERROR("GPU DEVICE INIT FAILED\n");
         TRACE_EXIT(FALSE);
     }
-    inited = gcvTRUE;
+
     galInfo->mGpu = gpuctx;
 
 #if defined(GPU_NO_OVERLAP_BLIT)
@@ -380,9 +384,6 @@ Bool VIV2DGPUBlitComplete(GALINFOPTR galInfo, Bool wait) {
     gceSTATUS status = gcvSTATUS_OK;
     VIVGPUPtr gpuctx = (galInfo->mGpu);
     gctBOOL stall = wait ? gcvTRUE : gcvFALSE;
-    gceHARDWARE_TYPE currentType = gcvHARDWARE_INVALID;
-    gcoHAL_GetHardwareType(0, &currentType);
-    FSLASSERT(currentType == 2);
     status = gcoHAL_Commit(gpuctx->mDriver->mHal, stall);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("HAL commit Failed\n");
@@ -463,7 +464,7 @@ Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size,
             physical,
             size,
             mappingInfo,
-            gpuAddress
+            (gctUINT32_PTR)gpuAddress
             );
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("User Memory Mapping Failed\n");
@@ -480,7 +481,7 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
             logical,
             size,
             mappingInfo,
-            gpuAddress
+            (gctUINT32)gpuAddress
             );
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("User Memory UnMapping Failed\n");

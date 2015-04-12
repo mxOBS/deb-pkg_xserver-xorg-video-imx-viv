@@ -148,7 +148,7 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
         return;
 
     // if this pixmap is noncacheable, then do nothing
-    if((vpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE) == 1)
+    if(vpixmap->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE)
     {
         vpixmap->mCpuBusy = FALSE;
         return;
@@ -191,6 +191,8 @@ void preGpuDraw(VivPtr pViv, Viv2DPixmapPtr vpixmap, int bSrc)
     }
 }
 
+extern void OnSurfaceDamaged(ScreenPtr pScreen);
+
 void postGpuDraw(VivPtr pViv)
 {
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx); // need flush?
@@ -206,6 +208,8 @@ void postGpuDraw(VivPtr pViv)
         // fire but not wait
         VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
     }
+
+    OnSurfaceDamaged(pViv->pScreen);
 }
 
 void preCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
@@ -237,6 +241,8 @@ void postCpuDraw(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
         // this pixmap is noncacheable
         vivpixmap->mCpuBusy = FALSE;
     }
+
+    OnSurfaceDamaged(pViv->pScreen);
 }
 
 #if defined(DRAWING_STATISTICS)

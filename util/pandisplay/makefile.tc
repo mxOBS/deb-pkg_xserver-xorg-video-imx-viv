@@ -54,7 +54,7 @@ endif
 endif
 
 # strict check
-#CFLAGS += -Werror
+CFLAGS += -Werror
 
 # prefix: install path. This driver will be copied to $(prefix)/lib/xorg/modules/drivers/
 # when call make -f makefile.linux prefix=... install

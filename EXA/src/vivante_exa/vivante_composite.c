@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 
 #define ITF(x)    IntToxFixed(x)
 #define FTI(x)    xFixedToInt(x)
-
+extern Bool GetBlendingFactors(int op, VivBlendOpPtr vivBlendOp);
 static
 Bool IsPixelOnly(DrawablePtr pDrawable) {
     if ((1 == pDrawable->width) && (1 == pDrawable->height)) {
@@ -37,34 +37,6 @@ Bool IsPixelOnly(DrawablePtr pDrawable) {
         return FALSE;
     }
 }
-
-static
-Bool Is8x8Pixels(DrawablePtr pDrawable) {
-    if ((8 == pDrawable->width) && (8 == pDrawable->height)) {
-
-        return TRUE;
-
-    } else {
-
-        return FALSE;
-    }
-}
-
-static void
-transformPoint(PictTransform * t, xPointFixed * point) {
-    PictVector v;
-
-    v.vector[0] = point->x;
-    v.vector[1] = point->y;
-    v.vector[2] = xFixed1;
-
-    if (t != NULL)
-        PictureTransformPoint(t, &v);
-
-    point->x = v.vector[0];
-    point->y = v.vector[1];
-}
-
 static inline int IsSourceAlphaRequired(int op) {
     return (((
             (1 << PictOpOver) |
@@ -132,9 +104,9 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
     VIV2DBLITINFOPTR pBlt;
     PixmapPtr pxSrc = GetDrawablePixmap(pSrc->pDrawable);
     PixmapPtr pxDst = GetDrawablePixmap(pDst->pDrawable);
-    PixmapPtr pxMsk = NULL;
 
     Bool stretchflag = FALSE;
+
 
     pViv = VIVPTR_FROM_PIXMAP(pxDst);
     pBlt = &pViv->mGrCtx.mBlitInfo;
@@ -508,12 +480,10 @@ IsNotStretched(VIV2DBLITINFOPTR pBlt, VivBoxPtr srcbox, VivBoxPtr dstbox)
 static void
 ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
 
-    gceSTATUS status = gcvSTATUS_OK;
     VivBoxPtr srcbox = &(pBlt->mSrcBox);
     VivBoxPtr dstbox = &(pBlt->mDstBox);
     VivBoxPtr osrcbox = &(pBlt->mOSrcBox);
     VivBoxPtr odstbox = &(pBlt->mODstBox);
-    gceSURF_ROTATION temprt;
     int minwid = 0;
     int minheight = 0;
     float  xfactors = 0.0;

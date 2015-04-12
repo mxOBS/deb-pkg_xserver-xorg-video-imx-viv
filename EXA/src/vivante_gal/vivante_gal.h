@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ extern "C" {
      ******************************************************************************/
 #define IGNORE(a)  (a=a)
 #define VIV_ALIGN( value, base ) (((value) + ((base) - 1)) & ~((base) - 1))
-#if !defined(ARRAY_SIZE)
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof((a)) / (sizeof(*(a))))
 #endif
 #define NO_PICT_FORMAT -1

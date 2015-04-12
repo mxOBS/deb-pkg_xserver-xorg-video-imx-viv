@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2013 by Vivante Corp.
+*    Copyright (C) 2005 - 2014 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -116,7 +116,8 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
     pViv->pDRIInfo = pDRIInfo;
     pDRIInfo->drmDriverName=VivKernelDriverName;
     pDRIInfo->clientDriverName=VivClientDriverName;
-    pDRIInfo->busIdString =(char *)calloc(64, 1);
+    pDRIInfo->busIdString =(char *)malloc(sizeof(char) * 128);
+    memset(pDRIInfo->busIdString,0, sizeof(char) * 128);
     /* use = to copy string and it seems good, but when you free it, it will report invalid pointer, use strcpy instead */
     //pDRIInfo->busIdString="platform:Vivante GCCore";
 #if !defined(BUSID_HAS_NUMBER)

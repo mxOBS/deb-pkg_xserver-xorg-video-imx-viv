@@ -251,7 +251,7 @@ typedef struct {
 
 static XExtensionInfo _VIVEXT_info_data;
 static XExtensionInfo *VIVEXT_info = &_VIVEXT_info_data;
-static const char *VIVEXT_extension_name = VIVEXTNAME;
+static /*const */char *VIVEXT_extension_name = VIVEXTNAME;
 
 #define VIVEXTCheckExtension(dpy,i,val) \
   XextCheckExtension (dpy, i, VIVEXT_extension_name, val)
