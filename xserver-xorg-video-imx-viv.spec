@@ -22,8 +22,8 @@
 # THE SOFTWARE.
 
 Name: xserver-xorg-video-imx-viv
-Version: 1
-Release: 1
+Version: 3.10.17
+Release: 1.0.1
 License: MIT GPL
 Group: System/X11/Servers/XF86_4
 Summary: Vivante X.org driver
