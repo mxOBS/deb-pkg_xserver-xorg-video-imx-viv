@@ -513,6 +513,10 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 	/* If the shadow memory is allocated, then we have some */
 	/* adjustments to do. */
 	if (fPtr->fbShadowAllocated) {
+		/* Fix x-alignment caused by mode change */
+		fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
+		const int fbBytesPerPixel = (pScrn->bitsPerPixel + 7) / 8;
+		const int line_length = fbVarScreenInfo.xres_virtual * fbBytesPerPixel;
 
 		/* How many bytes from start of 1st buffer to start */
 		/* of 2nd buffer? */
@@ -521,7 +525,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 			imxPtr->fbMemoryStart2_noxshift - imxPtr->mFB.mFBStart;
 
 		/* What should the yoffset by to start of 2nd buffer? */
-		const int yoffset = offsetBytes / fbFixScreenInfo.line_length;
+		const int yoffset = offsetBytes / line_length;
 
 		/* What should virtual resolution be adjusted to */
 		/* based on the 2 buffers? */
@@ -529,7 +533,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
 		/* pScrn->displayWidth: not display width in case of rotation. It is desktop width. Use fbFixScreenInfo.line_length */
 		/* to calculate offset */
-		fbVarScreenInfo.xoffset = offsetBytes - yoffset * fbFixScreenInfo.line_length;
+		fbVarScreenInfo.xoffset = offsetBytes - yoffset * line_length;
 		fbVarScreenInfo.yoffset = yoffset;
 		fbVarScreenInfo.yres_virtual = vyres;
 
