@@ -85,7 +85,8 @@ extern "C" {
 // considering rotation, width & height both aligned to 16 pixels
 #define ADDRESS_ALIGNMENT 64
 // NO_RESOLVE support: must align to 64
-#define WIDTH_ALIGNMENT 64
+//#define WIDTH_ALIGNMENT 64
+extern int WIDTH_ALIGNMENT;
 #define HEIGHT_ALIGNMENT 64
 #define BITSTOBYTES(x) (((x)+7)/8)
 

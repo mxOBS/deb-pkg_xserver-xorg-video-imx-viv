@@ -47,6 +47,7 @@ static Bool gEnableXRandR = FALSE;
 static Bool gEnableDRI = FALSE;
 static Bool gEnableFbSyncExt = FALSE;
 #endif
+int WIDTH_ALIGNMENT = 64;
 
 #define XV 1
 
@@ -575,6 +576,13 @@ FBDevPreInit(ScrnInfoPtr pScrn, int flags)
     vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->Options, OPTION_VIVCACHEMEM, TRUE);
     vivEnableSyncDraw = xf86ReturnOptValBool(fPtr->Options, OPTION_SYNCDRAW, FALSE);
     vivNoTearing = xf86ReturnOptValBool(fPtr->Options, OPTION_NOTEARING, FALSE);
+    /* For PXP: alignment reset back to 16 */
+    const char *disEngine = xf86FindOptionValue(fPtr->pEnt->device->options, "DisplayEngine");
+    if(disEngine != NULL && strcmp(disEngine, "pxp") == 0)
+    {
+        WIDTH_ALIGNMENT = 16;
+        fPtr->fbAlignWidth = WIDTH_ALIGNMENT;
+    }
 
     if(vivNoTearing) {
         gEnableXRandR = FALSE;
