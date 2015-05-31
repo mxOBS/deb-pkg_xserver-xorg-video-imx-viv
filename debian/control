@@ -1,7 +1,11 @@
 Source: xserver-xorg-video-imx-viv
 Priority: extra
 Maintainer: unknown <unknown>
-Build-Depends: debhelper (>= 8.0.0), gpu-viv-bin-v4-x11-dev (= 3.10.17-1.0.1), xserver-xorg-dev, libdrm-dev, libxext-dev
+Build-Depends:
+ debhelper (>= 8.0.0),
+ gpu-viv-bin-v4-x11-dev (= 3.10.17-1.0.1),
+ xserver-xorg-dev (<< 2:1.15),
+ libdrm-dev, libxext-dev
 Standards-Version: 3.9.3
 Section: libs
 #Homepage: <insert the upstream URL, if relevant>
