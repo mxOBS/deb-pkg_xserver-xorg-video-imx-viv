@@ -1217,6 +1217,8 @@ imxCrtcShadowAllocate(xf86CrtcPtr crtc, int width, int height)
 	/* Access driver private screen display data */
 	ImxDisplayPtr fPtr = IMXDISPLAYPTR(imxPtr);
 
+	width = IMX_ALIGN(width, imxPtr->fbAlignWidth);
+
 	/* Make sure memory for 2nd buffer is there and not */
 	/* already allocated. */
 	if ((NULL != imxPtr->fbMemoryStart2) && !fPtr->fbShadowAllocated) {
