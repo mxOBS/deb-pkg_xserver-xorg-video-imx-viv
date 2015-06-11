@@ -3,7 +3,8 @@ Priority: extra
 Maintainer: unknown <unknown>
 Build-Depends:
  debhelper (>= 8.0.0),
- gpu-viv-bin-v4-x11-dev (= 3.10.17-1.0.1),
+ gpu-viv-bin-x11 (= 3.10.17~1.0.1),
+ gpu-viv-bin-x11-dev (= 3.10.17~1.0.1),
  xserver-xorg-dev (<< 2:1.15),
  libdrm-dev, libxext-dev
 Standards-Version: 3.9.3
@@ -15,7 +16,7 @@ Section: libs
 Package: xserver-xorg-video-imx-viv
 Section: libs
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}, gpu-viv-bin-v4-x11 (= 3.10.17-1.0.1)
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}, gpu-viv-bin-x11 (= 3.10.17~1.0.1)
 Provides: xorg-driver-video
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Todo
+ T. O. D. O.
