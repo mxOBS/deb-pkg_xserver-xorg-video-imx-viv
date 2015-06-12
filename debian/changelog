@@ -1,3 +1,9 @@
+xserver-xorg-video-imx-viv (5.0.11.p4.5) stable; urgency=medium
+
+  * Initial release
+
+ -- Josua Mayer <privacy@not.given>  Fri, 12 Jun 2015 23:21:24 +0800
+
 xserver-xorg-video-imx-viv (5.0.11.p4.4) stable; urgency=low
 
   * initial release

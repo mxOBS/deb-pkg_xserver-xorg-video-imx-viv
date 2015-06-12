@@ -12,14 +12,20 @@
 # hardcode packaging destdir
 DESTDIR=$(CURDIR)/debian/xserver-xorg-video-imx-viv
 
+# decide on build options
+export BUSID_HAS_NUMBER=1
+export XSERVER_GREATER_THAN_13=1
+ifeq (armhf, $(shell dpkg-architecture -qDEB_HOST_ARCH))
+	export BUILD_HARD_VFP=1
+else
+	export BUILD_HARD_VFP=0
+endif
+
 %:
 	dh $@ --with xsf
 
 override_dh_auto_build:
-	make -C EXA/src/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
-	make -C FslExt/src/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
-	make -C util/autohdmi/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
-	make -C util/pandisplay/ -f makefile.linux BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1
+	./fastbuild.sh
 
 override_dh_auto_install:
 	install -v -m755 -D EXA/src/vivante_drv.so $(DESTDIR)/usr/lib/xorg/modules/drivers/vivante_drv.so
@@ -28,7 +34,4 @@ override_dh_auto_install:
 	install -v -m755 -D util/pandisplay/pandisplay $(DESTDIR)/usr/bin/pandisplay
 
 override_dh_auto_clean:
-	make -C EXA/src/ -f makefile.linux clean
-	make -C FslExt/src/ -f makefile.linux clean
-	make -C util/autohdmi/ -f makefile.linux clean
-	make -C util/pandisplay/ -f makefile.linux clean
+	./fastbuild.sh clean

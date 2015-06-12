@@ -2,7 +2,7 @@ Source: xserver-xorg-video-imx-viv
 Priority: extra
 Maintainer: Josua Mayer <privacy@not.given>
 Build-Depends: debhelper (>= 8.0.0),
- imx-gpu-viv-x11-dev (= 5.0.11.p4.4),
+ imx-gpu-viv-x11-dev (= 5.0.11.p4.5),
  xserver-xorg-dev,
  libdrm-dev,
  libxext-dev
@@ -14,11 +14,11 @@ Vcs-Browser: https://github.com/mxOBS/deb-pkg_xserver-xorg-video-imx-viv
 
 Package: xserver-xorg-video-imx-viv
 Section: libs
-Architecture: any
+Architecture: any-arm
 Depends: ${shlibs:Depends},
  ${misc:Depends},
  ${xviddriver:Depends},
- imx-gpu-viv-x11 (= 5.0.11.p4.4)
+ imx-gpu-viv-x11 (= 5.0.11.p4.5)
 Provides: xorg-driver-video
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
