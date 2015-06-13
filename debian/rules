@@ -16,7 +16,7 @@ DESTDIR=$(CURDIR)/debian/xserver-xorg-video-imx-viv
 	dh $@ --with xsf
 
 override_dh_auto_build:
-	env NODRI=0 BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1 ./fastbuild.sh
+	env NODRI=0 BUSID_HAS_NUMBER=1 XSERVER_GREATER_THAN_13=1 BUILD_HARD_VFP=1 ./fastbuild.sh LFLAGS=-L/usr/lib/galcore
 
 override_dh_auto_install:
 	install -v -m755 -D EXA/src/vivante_drv.so $(DESTDIR)/usr/lib/xorg/modules/drivers/vivante_drv.so
