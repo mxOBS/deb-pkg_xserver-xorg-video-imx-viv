@@ -2,6 +2,8 @@ Source: xserver-xorg-video-imx-viv
 Priority: extra
 Maintainer: Josua Mayer <privacy@not.given>
 Build-Depends: debhelper (>= 8.0.0),
+ imx-gpu-viv-x11 (>= 5.0.11.p4.5),
+ imx-gpu-viv-x11 (<< 5.0.11.p4.6),
  imx-gpu-viv-x11-dev (>= 5.0.11.p4.5),
  imx-gpu-viv-x11-dev (<< 5.0.11.p4.6),
  xserver-xorg-dev,
@@ -20,7 +22,7 @@ Depends: ${shlibs:Depends},
  ${misc:Depends},
  ${xviddriver:Depends},
  imx-gpu-viv-x11 (>= 5.0.11.p4.5),
- imx-gpu-viv-x11-dev (<< 5.0.11.p4.6),
+ imx-gpu-viv-x11 (<< 5.0.11.p4.6),
 Provides: xorg-driver-video
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
