@@ -54,6 +54,7 @@
 #include "vivante.h"
 #include "vivante_priv.h"
 #include "vivante_common.h"
+#include "imx_display.h"
 
 static unsigned char VIVEXTReqCode = 0;
 static int VIVEXTErrorBase;
@@ -162,8 +163,8 @@ static int ProcVIVEXTDrawableSetFlag(register ClientPtr client)
             VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
             if(pViv)
             {
-                VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
-                VIV2DGPUSurfaceReAllocNonCached(gpuctx, ppriv);
+                VIV2DGPUSurfaceReAllocNonCached(&pViv->mGrCtx, ppriv);
+
                 // set tiled if asked
                 if(stuff->flag & VIVPIXMAP_FLAG_SHARED_TILED)
                 {

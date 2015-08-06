@@ -260,6 +260,7 @@ extern "C" {
     Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type, int onLinearBuffer);
     Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress);
     Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, unsigned int gpuAddress);
+    Bool VIV2DGPUSurfaceReAllocNonCached(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
     Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     /************************************************************************

@@ -673,7 +673,8 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
     return VIV2DGPUSurfaceAllocEx(gpuctx, alignedWidth, alignedHeight, bytesPerPixel, surface, getPixmapCachePolicy());
 }
 
-gctBOOL VIV2DGPUSurfaceReAllocNonCached(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
+Bool VIV2DGPUSurfaceReAllocNonCached(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv) {
+    VIVGPUPtr gpuctx = (VIVGPUPtr)galInfo->mGpu;
     GenericSurfacePtr oldSurf = gcvNULL;
     GenericSurfacePtr newSurf = gcvNULL;
     gctUINT32 alignedWidth;
