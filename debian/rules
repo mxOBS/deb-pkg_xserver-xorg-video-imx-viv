@@ -32,6 +32,7 @@ override_dh_auto_install:
 	install -v -m755 -D FslExt/src/libfsl_x11_ext.so $(DESTDIR)/usr/lib/xorg/modules/extensions/libfsl_x11_ext.so
 	install -v -m755 -D util/autohdmi/autohdmi $(DESTDIR)/usr/bin/autohdmi
 	install -v -m755 -D util/pandisplay/pandisplay $(DESTDIR)/usr/bin/pandisplay
+	install -v -m644 -D xorg.conf $(DESTDIR)/etc/X11/xorg.conf.d/20-vivante.conf
 
 override_dh_auto_clean:
 	./fastbuild.sh clean
