@@ -412,6 +412,7 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
     VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
     VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
+    GenericSurfacePtr surf = NULL;
 
     gcsRECT mSrcClip = {srcbox->x1, srcbox->y1, srcbox->x2, srcbox->y2};
     gcsRECT mDstClip = {dstbox->x1, dstbox->y1, dstbox->x2, dstbox->y2};
@@ -419,11 +420,14 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     gcsRECT mOSrcClip = {osrcbox->x1, osrcbox->y1, osrcbox->x2, osrcbox->y2};
     gcsRECT mODstClip = {odstbox->x1, odstbox->y1, odstbox->x2, odstbox->y2};
 
+    surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+    surf -> mRotation = pBlt->mRotation;
     /*setting the source surface*/
     if (!SetSourceSurface(galInfo)) {
         TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
         TRACE_EXIT(FALSE);
     }
+    surf -> mRotation = gcvSURF_0_DEGREE;
 
     /*Setting the dest surface*/
     if (!SetDestinationSurface(galInfo)) {
@@ -553,19 +557,6 @@ static Bool composite_stretch_blit_onebyonepixel(GALINFOPTR galInfo, VivBoxPtr o
     TRACE_EXIT(TRUE);
 }
 
-typedef struct  _trans_node {
-    PictTransform *porg;
-    PictTransform idst;
-    gceSURF_ROTATION rt;
-    Bool stretchflag;
-}TRANS_NODE;
-static TRANS_NODE _v_dst = {0};
-
-#define INSTALL_MATRIX(ptransform) do { pixman_transform_init_identity(&_v_dst.idst); \
-                                        pixman_transform_invert(&_v_dst.idst,(struct pixman_transform *)ptransform); \
-                                        _v_dst.porg = ptransform; \
-                                    } while ( 0)
-
 /**
  * Check if the current transform is supported
  * Only support 90,180,270 rotation
@@ -575,44 +566,6 @@ static TRANS_NODE _v_dst = {0};
  */
 Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag)
 {
-    struct pixman_vector   srcp1;
-    struct pixman_vector   srcp2;
-
-    srcp2.vector[0] = 512;
-    srcp2.vector[1] = 0;
-    srcp2.vector[2] = 0;
-
-    srcp1.vector[0] = 0;
-    srcp1.vector[1] = 0;
-    srcp1.vector[2] = 0;
-
-    INSTALL_MATRIX(ptransform);
-
-    pixman_transform_point(&_v_dst.idst,&srcp1);
-    pixman_transform_point(&_v_dst.idst,&srcp2);
-
-    srcp2.vector[0] = srcp2.vector[0] - srcp1.vector[0];
-    srcp2.vector[1] = srcp2.vector[1] - srcp1.vector[1];
-    srcp2.vector[2] = srcp2.vector[2] - srcp1.vector[2];
-
-    if ( srcp2.vector[0] !=0 && srcp2.vector[1] !=0 )
-        return FALSE;
-
-    _v_dst.stretchflag = FALSE;
-    if ( srcp2.vector[0] != 512 && srcp2.vector[0] != 0 )
-    {
-        *stretchflag = TRUE;
-        _v_dst.stretchflag = TRUE;
-        return TRUE;
-    }
-
-    if ( srcp2.vector[1] != 512 && srcp2.vector[1] != 0 )
-    {
-        *stretchflag = TRUE;
-        _v_dst.stretchflag = TRUE;
-        return TRUE;
-    }
-
     *stretchflag = FALSE;
     return TRUE;
 }
@@ -621,89 +574,44 @@ gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
 {
     gceSURF_ROTATION rt=gcvSURF_0_DEGREE;
 
-    struct pixman_vector   srcp1;
-    struct pixman_vector   srcp2;
-
-    srcp2.vector[0] = 512;
-    srcp2.vector[1] = 0;
-    srcp2.vector[2] = 0;
-
-    srcp1.vector[0] = 0;
-    srcp1.vector[1] = 0;
-    srcp1.vector[2] = 0;
-
-    if (_v_dst.porg != ptransform) {
-        INSTALL_MATRIX(ptransform);
+    if ((ptransform->matrix[0][0]==pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==pixman_fixed_1))
+    {
+        rt = gcvSURF_0_DEGREE;
     }
 
-    pixman_transform_point(&_v_dst.idst,&srcp1);
-    pixman_transform_point(&_v_dst.idst,&srcp2);
-
-    srcp2.vector[0] = srcp2.vector[0] - srcp1.vector[0];
-    srcp2.vector[1] = srcp2.vector[1] - srcp1.vector[1];
-    srcp2.vector[2] = srcp2.vector[2] - srcp1.vector[2];
-
-    if ( srcp2.vector[0] > 0 && srcp2.vector[1] == 0 )
-        rt = gcvSURF_0_DEGREE;
-
-    if ( srcp2.vector[1] <0 && srcp2.vector[0] == 0 )
-        rt = gcvSURF_90_DEGREE;
-
-    if ( srcp2.vector[0] < 0 && srcp2.vector[1] == 0 )
-        rt = gcvSURF_180_DEGREE;
-
-    if ( srcp2.vector[1] >0 && srcp2.vector[0] == 0 )
+    if ((ptransform->matrix[0][0]==0)
+        &&(ptransform->matrix[0][1]==pixman_fixed_1)
+        &&(ptransform->matrix[1][0]==-pixman_fixed_1)
+        &&(ptransform->matrix[1][1]==0))
+    {
         rt = gcvSURF_270_DEGREE;
+    }
 
-    _v_dst.rt = rt;
-
+    if ((ptransform->matrix[0][0]==0)
+        &&(ptransform->matrix[0][1]==-pixman_fixed_1)
+        &&(ptransform->matrix[1][0]==pixman_fixed_1)
+        &&(ptransform->matrix[1][1]==0))
+    {
+        rt = gcvSURF_90_DEGREE;
+    }
+    if ((ptransform->matrix[0][0]==-pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==-pixman_fixed_1))
+    {
+        rt = gcvSURF_180_DEGREE;
+    }
     return rt;
 
 }
 
 void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 desheight, gctUINT32 *srcwidth, gctUINT32 *srcheight )
 {
-    Bool stretchflag;
-    struct pixman_vector   srcp1x;
-    struct pixman_vector   srcp2x;
-
-
-    srcp1x.vector[0] = 0;
-    srcp1x.vector[1] = 0;
-    srcp1x.vector[2] = 0;
-
-    srcp2x.vector[0] = deswidth;
-    srcp2x.vector[1] = desheight;
-    srcp2x.vector[2] = 0;
-
-
-    if (_v_dst.porg != ptransform) {
-        INSTALL_MATRIX(ptransform);
-        VIVTransformSupported(ptransform,&stretchflag);
-        VIVGetRotation(ptransform);
-    }
-
-    pixman_transform_point(&_v_dst.idst,&srcp1x);
-    pixman_transform_point(&_v_dst.idst,&srcp2x);
-
-    srcp2x.vector[0] = srcp2x.vector[0] - srcp1x.vector[0];
-    srcp2x.vector[1] = srcp2x.vector[1] - srcp1x.vector[1];
-    srcp2x.vector[2] = srcp2x.vector[2] - srcp1x.vector[2];
-
-    switch ( _v_dst.rt ) {
-        case gcvSURF_0_DEGREE:
-        case gcvSURF_180_DEGREE:
-            *srcwidth = abs(srcp2x.vector[0]);
-            *srcheight = abs(srcp2x.vector[1]);
-            break;
-        case gcvSURF_90_DEGREE:
-        case gcvSURF_270_DEGREE:
-            *srcwidth = abs(srcp2x.vector[1]);
-            *srcheight = abs(srcp2x.vector[0]);
-            break;
-        default:;
-    }
-
+    *srcwidth = deswidth;
+    *srcheight = desheight;
     return ;
 }
 
@@ -1129,7 +1037,6 @@ Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox) {
     GenericSurfacePtr psurfinfo = NULL;
 
     /* if rotation happens, set temp surf , currently it is not debugged To fix it, when rotation is on*/
-    SetTempSurfForRT(galInfo,opbox,&psurfinfo);
 
     /* Perform rectangle render based on setup in PrepareComposite */
     switch (galInfo->mBlitInfo.mOperationCode) {
@@ -1150,7 +1057,6 @@ Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox) {
         break;
     }
 
-    ReleaseTempSurfForRT(galInfo,opbox, &psurfinfo);
     TRACE_EXIT(ret);
 }
 

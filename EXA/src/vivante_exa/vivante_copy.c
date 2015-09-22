@@ -513,7 +513,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                     1,
                     surf->mTiling,
                     pBlt->mDstSurfInfo.mFormat.mVivFmt,
-                    surf->mRotation,
+                    gcvSURF_0_DEGREE,
                     surf->mAlignedWidth,
                     surf->mAlignedHeight
                     );
