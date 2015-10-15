@@ -1,29 +1,29 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #include "vivante_common.h"
@@ -40,11 +40,11 @@ extern Bool vivEnableCacheMemory;
  * @param Node - returned allocated video node
  * @return  - result of the process
  */
-static gceSTATUS AllocVideoNode(
+gceSTATUS AllocVideoNode(
         IN gcoHAL Hal,
         IN OUT gctUINT_PTR Size,
         IN OUT gcePOOL *Pool,
-        IN gctUINT32 Flag,
+        IN gctBOOL cacheable,
         IN gceSURF_TYPE surftype,
         OUT gctUINT32 *Node) {
     gcsHAL_INTERFACE iface;
@@ -59,7 +59,10 @@ static gceSTATUS AllocVideoNode(
     iface.u.AllocateLinearVideoMemory.alignment = 64;
     iface.u.AllocateLinearVideoMemory.pool = *Pool;
     iface.u.AllocateLinearVideoMemory.type = surftype;
-    iface.u.AllocateLinearVideoMemory.flag = Flag;
+    if ( cacheable )
+        iface.u.AllocateLinearVideoMemory.flag = gcvALLOC_FLAG_CACHEABLE;
+    else
+        iface.u.AllocateLinearVideoMemory.flag = gcvALLOC_FLAG_NONE;
 
     /* Call kernel API. */
     gcmONERROR(gcoHAL_Call(Hal, &iface));
@@ -80,27 +83,18 @@ OnError:
  * @param Node - video node
  * @return result of the process
  */
-static gceSTATUS FreeVideoNode(
+gceSTATUS FreeVideoNode(
         IN gcoHAL Hal,
         IN gctUINT32 Node) {
     gcsHAL_INTERFACE iface;
 
     gcmASSERT(Node != gcvNULL);
 
-#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
     iface.command = gcvHAL_RELEASE_VIDEO_MEMORY;
     iface.u.ReleaseVideoMemory.node = Node;
-#else
-    iface.command = gcvHAL_FREE_VIDEO_MEMORY;
-    iface.u.FreeVideoMemory.node = Node;
-#endif
 
     /* Call kernel API. */
-#if GPU_VERSION_GREATER_THAN(5, 0, 9, 17083)
     return gcoHAL_Call(Hal, &iface);
-#else
-    return gcoHAL_ScheduleEvent(Hal, &iface);
-#endif
 }
 
 /**
@@ -111,10 +105,10 @@ static gceSTATUS FreeVideoNode(
  * @param Memory logical address
  * @return result of the process
  */
-static gceSTATUS LockVideoNode(
+gceSTATUS LockVideoNode(
         IN gcoHAL Hal,
         IN gctUINT32 Node,
-        IN Bool cacheable,
+        IN gctBOOL cacheable,
         OUT gctUINT32 *Address,
         OUT gctPOINTER *Memory) {
     gceSTATUS status;
@@ -124,6 +118,7 @@ static gceSTATUS LockVideoNode(
     gcmASSERT(Memory != gcvNULL);
     gcmASSERT(Node != gcvNULL);
 
+    iface.engine = gcvENGINE_RENDER;
     iface.command = gcvHAL_LOCK_VIDEO_MEMORY;
     iface.u.LockVideoMemory.node = Node;
     iface.u.LockVideoMemory.cacheable = cacheable;
@@ -145,7 +140,7 @@ OnError:
  * @param Node
  * @return
  */
-static gceSTATUS UnlockVideoNode(
+gceSTATUS UnlockVideoNode(
     IN gcoHAL Hal,
     IN gctUINT32 Node,
     IN gceSURF_TYPE surftype) {
@@ -155,6 +150,7 @@ static gceSTATUS UnlockVideoNode(
 
     gcmASSERT(Node != gcvNULL);
 
+    iface.engine = gcvENGINE_RENDER;
     iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
     iface.u.UnlockVideoMemory.node = Node;
     iface.u.UnlockVideoMemory.type = surftype;
@@ -216,18 +212,18 @@ static GPOOLHEAD *__gpoolhead = &__gsmallpoolhead;
 static gctUINT MAX_NODE = MAX_SNODE;
 
 #define SETPOOL(alwidth,alheight,bytesPerPixel) do {    \
-                                            if (( alwidth * alheight * bytesPerPixel ) >= ( AL_WIDTH * AL_HEIGHT *bytesPerPixel))    \
-                                            {                            \
-                                                __gpoolhead = &__gbigpoolhead;    \
-                                                MAX_NODE = MAX_BNODE;    \
-                                                break;                            \
-                                            }                                \
+                                            if (( alwidth * alheight * bytesPerPixel ) >= ( AL_WIDTH * AL_HEIGHT *bytesPerPixel))   \
+                                            {                           \
+                                                __gpoolhead = &__gbigpoolhead;  \
+                                                MAX_NODE = MAX_BNODE;   \
+                                                break;                          \
+                                            }                               \
                                             if ( ( alwidth * alheight * bytesPerPixel ) <= ( AL_SWIDTH * AL_SHEIGHT * bytesPerPixel ) ) \
-                                            {    \
+                                            {   \
                                                 __gpoolhead = &__gsmallpoolhead; \
-                                                MAX_NODE = MAX_SNODE;    \
-                                                break ;                        \
-                                            }    \
+                                                MAX_NODE = MAX_SNODE;   \
+                                                break ;                     \
+                                            }   \
                                             __gpoolhead = &__gmidpoolhead; \
                                             MAX_NODE = MAX_MNODE; \
                                         } while( 0 )
@@ -395,92 +391,11 @@ static GenericSurfacePtr GrabSurfFromPool(gctUINT alignedwidth, gctUINT alignedh
 /************************************************************************
  * PIXMAP RELATED (START)
  ************************************************************************/
-static gctBOOL FreeLinearVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
+static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = gcvNULL;
     gceSURF_TYPE surftype;
-    Bool cacheable;
-
-    surf = (GenericSurfacePtr) (ppriv->mLinearVidMemInfo);
-
-    if(surf == NULL) {
-        TRACE_EXIT(gcvTRUE);
-    }
-
-    if (surf->mIsWrapped) {
-        goto delete_wrapper;
-    }
-    TRACE_INFO("DESTROYED SURFACE ADDRESS = %x - %x\n", surf, ppriv->mLinearVidMemInfo);
-
-    // check cache flag: reject incompatible surface
-    enum PixmapCachePolicy cachePolicy = WRITEALLOC;
-    if(cachePolicy == getPixmapCachePolicy())
-    {
-        surf = AddGSurfIntoPool(surf);
-    }
-
-    if ( surf ==NULL )
-    {
-        ppriv->mLinearVidMemInfo = NULL;
-        TRACE_EXIT(gcvTRUE);
-    }
-
-    if ( surf->mData )
-        pixman_image_unref( (pixman_image_t *)surf->mData );
-
-    surf->mData = gcvNULL;
-
-    switch ( cachePolicy )
-    {
-    case WRITEALLOC:
-        surftype = gcvSURF_BITMAP;
-        cacheable = 1;
-        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        break;
-    case WRITETHROUGH:
-        surftype = gcvSURF_BITMAP;
-        cacheable = 2;
-        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        break;
-    case NONCACHEABLE:
-        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        surftype = gcvSURF_BITMAP;
-        cacheable = 0;
-        break;
-    }
-
-    if (surf->mVideoNode.mNode != 0) {
-        if (surf->mVideoNode.mLogicalAddr != gcvNULL) {
-            status = UnlockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, surftype);
-            if (status != gcvSTATUS_OK) {
-                TRACE_ERROR("Unable to UnLock video node\n");
-                TRACE_EXIT(gcvFALSE);
-            }
-        }
-        status = FreeVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode);
-        if (status != gcvSTATUS_OK) {
-            TRACE_ERROR("Unable to Free video node\n");
-            TRACE_EXIT(gcvFALSE);
-        }
-    }
-delete_wrapper:
-    status = gcoOS_Free(gcvNULL, surf);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Unable to Free surface\n");
-        TRACE_EXIT(gcvFALSE);
-    }
-    ppriv->mLinearVidMemInfo = NULL;
-
-    TRACE_EXIT(gcvTRUE);
-}
-
-static gctBOOL FreeVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
-    TRACE_ENTER();
-    gceSTATUS status = gcvSTATUS_OK;
-    GenericSurfacePtr surf = gcvNULL;
-    gceSURF_TYPE surftype;
-    Bool cacheable;
 
     surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
     if (surf->mIsWrapped) {
@@ -488,12 +403,7 @@ static gctBOOL FreeVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     }
     TRACE_INFO("DESTROYED SURFACE ADDRESS = %x - %x\n", surf, ppriv->mVidMemInfo);
 
-    // check cache flag: reject incompatible surface
-    enum PixmapCachePolicy cachePolicy = (ppriv->mFlags & VIVPIXMAP_FLAG_NONCACHEABLE) ? NONCACHEABLE : UNKNOWNCACHE;
-    if(cachePolicy == getPixmapCachePolicy())
-    {
-        surf = AddGSurfIntoPool(surf);
-    }
+    surf = AddGSurfIntoPool(surf);
 
     if ( surf ==NULL )
     {
@@ -506,26 +416,6 @@ static gctBOOL FreeVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
 
     surf->mData = gcvNULL;
 
-#if 1
-    switch ( getPixmapCachePolicy() )
-    {
-    case WRITEALLOC:
-        surftype = gcvSURF_BITMAP;
-        cacheable = 1;
-        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        break;
-    case WRITETHROUGH:
-        surftype = gcvSURF_BITMAP;
-        cacheable = 2;
-        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        break;
-    case NONCACHEABLE:
-        surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        surftype = gcvSURF_BITMAP;
-        cacheable = 0;
-        break;
-    }
-#else
 #if ALL_NONCACHE_BIGSURFACE
     if ( surf->mAlignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && surf->mAlignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
     {
@@ -539,7 +429,6 @@ static gctBOOL FreeVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     } else {
         surftype = gcvSURF_BITMAP;
     }
-#endif
 
     if (surf->mVideoNode.mNode != 0) {
         if (surf->mVideoNode.mLogicalAddr != gcvNULL) {
@@ -554,29 +443,23 @@ static gctBOOL FreeVideoMemInfo(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
             TRACE_ERROR("Unable to Free video node\n");
             TRACE_EXIT(gcvFALSE);
         }
-    }
 delete_wrapper:
-    status = gcoOS_Free(gcvNULL, surf);
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("Unable to Free surface\n");
-        TRACE_EXIT(gcvFALSE);
+        status = gcoOS_Free(gcvNULL, surf);
+        if (status != gcvSTATUS_OK) {
+            TRACE_ERROR("Unable to Free surface\n");
+            TRACE_EXIT(gcvFALSE);
+        }
+        ppriv->mVidMemInfo = NULL;
     }
-    ppriv->mVidMemInfo = NULL;
 
     TRACE_EXIT(gcvTRUE);
 }
 
-static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
-    TRACE_ENTER();
 
-    FreeLinearVideoMemInfo(gpuctx, ppriv);
-    FreeVideoMemInfo(gpuctx, ppriv);
 
-    TRACE_EXIT(gcvTRUE);
-}
 
-gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
-    gctUINT bytesPerPixel, GenericSurfacePtr * surface, enum PixmapCachePolicy cachePolicy) {
+static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
+    gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = gcvNULL;
@@ -584,9 +467,7 @@ gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT a
     gceSURF_TYPE surftype;
     Bool cacheable;
 
-    /* if desired cache policy is same as default, then try get from pool */
-    if(cachePolicy == getPixmapCachePolicy())
-        surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
+    surf = GrabSurfFromPool(alignedWidth, alignedHeight, bytesPerPixel);
 
     if ( surf == NULL )
     {
@@ -603,27 +484,7 @@ gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT a
         surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
         surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
 
-#if 1
-        switch ( cachePolicy )
-        {
-        case WRITEALLOC:
-            surftype = gcvSURF_BITMAP;
-            cacheable = 1;
-            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-            break;
-        case WRITETHROUGH:
-            surftype = gcvSURF_BITMAP;
-            cacheable = 2;
-            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-            break;
-        case NONCACHEABLE:
-            surftype = gcvSURF_BITMAP;
-            cacheable = 0;
-            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-            break;
-        }
-#else
-#if        ALL_NONCACHE_BIGSURFACE
+#if ALL_NONCACHE_BIGSURFACE
         if ( alignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && alignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
         {
             surftype = gcvSURF_BITMAP;
@@ -638,22 +499,15 @@ gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT a
             surftype = gcvSURF_BITMAP;
             cacheable = FALSE;
         }
-#endif
 
-        status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, 
-                                            cacheable?gcvALLOC_FLAG_CACHEABLE|gcvALLOC_FLAG_CONTIGUOUS:gcvALLOC_FLAG_NONE, 
-                                            surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
+        status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, cacheable, surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
         if (status != gcvSTATUS_OK) {
-            status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool,
-                                            cacheable?gcvALLOC_FLAG_CACHEABLE:gcvALLOC_FLAG_NONE,
-                                            surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
-            if (status != gcvSTATUS_OK){
-                TRACE_ERROR("Unable to allocate video node\n");
-                TRACE_EXIT(FALSE);
-            }
+
+            TRACE_ERROR("Unable to allocate video node\n");
+            TRACE_EXIT(FALSE);
         }
 
-        status = LockVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
+        status = LockVideoNode(gpuctx->mDriver->mHal, (gctUINT32)surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
         if (status != gcvSTATUS_OK) {
             TRACE_ERROR("Unable to Lock video node\n");
             TRACE_EXIT(FALSE);
@@ -673,49 +527,6 @@ gctBOOL VIV2DGPUSurfaceAllocEx(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT a
     *surface = surf;
 
     TRACE_EXIT(TRUE);
-}
-
-static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
-    gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
-    return VIV2DGPUSurfaceAllocEx(gpuctx, alignedWidth, alignedHeight, bytesPerPixel, surface, getPixmapCachePolicy());
-}
-
-Bool VIV2DGPUSurfaceReAllocNonCached(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv) {
-    VIVGPUPtr gpuctx = (VIVGPUPtr)galInfo->mGpu;
-    GenericSurfacePtr oldSurf = gcvNULL;
-    GenericSurfacePtr newSurf = gcvNULL;
-    gctUINT32 alignedWidth;
-    gctUINT32 alignedHeight;
-    gctUINT32 bpp;
-
-    oldSurf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
-
-    if(oldSurf == gcvNULL)
-        return gcvFALSE;
-
-    /* if default to non-cacheable, then no need to realloc */
-    if(getPixmapCachePolicy() == NONCACHEABLE)
-        return gcvTRUE;
-
-    /* save old size */
-    alignedWidth  = oldSurf->mAlignedWidth;
-    alignedHeight = oldSurf->mAlignedHeight;
-    bpp           = oldSurf->mBytesPerPixel;
-
-    /* free old surface */
-    if(FreeGPUSurface(gpuctx, ppriv) == gcvFALSE)
-        return gcvFALSE;
-
-    /* create new surface */
-    if(VIV2DGPUSurfaceAllocEx(gpuctx, alignedWidth, alignedHeight, bpp, &newSurf, NONCACHEABLE))
-    {
-        ppriv->mVidMemInfo = newSurf;
-        return gcvTRUE;
-    }
-    else
-    {
-        return gcvFALSE;
-    }
 }
 
 Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix)
@@ -775,31 +586,24 @@ Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix) {
     }
 
     pPix->mVidMemInfo = surf;
-    pPix->mLinearVidMemInfo = NULL;
     TRACE_EXIT(TRUE);
 }
 
 Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix)
 {
-    VIVGPUPtr gpuctx = (VIVGPUPtr) galInfo->mGpu;
     GenericSurfacePtr surf = NULL;
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
     if ( pPix == NULL )
         TRACE_EXIT(FALSE);
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 
-    preCpuDraw(pViv, pPix);
-
+    pPix->mCpuBusy = TRUE;
     memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
-
-    postCpuDraw(pViv, pPix);
-
     TRACE_EXIT(TRUE);
 
 }
 
-Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix, int bytes) {
+Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix) {
     gceSTATUS status = gcvSTATUS_OK;
     gctUINT alignedWidth, alignedHeight;
     gctUINT bytesPerPixel;
@@ -817,10 +621,7 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
     bytesPerPixel = BITSTOBYTES(pPixmap->drawable.bitsPerPixel);
 
-    /* fix pPixmap->devKind */
-    //pPixmap->devKind = alignedWidth * bytesPerPixel;
-
-    surf->mVideoNode.mSizeInBytes = bytes;
+    surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
     surf->mVideoNode.mPool = gcvPOOL_USER;
 
     surf->mVideoNode.mPhysicalAddr = physical;
@@ -830,13 +631,12 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     surf->mTiling = gcvLINEAR;
     surf->mAlignedWidth = alignedWidth;
     surf->mAlignedHeight = alignedHeight;
-    surf->mStride = pPixmap->devKind;
+    surf->mStride = alignedWidth * bytesPerPixel;
     surf->mRotation = gcvSURF_0_DEGREE;
     surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
     surf->mIsWrapped = gcvTRUE;
 
     pPix->mVidMemInfo = surf;
-    pPix->mLinearVidMemInfo = NULL;
     TRACE_EXIT(TRUE);
 }
 
@@ -847,17 +647,6 @@ Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppix) {
         TRACE_INFO("NOT GPU GENERATED SURFACE\n");
         TRACE_EXIT(TRUE);
     }
-
-    if(ppix != NULL) {
-        if(ppix->mGpuBusy) {
-            FSLASSERT(!isGpuSyncMode());
-
-            // wait until gpu done
-            VIV2DGPUBlitComplete(galInfo, TRUE);
-            freePixmapQueue();
-        }
-    }
-
     if (!FreeGPUSurface(gpuctx, ppix)) {
         TRACE_ERROR("Unable to free gpu surface\n");
         TRACE_EXIT(FALSE);
@@ -870,10 +659,7 @@ void * MapSurface(Viv2DPixmapPtr priv) {
     TRACE_ENTER();
     void * returnaddr = NULL;
     GenericSurfacePtr surf;
-    if(priv->mLinearVidMemInfo == 0)
-        surf = (GenericSurfacePtr) priv->mVidMemInfo;
-    else
-        surf = (GenericSurfacePtr) priv->mLinearVidMemInfo;
+    surf = (GenericSurfacePtr) priv->mVidMemInfo;
 
     if ( surf == NULL )
     TRACE_EXIT(0);
@@ -900,85 +686,6 @@ unsigned int GetStride(Viv2DPixmapPtr pixmap) {
     TRACE_EXIT(surf->mStride);
 }
 
-gceSTATUS doResovle(VivPtr pViv, Viv2DPixmapPtr vivpixmap)
-{
-    VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
-    VIV2DBLITINFOPTR pBlt = &(pViv->mGrCtx.mBlitInfo);
-
-    GenericSurfacePtr srcSurf = (GenericSurfacePtr) (vivpixmap->mVidMemInfo);
-    GenericSurfacePtr dstSurf = (GenericSurfacePtr) (vivpixmap->mLinearVidMemInfo);
-    VivPictFormat srcFormat;
-    VivPictFormat dstFormat;
-    gceSTATUS status = gcvSTATUS_OK;
-
-    if(srcSurf == NULL || dstSurf == NULL)
-        return gcvSTATUS_INVALID_ADDRESS;
-
-    // set source
-    if (!GetDefaultFormat(srcSurf->mBytesPerPixel*8, &srcFormat)) {
-        return gcvSTATUS_INVALID_DATA;
-    }
-
-    status = gco2D_SetGenericSource
-            (
-            gpuctx->mDriver->m2DEngine,
-            &srcSurf->mVideoNode.mPhysicalAddr,
-            1,
-            &srcSurf->mStride,
-            1,
-            srcSurf->mTiling,
-            srcFormat.mVivFmt,
-            gcvSURF_0_DEGREE,
-            srcSurf->mAlignedWidth,
-            srcSurf->mAlignedHeight
-            );
-    if (status != gcvSTATUS_OK) {
-        return status;
-    }
-
-    // set dest
-    if (!GetDefaultFormat(dstSurf->mBytesPerPixel*8, &dstFormat)) {
-        return gcvSTATUS_INVALID_DATA;
-    }
-
-    status = gco2D_SetGenericTarget
-            (
-            gpuctx->mDriver->m2DEngine,
-            &dstSurf->mVideoNode.mPhysicalAddr,
-            1,
-            &dstSurf->mStride,
-            1,
-            dstSurf->mTiling,
-            dstFormat.mVivFmt,
-            dstSurf->mRotation,
-            dstSurf->mAlignedWidth,
-            dstSurf->mAlignedHeight
-            );
-
-    if (status != gcvSTATUS_OK) {
-        return status;
-    }
-
-    // clip
-    gcsRECT dstRect = {0, 0, dstSurf->mAlignedWidth, dstSurf->mAlignedHeight};
-    status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
-    if (status != gcvSTATUS_OK) {
-        return status;
-    }
-
-    // blit this slice to helper surface
-    status = gco2D_BatchBlit(gpuctx->mDriver->m2DEngine,
-        1, // rect count
-        &dstRect,
-        &dstRect,
-        0xCC,
-        0xCC,
-        dstFormat.mVivFmt);
-
-    return status;
-}
-
-
 /************************************************************************
  * PIXMAP RELATED (END)
  ************************************************************************/
@@ -988,65 +695,119 @@ Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
     gceSTATUS status = gcvSTATUS_OK;
     gctPOINTER logical = (gctPOINTER) mmInfo->mUserAddr;
     gctSIZE_T size = (gctSIZE_T) (mmInfo->mSize);
-    gctPOINTER mappingInfo = NULL;
     gctUINT32 physical = 0;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    gctUINT32 handle = 0;
+    gcsUSER_MEMORY_DESC desc = {
+        .flag     = gcvALLOC_FLAG_USERMEMORY,
+        .logical  = gcmPTR_TO_UINT64(logical),
+        .physical = gcvINVALID_ADDRESS,
+        .size     = size,
+    };
 
-    status = gcoOS_MapUserMemory(gpuctx->mDriver->mOs, logical, size, &mappingInfo, &physical);
+    status = gcoHAL_WrapUserMemory(&desc, &handle);
+
     if (status < 0) {
-        TRACE_ERROR("Mapping Failed\n");
-        gcoOS_UnmapUserMemory(gpuctx->mDriver->mOs, logical, size, mappingInfo, physical);
+        TRACE_ERROR("Wrap Failed\n");
         mmInfo->physical = 0;
-        mmInfo->mapping = NULL;
         TRACE_EXIT(FALSE);
     }
+
+    status = LockVideoNode(gcvNULL, handle, gcvFALSE, &physical, &logical);
+
+    if (status < 0) {
+        TRACE_ERROR("Lock Failed\n");
+        gcoHAL_ReleaseVideoMemory(handle);
+        mmInfo->physical = 0;
+        TRACE_EXIT(FALSE);
+    }
+
     mmInfo->physical = physical;
-    mmInfo->mapping = mappingInfo;
+    mmInfo->handle = handle;
     TRACE_EXIT(TRUE);
 }
 
 void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
-    gctPOINTER logical = (gctPOINTER) mmInfo->mUserAddr;
-    gctSIZE_T size = (gctSIZE_T) (mmInfo->mSize);
-    gctPOINTER mappingInfo = (gctPOINTER) mmInfo->mapping;
-    gctUINT32 physical = (gctUINT32) mmInfo->physical;
-    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
-    status = gcoOS_UnmapUserMemory(gpuctx->mDriver->mOs, logical, size, mappingInfo, physical);
+    gctUINT32 handle = mmInfo->handle;
+
+    status = UnlockVideoNode(gcvNULL, handle, gcvSURF_BITMAP);
     if (status < 0) {
-        TRACE_ERROR("UnMapping Failed\n");
+        TRACE_ERROR("Unlock Failed\n");
     }
+
+    status = FreeVideoNode(gcvNULL, handle);
+    if (status < 0) {
+        TRACE_ERROR("Free Failed\n");
+    }
+
     mmInfo->physical = 0;
-    mmInfo->mapping = NULL;
     TRACE_EXIT();
 }
 
-
-#define  MAX_WIDTH        1024
-#define  MAX_HEIGHT        1024
+#define  MAX_WIDTH      1024
+#define  MAX_HEIGHT     1024
 
 typedef struct _IVSURF {
-gcoSURF    surf;
-int        lineaddr;
+gcoSURF surf;
+long        lineaddr;
 }IVSURF,*PIVSURF;
 
-static IVSURF _vsurf16={NULL,0};
-static IVSURF _vsurf32={NULL,0};
+
+static IVSURF _vsurf16_1 = {NULL,0};
+static IVSURF _vsurf32_1 = {NULL,0};
+
+static IVSURF _vsurf16_2 = {NULL,0};
+static IVSURF _vsurf32_2 = {NULL,0};
+
+static IVSURF _vsurf16_3 = {NULL,0};
+static IVSURF _vsurf32_3 = {NULL,0};
+
+static PIVSURF _vsurf16=&_vsurf16_1;
+static PIVSURF _vsurf32=&_vsurf32_1;
+
+static gctUINT32 _surfIndex = 0;
+
+void VSetSurfIndex(int n)
+{
+    switch (n) {
+        case 1:
+            _vsurf16 = & _vsurf16_1;
+            _vsurf32 = & _vsurf32_1;
+            _surfIndex = 0;
+            break;
+        case 2:
+            _vsurf16 = & _vsurf16_2;
+            _vsurf32 = & _vsurf32_2;
+            _surfIndex = 1;
+            break;
+        case 3:
+            _vsurf16 = & _vsurf16_3;
+            _vsurf32 = & _vsurf32_3;
+            _surfIndex = 2;
+            break;
+        default:
+            _vsurf16 = & _vsurf16_1;
+            _vsurf32 = & _vsurf32_1;
+            _surfIndex = 0;
+            break;
+    }
+
+}
 
 static Bool VDestroySurf16() {
     gceSTATUS status = gcvSTATUS_OK;
 
-    if (_vsurf16.surf==NULL) TRACE_EXIT(TRUE);
+    if (_vsurf16->surf==NULL) TRACE_EXIT(TRUE);
 
-     status=gcoSURF_Unlock(_vsurf16.surf, &(_vsurf16.lineaddr));
+    status=gcoSURF_Unlock(_vsurf16->surf, &(_vsurf16->lineaddr));
 
     if (status!=gcvSTATUS_OK)
         TRACE_EXIT(FALSE);
 
-    status=gcoSURF_Destroy(_vsurf16.surf);
+    status=gcoSURF_Destroy(_vsurf16->surf);
 
-    _vsurf16.surf=NULL;
+    _vsurf16->surf=NULL;
 
     TRACE_EXIT(TRUE);
 }
@@ -1055,129 +816,82 @@ static Bool VDestroySurf32() {
 
     gceSTATUS status = gcvSTATUS_OK;
 
-    if (_vsurf32.surf==NULL) TRACE_EXIT(TRUE);
+    if (_vsurf32->surf==NULL) TRACE_EXIT(TRUE);
 
-    status=gcoSURF_Unlock(_vsurf32.surf, &(_vsurf32.lineaddr));
+    status=gcoSURF_Unlock(_vsurf32->surf, &(_vsurf32->lineaddr));
 
     if (status!=gcvSTATUS_OK)
         TRACE_EXIT(FALSE);
 
-    status=gcoSURF_Destroy(_vsurf32.surf);
+    status=gcoSURF_Destroy(_vsurf32->surf);
 
-    _vsurf32.surf=NULL;
+    _vsurf32->surf=NULL;
 
     TRACE_EXIT(TRUE);
 
 }
 
-#if defined(GPU_NO_OVERLAP_BLIT)
-// Allocate a buffer, desired size is width x height
-gcoSURF VAllocBuffer(GALINFOPTR galInfo,int width, int height, int bpp)
-{
-    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
-    gceSTATUS status = gcvSTATUS_OK;
-    gcoSURF    surf;
-
-    status=gcoSURF_Construct(gpuctx->mDriver->mHal,
-        width,
-        height,
-        1,
-        gcvSURF_BITMAP,
-        (bpp==16 ? gcvSURF_R5G6B5 : gcvSURF_A8R8G8B8),
-        gcvPOOL_DEFAULT,
-        &surf);
-
-    if (status!=gcvSTATUS_OK)
-        return NULL;
-
-    return surf;
-}
-
-void VFreeBuffer(gcoSURF surf)
-{
-    if(surf != NULL)
-        gcoSURF_Destroy(surf);
-}
-#endif
-
-// FIXME! cacheable buffer, shared by two users!
 Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
- {
-
-    static int gphyaddr;
-    static int glgaddr;
-    static int gwidth;
-    static int gheight;
-    static int gstride;
-    static int lastmaxsize=0;
+{
+    static unsigned int gphyaddr[4];
+    static unsigned int glgaddr[4];
+    static unsigned int gwidth[4];
+    static unsigned int gheight[4];
+    static int gstride[4];
+    static int lastmaxsize[4]={ 0 };
 
     gceSTATUS status = gcvSTATUS_OK;
 
-       VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
 
-    if (maxsize <MAX_WIDTH)
-        maxsize=MAX_WIDTH;
+    if (maxsize < MAX_WIDTH)
+        maxsize = MAX_WIDTH;
 
-    if (_vsurf16.surf && (maxsize >lastmaxsize)) {
+    if (_vsurf16->surf && (maxsize >lastmaxsize[_surfIndex])) {
         if (VDestroySurf16()!=TRUE)
             TRACE_EXIT(FALSE);
-        lastmaxsize=maxsize;
+        lastmaxsize[_surfIndex]=maxsize;
     }
 
-    if (_vsurf16.surf==NULL) {
-        gceSURF_TYPE surfType;
-#if defined HAS_gcoSURF_Cache
-        switch(getPixmapCachePolicy())
-        {
-        case WRITETHROUGH:
-            surfType = gcvSURF_CACHEABLEEX | gcvSURF_CACHEABLE_BITMAP; break;
-        case WRITEALLOC:
-            surfType = gcvSURF_CACHEABLE_BITMAP; break;
-        case NONCACHEABLE:
-        default:
-            surfType = gcvSURF_BITMAP; break;
-        }
-#else
-        surfType = gcvSURF_BITMAP;
-#endif
+    if (_vsurf16->surf==NULL) {
 
-        lastmaxsize=maxsize;
-        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,surfType,gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16.surf));
+        lastmaxsize[_surfIndex]=maxsize;
+        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,gcvSURF_BITMAP,gcvSURF_R5G6B5,gcvPOOL_DEFAULT,&(_vsurf16->surf));
 
         if (status!=gcvSTATUS_OK)
             TRACE_EXIT(FALSE);
 
-        status=gcoSURF_GetAlignedSize(_vsurf16.surf,&gwidth,&gheight,&gstride);
+        status=gcoSURF_GetAlignedSize(_vsurf16->surf,&gwidth[_surfIndex],&gheight[_surfIndex],&gstride[_surfIndex]);
 
         if (status!=gcvSTATUS_OK)
             TRACE_EXIT(FALSE);
 
-        status=gcoSURF_Lock(_vsurf16.surf,  &gphyaddr, (void *)&glgaddr);
+        status=gcoSURF_Lock(_vsurf16->surf,  &gphyaddr[_surfIndex], (void *)&glgaddr[_surfIndex]);
 
-        _vsurf16.lineaddr=glgaddr;
+        _vsurf16->lineaddr=glgaddr[_surfIndex];
 
     }
 
-    *phyaddr=gphyaddr;
-    *lgaddr=glgaddr;
-    *width=gwidth;
-    *height=gheight;
-    *stride=gstride;
+    *phyaddr=gphyaddr[_surfIndex];
+    *lgaddr=glgaddr[_surfIndex];
+    *width=gwidth[_surfIndex];
+    *height=gheight[_surfIndex];
+    *stride=gstride[_surfIndex];
 
     TRACE_EXIT(TRUE);
 
- }
+}
 
 
- Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
- {
+Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+{
+    static unsigned int gphyaddr[4];
+    static unsigned int glgaddr[4];
+    static unsigned int gwidth[4];
+    static unsigned int gheight[4];
 
-    static int gphyaddr;
-    static int glgaddr;
-    static int gwidth;
-    static int gheight;
-    static int gstride;
-    static int lastmaxsize=0;
+    static int gstride[4];
+    static int lastmaxsize[4]={0};
     gceSTATUS status = gcvSTATUS_OK;
 
     VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
@@ -1185,96 +899,44 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
     if (maxsize <MAX_WIDTH)
         maxsize=MAX_WIDTH;
 
-    if (_vsurf32.surf && (maxsize >lastmaxsize)) {
+    if (_vsurf32->surf && (maxsize >lastmaxsize[_surfIndex])) {
         if (VDestroySurf32()!=TRUE)
             TRACE_EXIT(FALSE);
-        lastmaxsize=maxsize;
+        lastmaxsize[_surfIndex]=maxsize;
     }
 
 
-    if (_vsurf32.surf==NULL) {
-        gceSURF_TYPE surfType;
-#if defined HAS_gcoSURF_Cache
-        switch(getPixmapCachePolicy())
-        {
-        case WRITETHROUGH:
-            surfType = gcvSURF_CACHEABLEEX | gcvSURF_CACHEABLE_BITMAP; break;
-        case WRITEALLOC:
-            surfType = gcvSURF_CACHEABLE_BITMAP; break;
-        case NONCACHEABLE:
-        default:
-            surfType = gcvSURF_BITMAP; break;
-        }
-#else
-        surfType = gcvSURF_BITMAP;
-#endif
+    if (_vsurf32->surf==NULL) {
 
-        lastmaxsize=maxsize;
-        status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,surfType,gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32.surf));
+    lastmaxsize[_surfIndex]=maxsize;
+    status=gcoSURF_Construct(gpuctx->mDriver->mHal,maxsize,maxsize,1,gcvSURF_BITMAP,gcvSURF_A8R8G8B8,gcvPOOL_DEFAULT,&(_vsurf32->surf));
 
-        if (status!=gcvSTATUS_OK)
-            TRACE_EXIT(FALSE);
+    if (status!=gcvSTATUS_OK)
+        TRACE_EXIT(FALSE);
 
-        status=gcoSURF_GetAlignedSize(_vsurf32.surf,&gwidth,&gheight,&gstride);
+    status=gcoSURF_GetAlignedSize(_vsurf32->surf,&gwidth[_surfIndex],&gheight[_surfIndex],&gstride[_surfIndex]);
 
-        if (status!=gcvSTATUS_OK)
-            TRACE_EXIT(FALSE);
+    if (status!=gcvSTATUS_OK)
+        TRACE_EXIT(FALSE);
 
-        status=gcoSURF_Lock(_vsurf32.surf,  &gphyaddr, (void *)&glgaddr);
+    status=gcoSURF_Lock(_vsurf32->surf,  &gphyaddr[_surfIndex], (void *)&glgaddr[_surfIndex]);
 
-        _vsurf32.lineaddr=glgaddr;
+    _vsurf32->lineaddr=glgaddr[_surfIndex];
 
     }
 
-    *phyaddr=gphyaddr;
-    *lgaddr=glgaddr;
-    *width=gwidth;
-    *height=gheight;
-    *stride=gstride;
+    *phyaddr=gphyaddr[_surfIndex];
+    *lgaddr=glgaddr[_surfIndex];
+    *width=gwidth[_surfIndex];
+    *height=gheight[_surfIndex];
+    *stride=gstride[_surfIndex];
 
     TRACE_EXIT(TRUE);
-
 }
-
-#if defined HAS_gcoSURF_Cache
-void VFlushSurf(int surf16, void *logAddr, int size)
-{
-    switch(getPixmapCachePolicy())
-    {
-    case WRITETHROUGH:
-        if(surf16)
-            gcoSURF_Cache(&_vsurf16.surf,
-                             logAddr,
-                             size,
-                             INVALIDATE);
-        else
-            gcoSURF_Cache(&_vsurf32.surf,
-                             logAddr,
-                             size,
-                             INVALIDATE);
-        break;
-    case WRITEALLOC:
-        if(surf16)
-            gcoSURF_Cache(&_vsurf16.surf,
-                             logAddr,
-                             size,
-                             FLUSH);
-        else
-            gcoSURF_Cache(&_vsurf32.surf,
-                             logAddr,
-                             size,
-                             FLUSH);
-        break;
-    case NONCACHEABLE:
-    default:
-        break;
-    }
-
-}
-#endif
 
 void  VDestroySurf()
 {
     VDestroySurf16();
     VDestroySurf32();
 }
+

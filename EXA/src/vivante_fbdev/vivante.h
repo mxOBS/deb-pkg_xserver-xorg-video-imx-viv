@@ -1,54 +1,61 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #ifndef VIVANTE_H
-#define    VIVANTE_H
+#define VIVANTE_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
     /*GAL*/
-#include "vivante_gal.h"
+#include "../vivante_gal/vivante_gal.h"
 
-#define VIV_MAX_WIDTH   (1 <<11)
-#define VIV_MAX_HEIGHT (1 <<11)
-#define PIXMAP_PITCH_ALIGN    (WIDTH_ALIGNMENT*4)
-
-#if defined(GPU_NO_OVERLAP_BLIT)
-#define SLICE_WIDTH 1920
-#define SLICE_HEIGHT 256
-#define BLIT_TILE_HEIGHT 16
-#endif
+#define VIV_MAX_WIDTH   ((1 <<15) -1)
+#define VIV_MAX_HEIGHT ((1 <<15) -1)
+#define PIXMAP_PITCH_ALIGN    64
 
     /********************************************************************************
      *  Rectangle Structs (START)
      ********************************************************************************/
+
+    /* Supported options */
+    typedef enum {
+        OPTION_SHADOW_FB,
+        OPTION_ROTATE,
+        OPTION_DUMP,
+        OPTION_XRANDR,
+        OPTION_VIV,
+        OPTION_NOACCEL,
+        OPTION_ACCELMETHOD,
+        OPTION_VIVCACHEMEM
+    } VivOpts;
+
     typedef struct _vivFakeExa {
         ExaDriverPtr mExaDriver;
         /*Feature Switches  For Exa*/
@@ -69,27 +76,19 @@ extern "C" {
         unsigned long memPhysBase;
         unsigned char* mFBStart; /*logical memory start address*/
         unsigned char* mFBMemory; /*memory  address*/
-        unsigned long memGpuBase; /*address in gpu-2D space (gpu address space: 2D is same as 3D, but different with VG355)*/
         int mFBOffset; /*framebuffer offset*/
     } FBINFO, *FBINFOPTR;
 
-    typedef struct _fbSyncFlags {
-        char * modeName;
-        unsigned int syncFlags;
-    } FBSYNCFLAGS;
-
-#define MAX_MODES_SUPPORTED 256
     typedef struct _vivRec {
         /*Graphics Context*/
         GALINFO mGrCtx;
-        ScreenPtr pScreen;
         /*FBINFO*/
         FBINFO mFB;
         /*EXA STUFF*/
         VivFakeExa mFakeExa;
         /*Entity & Options*/
         EntityInfoPtr pEnt; /*Entity To Be Used with this driver*/
-        OptionInfoPtr Options; /*Options to be parsed in xorg.conf*/
+        OptionInfoPtr mSupportedOptions; /*Options to be parsed in xorg.conf*/
         /*Funct Pointers*/
         CloseScreenProcPtr CloseScreen; /*Screen Close Function*/
         CreateScreenResourcesProcPtr CreateScreenResources;
@@ -119,7 +118,6 @@ extern "C" {
 
         /* virtual addr for start 2nd FB memory for XRandR rotation */
         unsigned char*    fbMemoryStart2;
-        unsigned char*    fbMemoryStart2_noxshift; /* A fix to fbMemoryStart2 to make sure xoffset==0 */
 
         /* total bytes FB memory to reserve for screen(s) */
         int    fbMemoryScreenReserve;
@@ -135,9 +133,7 @@ extern "C" {
         void* displayPrivate;
 
         /* sync value: support FSL extension */
-        FBSYNCFLAGS fbSync[MAX_MODES_SUPPORTED];
-        char  bootupVideoMode[64];
-        DisplayModePtr  lastVideoMode;
+        unsigned int fbSync;
     } VivRec, * VivPtr;
 
     /********************************************************************************
@@ -145,12 +141,24 @@ extern "C" {
      ********************************************************************************/
 #define GET_VIV_PTR(p) ((VivPtr)((p)->driverPrivate))
 
-#define VIVPTR_FROM_PIXMAP(x)        \
-        GET_VIV_PTR(xf86ScreenToScrn((x)->drawable.pScreen))
-#define VIVPTR_FROM_SCREEN(x)        \
-        GET_VIV_PTR(xf86ScreenToScrn((x)))
-#define VIVPTR_FROM_PICTURE(x)    \
-        GET_VIV_PTR(xf86ScreenToScrn((x)->pDrawable->pScreen))
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
+#define VIVPTR_FROM_PIXMAP(x)       \
+        GET_VIV_PTR( xf86ScreenToScrn( (x)->drawable.pScreen) )
+#define VIVPTR_FROM_SCREEN(x)       \
+        GET_VIV_PTR(xf86ScreenToScrn(x))
+#define VIVPTR_FROM_PICTURE(x)  \
+        GET_VIV_PTR( xf86ScreenToScrn( (x)->pDrawable->pScreen) )
+
+#else
+#define VIVPTR_FROM_PIXMAP(x)       \
+        GET_VIV_PTR(xf86Screens[(x)->drawable.pScreen->myNum])
+#define VIVPTR_FROM_SCREEN(x)       \
+        GET_VIV_PTR(xf86Screens[(x)->myNum])
+#define VIVPTR_FROM_PICTURE(x)  \
+        GET_VIV_PTR(xf86Screens[(x)->pDrawable->pScreen->myNum])
+
+
+#endif
 
     /********************************************************************************
      *
@@ -162,5 +170,5 @@ extern "C" {
 }
 #endif
 
-#endif    /* VIVANTE_H */
+#endif  /* VIVANTE_H */
 

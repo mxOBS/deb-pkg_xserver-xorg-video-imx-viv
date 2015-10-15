@@ -1,29 +1,30 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
+
 
 #ifndef DISABLE_VIVANTE_DRI
 
@@ -56,7 +57,7 @@ VivDestroyContext(ScreenPtr pScreen, drm_context_t hwContext,
 
 Bool
 VivDRIFinishScreenInit(ScreenPtr pScreen) {
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    ScrnInfoPtr pScrn = GET_PSCR(pScreen);
     VivPtr pViv = GET_VIV_PTR(pScrn);
     DRIInfoPtr pDRIInfo = (DRIInfoPtr) pViv->pDRIInfo;
 
@@ -86,13 +87,13 @@ VivDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 }
 
 Bool VivDRIScreenInit(ScreenPtr pScreen) {
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    ScrnInfoPtr pScrn = GET_PSCR(pScreen);
     DRIInfoPtr pDRIInfo;
+    int fd = -1;
     VivPtr pViv = GET_VIV_PTR(pScrn);
 
-    /* Check that the GLX, DRI, and DRM modules have been loaded by testing
+    /* Check that DRI, and DRM modules have been loaded by testing
      * for canonical symbols in each module. */
-    if (!xf86LoaderCheckSymbol("GlxSetVisualConfigs")) return FALSE;
     if (!xf86LoaderCheckSymbol("DRIScreenInit")) return FALSE;
     if (!xf86LoaderCheckSymbol("DRIQueryVersion")) {
         xf86DrvMsg(pScreen->myNum, X_ERROR,
@@ -126,16 +127,29 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
     memset(pDRIInfo->busIdString,0, sizeof(char) * 128);
     /* use = to copy string and it seems good, but when you free it, it will report invalid pointer, use strcpy instead */
     //pDRIInfo->busIdString="platform:Vivante GCCore";
-#if !defined(BUSID_HAS_NUMBER)
     strcpy(pDRIInfo->busIdString,"platform:Vivante GCCore");
-#else
-    strcpy(pDRIInfo->busIdString,"platform:Vivante GCCore:00");
-#endif
+
+    /* Try to open it by platform:Vivante GCCore, if it fails, open with platform:Vivante GCCore:00 */
+    fd = drmOpen(NULL,pDRIInfo->busIdString);
+    if ( fd < 0)
+    {
+        strcpy(pDRIInfo->busIdString,"platform:Vivante GCCore:00");
+        fd = drmOpen(NULL,pDRIInfo->busIdString);
+        if (fd < 0)
+        {
+            xf86DrvMsg(pScreen->myNum, X_ERROR,"[dri] VivDRIScreenInit failed because Drm can't be opened.\n");
+            return FALSE;
+        }
+        drmClose(fd);
+    } else {
+        /* fd > 0 means passing verification of the name, close fd*/
+        drmClose(fd);
+    }
 
     pDRIInfo->ddxDriverMajorVersion = VIV_DRI_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion = VIV_DRI_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion = 0;
-    pDRIInfo->frameBufferPhysicalAddress =(pointer)(pViv->mFB.memPhysBase + pViv->mFB.mFBOffset);
+    pDRIInfo->frameBufferPhysicalAddress =(pointer)(pScrn->memPhysBase + pViv->mFB.mFBOffset);
     pDRIInfo->frameBufferSize = pScrn->videoRam;
 
     pDRIInfo->frameBufferStride = (pScrn->displayWidth *
@@ -197,7 +211,7 @@ Bool VivDRIScreenInit(ScreenPtr pScreen) {
 }
 
 void VivDRICloseScreen(ScreenPtr pScreen) {
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    ScrnInfoPtr pScrn = GET_PSCR(pScreen);
     VivPtr pViv = GET_VIV_PTR(pScrn);
 
     if (pViv->pDRIInfo) {

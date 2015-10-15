@@ -1,29 +1,29 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #include "vivante_exa.h"
@@ -44,7 +44,8 @@ Bool IsPixelOnly(DrawablePtr pDrawable) {
         return FALSE;
     }
 }
-static inline int IsSourceAlphaRequired(int op) {
+
+int IsSourceAlphaRequired(int op) {
     return (((
             (1 << PictOpOver) |
             (1 << PictOpInReverse) |
@@ -55,7 +56,7 @@ static inline int IsSourceAlphaRequired(int op) {
             0) >> (op)) & 1);
 }
 
-static inline int IsDestAlphaRequired(int op) {
+int IsDestAlphaRequired(int op) {
     return (((
             (1 << PictOpOverReverse) |
             (1 << PictOpIn) |
@@ -65,19 +66,6 @@ static inline int IsDestAlphaRequired(int op) {
             (1 << PictOpXor) |
             0) >> (op)) & 1);
 }
-
-Bool
-DummyCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
-    return FALSE;
-}
-Bool
-DummyPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
-    PicturePtr pDst, PixmapPtr pxSrc, PixmapPtr pxMsk, PixmapPtr pxDst) {
-    return FALSE;
-}
-
-#define MIN_HW_HEIGHT 64
-#define MIN_HW_SIZE_24BIT (200 * 200)
 
 /**
  * CheckComposite() checks to see if a composite operation could be
@@ -112,8 +100,8 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
     PixmapPtr pxSrc = GetDrawablePixmap(pSrc->pDrawable);
     PixmapPtr pxDst = GetDrawablePixmap(pDst->pDrawable);
 
-    Bool stretchflag = FALSE;
 
+    Bool stretchflag = FALSE;
 
     pViv = VIVPTR_FROM_PIXMAP(pxDst);
     pBlt = &pViv->mGrCtx.mBlitInfo;
@@ -127,12 +115,8 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
         TRACE_EXIT(FALSE);
     }
 
-     if(pxDst->drawable.height < MIN_HW_HEIGHT || pxDst->drawable.width * pxDst->drawable.height < MIN_HW_SIZE_24BIT) {
+    if ( (pxDst->drawable.width * pxDst->drawable.height) < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE )
         TRACE_EXIT(FALSE);
-    }
-
-//    if ( (pxDst->drawable.width * pxDst->drawable.height) < IMX_EXA_MIN_PIXEL_AREA_COMPOSITE )
-//        TRACE_EXIT(FALSE);
 
     /*Not supported op*/
     if (!GetBlendingFactors(op, &pBlt->mBlendOp)) {
@@ -150,7 +134,16 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
         TRACE_EXIT(FALSE);
     }
 
-    if ( pBlt->mDstSurfInfo.mFormat.mBpp < 8 || pBlt->mSrcSurfInfo.mFormat.mBpp < 8 )     {
+    if (pMsk)
+    {
+        if (!GetVivPictureFormat(pMsk->format, &pBlt->mMskSurfInfo.mFormat)) {
+            TRACE_ERROR("Msk Format is not supported\n");
+            TRACE_EXIT(FALSE);
+        }
+
+    }
+
+    if ( pBlt->mDstSurfInfo.mFormat.mBpp < 8 || pBlt->mSrcSurfInfo.mFormat.mBpp < 8 )   {
         TRACE_ERROR("Src or Dst pixel is not wide enough\n");
         TRACE_EXIT(FALSE);
     }
@@ -173,9 +166,11 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
         TRACE_EXIT(FALSE);
     }
 
+#if !defined(ENABLE_MASK_OP)
     if (pMsk && pMsk->repeat) {
         TRACE_EXIT(FALSE);
     }
+#endif
 
     /*Have some ideas about this but now let it be*/
     if (pSrc->transform && VIVTransformSupported(pSrc->transform , &stretchflag )==FALSE ) {
@@ -188,46 +183,35 @@ VivCheckComposite(int op, PicturePtr pSrc, PicturePtr pMsk, PicturePtr pDst) {
 
     pBlt->mIsNotStretched = !stretchflag;
 
+    /* The same as what prepare does */
+    if ( (0 == PICT_FORMAT_A(pSrc->format) ) && IsSourceAlphaRequired(op)) {
+        TRACE_EXIT(FALSE);
+    }
+
+    if ( (0 == PICT_FORMAT_A(pDst->format) ) && IsDestAlphaRequired(op)) {
+        TRACE_EXIT(FALSE);
+    }
+
     /*Mask Related Checks*/
     if ((NULL != pMsk)) {
-
-        /* If mask is on, fallback to sw path currently */
+    /* If mask is on, fallback to sw path currently */
+#if !defined(ENABLE_MASK_OP)
         TRACE_EXIT(FALSE);
-
-        if ( pSrc->repeat) {
-
-            if ( IsPixelOnly(pSrc->pDrawable)
-                /*||( Is8x8Pixels(pMsk->pDrawable) && Is8x8Pixels(pSrc->pDrawable) ) */)
-                    TRACE_EXIT(TRUE);
-
-            TRACE_EXIT(FALSE);
-
-        }
+#endif
     } else {
-
-        /* The same as what prepare does */
-        if ( (0 == PICT_FORMAT_A(pSrc->format) ) && IsSourceAlphaRequired(op)) {
-            TRACE_EXIT(FALSE);
-        }
-
-        if ( (0 == PICT_FORMAT_A(pDst->format) ) && IsDestAlphaRequired(op)) {
-            TRACE_EXIT(FALSE);
-        }
-
         if (pSrc->repeat) {
             /* Source is 1x1 (constant) repeat pattern? */
             if ( IsPixelOnly(pSrc->pDrawable) ) {
-                TRACE_EXIT(TRUE);
+              TRACE_EXIT(TRUE);
             } else {/* Source is arbitrary sized repeat pattern? */
                 if ( pSrc->transform )
                     TRACE_EXIT(FALSE);
             }
         } else {/* Simple source blend */
-
             if (pBlt->mIsNotStretched)
             {
-//                SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
-//                SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
+                SURF_SIZE_FOR_SW(pxSrc->drawable.width, pxSrc->drawable.height);
+                SURF_SIZE_FOR_SW(pxDst->drawable.width, pxDst->drawable.height);
             }
 
         }
@@ -348,6 +332,8 @@ VivPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
 
     pBlt->mMskSurfInfo.mPriv = ( Viv2DPixmapPtr )NULL;
 
+    pBlt->mSrcSurfInfo.alpha = PICT_FORMAT_A(pSrc->format);
+    pBlt->mDstSurfInfo.alpha = PICT_FORMAT_A(pDst->format);
     /* Mask blend */
     if (NULL != pMsk) {
         /*Populating the mask info*/
@@ -361,29 +347,31 @@ VivPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
         pBlt->mMskSurfInfo.repeatType = pMsk->repeatType;
         /* Blend repeating source using a mask */
         if (pSrc->repeat) {
-
             /* Source is 1x1 (constant) repeat pattern?*/
-            if ( IsPixelOnly(pSrc->pDrawable)/* ||
-                (Is8x8Pixels(pMsk->pDrawable) && Is8x8Pixels(pSrc->pDrawable) ) */) {
+            if ( IsPixelOnly(pSrc->pDrawable) ) {
                 pBlt->mOperationCode = VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN;
+#if !defined(ENABLE_MASK_OP)
                 ret = FALSE;
+#else
+                ret = TRUE;
+#endif
             } else {/* Source is arbitrary sized repeat pattern? */
-                ret = FALSE;
                 pBlt->mOperationCode = VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN;
+#if !defined(ENABLE_MASK_OP)
+                ret = FALSE;
+#else
+                ret = TRUE;
+#endif
             }
         } else {/* Simple (source IN mask) blend */
-            pBlt->mOperationCode = VIVCOMPOSITE_MASKED_SIMPLE;
-            ret = FALSE;
+        pBlt->mOperationCode = VIVCOMPOSITE_MASKED_SIMPLE;
+#if !defined(ENABLE_MASK_OP)
+        ret = FALSE;
+#else
+        ret = TRUE;
+#endif
         }
     } else {/* Source only (no mask) blend */
-        /*no msk - so the alpha values should come from src and dst*/
-        if ( (0 == PICT_FORMAT_A(pSrc->format) ) && IsSourceAlphaRequired(op)) {
-            TRACE_EXIT(FALSE);
-        }
-
-        if ( (0 == PICT_FORMAT_A(pDst->format) ) && IsDestAlphaRequired(op)) {
-            TRACE_EXIT(FALSE);
-        }
         /* Blend repeating source  */
         if (pSrc->repeat) {
             /* Source is 1x1 (constant) repeat pattern? */
@@ -405,36 +393,71 @@ VivPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
     TRACE_EXIT(ret);
 }
 
-/**
- * Composite() performs a Composite operation set up in the last
- * PrepareComposite() call.
- *
- * @param pDstPixmap destination pixmap
- * @param srcX source X coordinate
- * @param srcY source Y coordinate
- * @param maskX source X coordinate
- * @param maskY source Y coordinate
- * @param dstX destination X coordinate
- * @param dstY destination Y coordinate
- * @param width destination rectangle width
- * @param height destination rectangle height
- *
- * Performs the Composite operation set up by the last PrepareComposite()
- * call, to the rectangle from (dstX, dstY) to (dstX + width, dstY + height)
- * in the destination Pixmap.  Note that if a transformation was set on
- * the source or mask Pictures, the source rectangles may not be the same
- * size as the destination rectangles and filtering.  Getting the coordinate
- * transformation right at the subpixel level can be tricky, and rendercheck
- * can test this for you.
- *
- * This call is required if PrepareComposite() ever succeeds.
- */
+static int loBase(int n, unsigned int base)
+{
+    if ( n >= 0 )
+        return base *( n / base);
+
+    return base *( ( n-base + 1) /base );
+}
+
+static int hiBase(int n, unsigned int base)
+{
+    if ( n >= 0 )
+        return base * ( (n +base -1) / base);
+
+    return base *( n / base);
+}
+
+static void initTempSurf(VIV2DBLITINFOPTR pBlt)
+{
+    pBlt->mSrcTempSurfInfo.mPriv = NULL;
+    pBlt->mMskTempSurfInfo.mPriv = NULL;
+    pBlt->mMskTempSurfInfo.repeat = 0;
+    pBlt->mSrcTempSurfInfo.repeat = 0;
+}
+
+
+static void CalTempSurfInfo(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int width, int height)
+{
+    pBlt->mSrcTempSurfInfo.repeat = pBlt->mSrcSurfInfo.repeat;
+    if (pBlt->mSrcSurfInfo.repeat)
+    {
+        pBlt->mSrcTempSurfInfo.mPriv = NULL;
+        pBlt->mSrcTempSurfInfo.mWidth = hiBase( srcX + width, pBlt->mSrcSurfInfo.mWidth) - loBase(srcX, pBlt->mSrcSurfInfo.mWidth);
+        pBlt->mSrcTempSurfInfo.mHeight = hiBase( srcY + height, pBlt->mSrcSurfInfo.mHeight) - loBase(srcY, pBlt->mSrcSurfInfo.mHeight);
+        pBlt->mSrcTempSurfInfo.mFormat = pBlt->mSrcSurfInfo.mFormat;
+    } else {
+        pBlt->mSrcTempSurfInfo.mPriv = NULL;
+        pBlt->mSrcTempSurfInfo.mWidth = pBlt->mSrcSurfInfo.mWidth;
+        pBlt->mSrcTempSurfInfo.mHeight = pBlt->mSrcSurfInfo.mHeight;
+        pBlt->mSrcTempSurfInfo.mFormat = pBlt->mSrcSurfInfo.mFormat;
+    }
+
+}
+
+static void CalTempMaskInfo(VIV2DBLITINFOPTR pBlt, int maskX, int maskY, int width, int height)
+{
+    pBlt->mMskTempSurfInfo.repeat = pBlt->mMskSurfInfo.repeat;
+
+    if (pBlt->mMskSurfInfo.repeat)
+    {
+        pBlt->mMskTempSurfInfo.mPriv = NULL;
+        pBlt->mMskTempSurfInfo.mWidth = hiBase( maskX + width, pBlt->mMskSurfInfo.mWidth) - loBase(maskX, pBlt->mMskSurfInfo.mWidth);
+        pBlt->mMskTempSurfInfo.mHeight = hiBase( maskY + height, pBlt->mMskSurfInfo.mHeight) - loBase(maskY, pBlt->mMskSurfInfo.mHeight);
+        pBlt->mMskTempSurfInfo.mFormat = pBlt->mMskSurfInfo.mFormat;
+    } else {
+        pBlt->mMskTempSurfInfo.mPriv = NULL;
+        pBlt->mMskTempSurfInfo.mWidth = pBlt->mMskSurfInfo.mWidth;
+        pBlt->mMskTempSurfInfo.mHeight = pBlt->mMskSurfInfo.mHeight;
+        pBlt->mMskTempSurfInfo.mFormat = pBlt->mMskSurfInfo.mFormat;
+    }
+}
 
 static void
 CalOrgBoxInfoWithoutMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, int maskY,
     int dstX, int dstY, int width, int height, VivBox *opBox)
 {
-    xPointFixed srcPoint;
     gctUINT32 srcwidth,srcheight;
     int opWidth = width;
     int opHeight = height;
@@ -445,14 +468,9 @@ CalOrgBoxInfoWithoutMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, i
     if ( pBlt->mTransform )
         VIVGetSourceWH(pBlt->mTransform,opWidth,opHeight,&srcwidth,&srcheight);
 
-
-    srcPoint.x = ITF(srcX);
-    srcPoint.y = ITF(srcY);
-
-
     /*Populating the info*/
-    opBox->x1 = FTI(srcPoint.x);
-    opBox->y1 = FTI(srcPoint.y);
+    opBox->x1 = srcX;
+    opBox->y1 = srcY;
     opBox->width = srcwidth;
     opBox->height = srcheight;
 
@@ -462,21 +480,59 @@ CalOrgBoxInfoWithoutMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, i
     pBlt->mDstBox.x2 = dstX + width;
     pBlt->mDstBox.y2 = dstY + height;
 
+    pBlt->mDstBox.width = width;
+    pBlt->mDstBox.height = height;
+
+
     pBlt->mSrcBox.x1 = srcX;
     pBlt->mSrcBox.y1 = srcY;
     pBlt->mSrcBox.x2 = srcX+srcwidth;
     pBlt->mSrcBox.y2 = srcY+srcheight;
 
+    pBlt->mSrcBox.width = srcwidth;
+    pBlt->mSrcBox.height = srcheight;
+    CalTempSurfInfo(pBlt, srcX, srcY, width, height);
+
 }
 
+#if defined(ENABLE_MASK_OP)
 static void
 CalOrgBoxInfoWithMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, int maskY,
     int dstX, int dstY, int width, int height, VivBox *opBox)
 {
+    /*Populating the info*/
+    opBox->x1 = srcX;
+    opBox->y1 = srcY;
+    opBox->width = width;
+    opBox->height = height;
+
+    /*Src & Dst & Msk*/
+    pBlt->mDstBox.x1 = dstX;
+    pBlt->mDstBox.y1 = dstY;
+    pBlt->mDstBox.x2 = dstX + width;
+    pBlt->mDstBox.y2 = dstY + height;
+
+    pBlt->mSrcBox.x1 = srcX;
+    pBlt->mSrcBox.y1 = srcY;
+    pBlt->mSrcBox.x2 = srcX+width;
+    pBlt->mSrcBox.y2 = srcY+height;
+
+    pBlt->mSrcBox.width = width;
+    pBlt->mSrcBox.height = height;
 
 
+    pBlt->mMskBox.x1 = maskX;
+    pBlt->mMskBox.y1 = maskY;
+    pBlt->mMskBox.x2 = maskX + width;
+    pBlt->mMskBox.y2 = maskY + height;
 
+    pBlt->mMskBox.width = width;
+    pBlt->mMskBox.height = height;
+
+    CalTempSurfInfo(pBlt, srcX, srcY, width, height);
+    CalTempMaskInfo(pBlt, maskX, maskY, width, height);
 }
+#endif
 
 static Bool
 IsNotStretched(VIV2DBLITINFOPTR pBlt, VivBoxPtr srcbox, VivBoxPtr dstbox)
@@ -486,7 +542,6 @@ IsNotStretched(VIV2DBLITINFOPTR pBlt, VivBoxPtr srcbox, VivBoxPtr dstbox)
 
 static void
 ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
-
     VivBoxPtr srcbox = &(pBlt->mSrcBox);
     VivBoxPtr dstbox = &(pBlt->mDstBox);
     VivBoxPtr osrcbox = &(pBlt->mOSrcBox);
@@ -496,9 +551,7 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
     float  xfactors = 0.0;
     float  yfactors = 0.0;
     Bool nstflag = TRUE;
-    int xoffset = 0;
-    int yoffset = 0;
-    GenericSurfacePtr srcSurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+
 
     memcpy((void *)&(pBlt->mOSrcBox),(void *)srcbox,sizeof(VivBox));
     memcpy((void *)&(pBlt->mODstBox),(void *)dstbox,sizeof(VivBox));
@@ -524,11 +577,6 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
         /* When enabling it, how to consider to do this when stretched ??? */
         dstbox->x2 = V_MIN(dstbox->x2, pBlt->mDstSurfInfo.mWidth);
         dstbox->y2 = V_MIN(dstbox->y2, pBlt->mDstSurfInfo.mHeight);
-
-        srcbox->x1 %= pBlt->mSrcSurfInfo.mWidth;
-        srcbox->y1 %= pBlt->mSrcSurfInfo.mHeight;
-        srcbox->x2 = pBlt->mSrcSurfInfo.mWidth;
-        srcbox->y2 = pBlt->mSrcSurfInfo.mHeight;
         TRACE_EXIT();
     }
 
@@ -556,32 +604,38 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
                 srcbox->x2 = srcbox->x1 + minwid;
                 srcbox->y2 = srcbox->y1 + minheight;
 
+                dstbox->x2 = dstbox->x1 + minwid;
+                dstbox->y2 = dstbox->y1 + minheight;
                 break;
             case gcvSURF_90_DEGREE:
             case gcvSURF_270_DEGREE:
                 dstbox->x2 = V_MIN(odstbox->x2, pBlt->mDstSurfInfo.mWidth);
                 minwid = dstbox->x2 - dstbox->x1;
 
-                srcbox->x2 = V_MIN(osrcbox->x2, pBlt->mSrcSurfInfo.mHeight);
-                minwid = V_MIN(srcbox->x2 - srcbox->x1, minwid);
+                srcbox->y2 = V_MIN(osrcbox->y2, pBlt->mSrcSurfInfo.mHeight);
+                minheight = srcbox->y2 - srcbox->y1;
 
-                srcbox->x2 = srcbox->x1 + minwid;
+                minheight = V_MIN(minwid, minheight);
+
+                srcbox->y2 = srcbox->y1 + minheight;
+                dstbox->x2 = dstbox->x1 + minheight;
 
                 dstbox->y2 = V_MIN(odstbox->y2, pBlt->mDstSurfInfo.mHeight);
                 minheight = dstbox->y2 - dstbox->y1;
 
-                srcbox->y2 = V_MIN(osrcbox->y2, pBlt->mSrcSurfInfo.mWidth);
-                minheight = (srcbox->y2 - srcbox->y1,minheight);
+                srcbox->x2 = V_MIN(osrcbox->x2, pBlt->mSrcSurfInfo.mWidth);
+                minwid = srcbox->x2 - srcbox->x1;
 
-                srcbox->y2 = srcbox->y1 + minheight;
+                minwid = V_MIN(minheight, minwid);
+
+                srcbox->x2 = srcbox->x1 + minwid;
+                dstbox->y2 = dstbox->y1 + minwid;
 
                 break;
             default :
                 break;
         }
-
-    }
-    else {
+    } else {
 
         if ( osrcbox->x2 > pBlt->mSrcSurfInfo.mWidth )
             srcbox->x2 = pBlt->mSrcSurfInfo.mWidth;
@@ -607,36 +661,44 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
             default :
                 break;
         }
-    }
 
-    xoffset = srcSurf->mAlignedWidth-pBlt->mSrcSurfInfo.mWidth;
-    yoffset = srcSurf->mAlignedHeight-pBlt->mSrcSurfInfo.mHeight;
-    switch ( pBlt->mRotation ) {
-        case gcvSURF_180_DEGREE:
-            srcbox->y1 = srcbox->y1 + yoffset;
-            srcbox->y2 = srcbox->y2 + yoffset;
-            break;
-        case gcvSURF_90_DEGREE:
-            srcbox->y1 = srcbox->y1 + xoffset;
-            srcbox->y2 = srcbox->y2 + xoffset;
-            break;
-        case gcvSURF_270_DEGREE:
-            srcbox->x1 = srcbox->x1 + yoffset;
-            srcbox->x2 = srcbox->x2 + yoffset;
-            break;
-        default :
-            break;
+
     }
 
 }
 
+#if defined(ENABLE_MASK_OP)
 static void
 ReCalBoxByStretchInfoWithMask(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
 /* when mask on, to cal the src/dst box */
 }
-
-
+#endif
+/**
+ * Composite() performs a Composite operation set up in the last
+ * PrepareComposite() call.
+ *
+ * @param pDstPixmap destination pixmap
+ * @param srcX source X coordinate
+ * @param srcY source Y coordinate
+ * @param maskX source X coordinate
+ * @param maskY source Y coordinate
+ * @param dstX destination X coordinate
+ * @param dstY destination Y coordinate
+ * @param width destination rectangle width
+ * @param height destination rectangle height
+ *
+ * Performs the Composite operation set up by the last PrepareComposite()
+ * call, to the rectangle from (dstX, dstY) to (dstX + width, dstY + height)
+ * in the destination Pixmap.  Note that if a transformation was set on
+ * the source or mask Pictures, the source rectangles may not be the same
+ * size as the destination rectangles and filtering.  Getting the coordinate
+ * transformation right at the subpixel level can be tricky, and rendercheck
+ * can test this for you.
+ *
+ * This call is required if PrepareComposite() ever succeeds.
+ */
 #define MAX_COMPOSITE_SUB_SIZE IMX_EXA_MIN_PIXEL_AREA_COMPOSITE
+static int  _last_hw_composite = 0;
 void
 VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     int dstX, int dstY, int width, int height) {
@@ -648,72 +710,76 @@ VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
     Viv2DPixmapPtr psrc;
     Viv2DPixmapPtr pdst;
-    Viv2DPixmapPtr pmsk;
-
+#if defined(ENABLE_MASK_OP)
     Bool isMasked = pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SRC_REPEAT_PIXEL_ONLY_PATTERN
-        || pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN
-        || pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SIMPLE;
-
+    || pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN
+    || pBlt->mOperationCode == VIVCOMPOSITE_MASKED_SIMPLE;
+#endif
     pBlt->mSwcmp = FALSE;
-
-    startDrawingCompose(width, height);
-
-    psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
-    pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
-    pmsk = (Viv2DPixmapPtr)pBlt->mMskSurfInfo.mPriv;
-
     /* Currenlty if mask on, it will not fall into this path ,otherwise consider mask */
     /* IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT is small, enable this */
     /* otherwise disable it, it is not meaningful when the size is big */
-    if ( (height < MIN_HW_HEIGHT || width * height < MIN_HW_SIZE_24BIT) /*&& pBlt->mBlendOp.mOp != PIXMAN_OP_OVER*/)
+    if ( ( width * height ) < MAX_COMPOSITE_SUB_SIZE && (IMX_EXA_NONCACHESURF_SIZE > MAX_COMPOSITE_SUB_SIZE))
     {
+
+        if (_last_hw_composite > 0)
+            VIV2DGPUBlitComplete(&pViv->mGrCtx,TRUE);
+            _last_hw_composite = 0;
+
         pBlt->mSwcmp = TRUE;
-        /* VIVSWComposite will call pixman_composite to do composition */
-        /* For OVER, pixman_composite can't work properly */
-        /* Let's disable it currently, enable until solution is done*/
-
-        preCpuDraw(pViv, psrc);
-        preCpuDraw(pViv, pmsk);
-        preCpuDraw(pViv, pdst);
-
         VIVSWComposite(pxDst, srcX, srcY, maskX, maskY, dstX, dstY, width, height);
-
-        postCpuDraw(pViv, psrc);
-        postCpuDraw(pViv, pmsk);
-        postCpuDraw(pViv, pdst);
-
         return ;
     }
 
-    // sync with cpu cache
-    preGpuDraw(pViv, psrc, TRUE);
-    preGpuDraw(pViv, pmsk, TRUE);
-    preGpuDraw(pViv, pdst, FALSE);
 
+    psrc = (Viv2DPixmapPtr)pBlt->mSrcSurfInfo.mPriv;
+    pdst = (Viv2DPixmapPtr)pBlt->mDstSurfInfo.mPriv;
+
+    if ( psrc->mCpuBusy )
+    {
+        VIV2DCacheOperation(&pViv->mGrCtx,psrc, FLUSH);
+        psrc->mCpuBusy = FALSE;
+    }
+
+#if ALL_NONCACHE_BIGSURFACE
+    if ( pdst->mCpuBusy && SURF_SIZE_FOR_SW_COND(pxDst->drawable.width, pxDst->drawable.height))
+    {
+        VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
+        pdst->mCpuBusy = FALSE;
+    }
+#else
+    if ( pdst->mCpuBusy )
+    {
+        VIV2DCacheOperation(&pViv->mGrCtx,pdst, FLUSH);
+        pdst->mCpuBusy = FALSE;
+    }
+#endif
+
+    initTempSurf(pBlt);
+#if defined(ENABLE_MASK_OP)
     if ( isMasked )
         CalOrgBoxInfoWithMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
     else
+#endif
         CalOrgBoxInfoWithoutMask(pBlt, srcX, srcY, maskX, maskY, dstX, dstY, width, height, &opBox);
 
     /*fitting the operation box */
     /* Currently when mask is on, it goes sw, it shouldn't go into this */
+#if defined(ENABLE_MASK_OP)
     if (isMasked) {
         ReCalBoxByStretchInfoWithMask(pBlt, &opBox);
-    } else {
+    } else
+#endif
+    {
         ReCalBoxByStretchInfo(pBlt, &opBox);
     }
 
     if (!DoCompositeBlit(&pViv->mGrCtx, &opBox)) {
         TRACE_ERROR("Copy Blit Failed\n");
-        goto quit;
     }
 
-    // put these pixmaps into gpu queue
-    queuePixmapToGpu(psrc);
-    queuePixmapToGpu(pmsk);
-    queuePixmapToGpu(pdst);
+    _last_hw_composite = 1;
 
-quit:
     TRACE_EXIT();
 }
 
@@ -729,9 +795,8 @@ VivDoneComposite(PixmapPtr pDst) {
         TRACE_EXIT();
     }
 
-    postGpuDraw(pViv);
-
-    endDrawingCompose();
-
+    VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
     TRACE_EXIT();
 }
+

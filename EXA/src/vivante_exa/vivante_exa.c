@@ -1,35 +1,35 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #include "vivante_exa.h"
 #include "vivante_common.h"
 #include "vivante_priv.h"
-#include "vivante_gal.h"
+#include "../vivante_gal/vivante_gal.h"
 #include "vivante.h"
 
 void
@@ -228,8 +228,6 @@ static Bool DoneBySWCPY(PixmapPtr pDst, int x, int y, int w,
     if (mDestAddr == NULL)
         TRACE_EXIT(FALSE);
 
-    preCpuDraw(pViv, pdst);
-
     mDestAddr += y * stride + x *cpp;
 
     for (i = 0; i < h; i++) {
@@ -238,7 +236,8 @@ static Bool DoneBySWCPY(PixmapPtr pDst, int x, int y, int w,
         src += src_pitch;
     }
 
-    postCpuDraw(pViv, pdst);
+//    pdst->mSwAnyWay = TRUE;
+    pdst->mCpuBusy = TRUE;
 
     TRACE_EXIT(TRUE);
 }
@@ -264,7 +263,7 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     }
 
     maxsize = (w > h) ? w : h;
-
+    VSetSurfIndex(1);
     switch (pDst->drawable.bitsPerPixel) {
 
         case 16:
@@ -277,14 +276,13 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
             retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
             break;
         default:
-            return FALSE;
+            TRACE_EXIT(FALSE);
     }
 
     if (retvsurf == FALSE)
         TRACE_EXIT(FALSE);
 
-    mmap.mapping = NULL;
-    mmap.mSize = aligned_pitch*aligned_height;
+    mmap.mSize = aligned_pitch*aligned_width;
 
     aligned_start = (char *) mmap.mUserAddr;
 
@@ -316,27 +314,23 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
     pBltInfo->mSrcSurfInfo.mStride = aligned_pitch;
     pBltInfo->mSrcSurfInfo.mWidth = aligned_width;
+
     pBltInfo->mSrcSurfInfo.mHeight = aligned_height;
 
     pBltInfo->mBgRop = 0xCC;
     pBltInfo->mFgRop = 0xCC;
 
-
-    // sync with cpu cache
-#if defined HAS_gcoSURF_Cache
-    VFlushSurf((pDst->drawable.bitsPerPixel == 16), mmap.mUserAddr, mmap.mSize);
-#endif
-    preGpuDraw(pViv, pdst, FALSE);
+    if (pdst->mCpuBusy) {
+       VIV2DCacheOperation(&pViv->mGrCtx,pdst,FLUSH);
+       pdst->mCpuBusy = FALSE;
+    }
 
     if (!CopyBlitFromHost(&mmap, &pViv->mGrCtx)) {
         TRACE_ERROR("Copy Blit From Host Failed\n");
         TRACE_EXIT(FALSE);
     }
 
-    // TODO: can delay?
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-    freePixmapQueue();
-
     TRACE_EXIT(TRUE);
 }
 
@@ -354,7 +348,6 @@ static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
     void * start;
     char *aligned_start;
     mmap.mSize = h * aligned_pitch;
-    mmap.mapping = NULL;
     mmap.physical = 0;
     start = calloc(1, mmap.mSize + 64);
     mmap.mUserAddr = aligned_start = (char*) VIV_ALIGN(((int) start), 64);
@@ -403,7 +396,6 @@ static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
     }
 
     VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-    freePixmapQueue();
     UnmapUserMem(&pViv->mGrCtx, &mmap);
     //exaMarkSync(pDst->drawable.pScreen);
     free(start);
@@ -421,27 +413,11 @@ Bool
 VivUploadToScreen(PixmapPtr pDst, int x, int y, int w,
     int h, char *src, int src_pitch) {
 
-    // wait hw done and invalidate the cache
-    Bool ret;
 
-    // DONE_BY_SWCPY is slower than xserver unaccel function!
     if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
-        return FALSE;
+        ftype = DONE_BY_SWCPY;
+    else
+        ftype = DONE_BY_VSURF;
 
-    startDrawingUpload(w, h);
-
-    ftype = DONE_BY_VSURF;
-
-    ret = _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
-
-    endDrawingUpload();
-
-    return ret;
+    return _fptoscreen[ftype](pDst, x, y, w, h, src, src_pitch);
 }
-
-Bool
-DummyUploadToScreen(PixmapPtr pDst, int x, int y, int w,
-    int h, char *src, int src_pitch) {
-    return FALSE;
-}
-

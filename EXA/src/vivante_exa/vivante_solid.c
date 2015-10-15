@@ -1,42 +1,34 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #include "vivante_exa.h"
 #include "vivante.h"
 
-Bool
-DummyPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
-    return FALSE;
-}
-
-// FIXME! thresould is calculated on 24-bit pixmap
-#define MIN_HW_HEIGHT 64
-#define MIN_HW_SIZE_24BIT (300 * 300)
 
 /**
  * PrepareSolid() sets up the driver for doing a solid fill.
@@ -67,10 +59,7 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
     int fgop = 0xF0;
     int bgop = 0xF0;
 
-    // early fail out
-     if(pPixmap->drawable.height < MIN_HW_HEIGHT || pPixmap->drawable.width * pPixmap->drawable.height < MIN_HW_SIZE_24BIT) {
-        TRACE_EXIT(FALSE);
-    }
+    SURF_SIZE_FOR_SW(pPixmap->drawable.width, pPixmap->drawable.height);
 
     if (!CheckFILLValidity(pPixmap, alu, planemask)) {
         TRACE_EXIT(FALSE);
@@ -113,60 +102,56 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  *
  * This call is required if PrepareSolid() ever succeeds.
  */
+ static int _last_hw_solid = 0;
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
     Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
-
-    /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-     if(( y2 - y1 ) < MIN_HW_HEIGHT || (  x2 - x1 ) * ( y2 - y1 ) < MIN_HW_SIZE_24BIT) {
-        preCpuDraw(pViv, pdst);
-
-        /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
-        gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
-
-        pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
-
-        postCpuDraw(pViv, pdst);
-        TRACE_EXIT();
-    }
-
-    startDrawingSolid(x2-x1, y2-y1);
-
     /*Setting up the rectangle*/
     pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
     pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
     pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
     pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
-    
-    // sync with cpu cache
-    preGpuDraw(pViv, pdst, FALSE);
+
+    /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
+    if ( (  x2 - x1 ) * ( y2 - y1 ) < IMX_EXA_NONCACHESURF_SIZE )
+    {
+
+        if (_last_hw_solid >0)
+            VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+        _last_hw_solid = 0;
+
+        pdst->mCpuBusy = TRUE;
+
+        /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
+        gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
+
+        pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
+        TRACE_EXIT();
+    }
+
+    if (pdst->mCpuBusy) {
+        VIV2DCacheOperation(&pViv->mGrCtx, pdst,FLUSH);
+        pdst->mCpuBusy = FALSE;
+    }
 
     if (!SetDestinationSurface(&pViv->mGrCtx)) {
             TRACE_ERROR("Solid Blit Failed\n");
-        goto quit;
     }
 
     if (!SetClipping(&pViv->mGrCtx)) {
             TRACE_ERROR("Solid Blit Failed\n");
-        goto quit;
     }
 
     if (!SetSolidBrush(&pViv->mGrCtx)) {
             TRACE_ERROR("Solid Blit Failed\n");
-        goto quit;
     }
 
     if (!DoSolidBlit(&pViv->mGrCtx)) {
         TRACE_ERROR("Solid Blit Failed\n");
-        goto quit;
     }
-
-    // put this pixmap into gpu queue
-    queuePixmapToGpu(pdst);
-
-quit:
+    _last_hw_solid = 1;
     TRACE_EXIT();
 }
 
@@ -188,9 +173,8 @@ VivDoneSolid(PixmapPtr pPixmap) {
 
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
 
-    postGpuDraw(pViv);
-
-    endDrawingSolid();
+    VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
 
     TRACE_EXIT();
 }

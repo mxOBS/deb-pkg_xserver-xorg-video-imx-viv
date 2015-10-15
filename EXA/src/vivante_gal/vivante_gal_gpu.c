@@ -1,35 +1,36 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #include "vivante_priv.h"
 #include "vivante_common.h"
 #include "vivante_gal.h"
 
+gctBOOL CHIP_SUPPORTA8 = gcvFALSE;
 /**
  *
  * @param driver - Driver object to be returned
@@ -66,11 +67,7 @@ static gctBOOL SetupDriver
     }
 
     /*If Seperated*/
-    #if GPU_VERSION_GREATER_THAN(5, 0, 11, 17486)
     pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
-    #else
-    pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated3D2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
-    #endif
 
     if (pDrvHandle->mIsSeperated) {
         status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_2D);
@@ -154,6 +151,7 @@ static gctBOOL SetupDriver
     pDrvHandle->mIsMultiSrcBltSupported = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_MULTI_SOURCE_BLT) == gcvSTATUS_TRUE;
     pDrvHandle->mIsMultiSrcBltExSupported = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_MULTI_SOURCE_BLT_EX) == gcvSTATUS_TRUE;
     pDrvHandle->mMaxSourceForMultiSrcOpt = pDrvHandle->mIsMultiSrcBltExSupported ? 8 : (pDrvHandle->mIsMultiSrcBltSupported ? 4 : 1);
+    CHIP_SUPPORTA8 = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_A8_TARGET) == gcvSTATUS_TRUE;
 
     /*Getting the 2d engine*/
     status = gcoHAL_Get2DEngine(pDrvHandle->mHal, &(pDrvHandle->m2DEngine));
@@ -280,8 +278,8 @@ static gctBOOL SetupDevice
     status = gcoHAL_QueryChipIdentity(driver->mHal,
             &pDeviceHandle->mChipModel,
             &pDeviceHandle->mChipRevision,
-            &pDeviceHandle->mChipFeatures,
-            &pDeviceHandle->mChipMinorFeatures);
+            gcvNULL,
+            gcvNULL);
 
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("Unable to query chip Info, status = %d\n", status);
@@ -315,7 +313,7 @@ static gctBOOL DestroyDevice(Viv2DDevicePtr device) {
 
 Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
     TRACE_ENTER();
-    gctBOOL inited = (galInfo->mGpu != NULL);
+    static gctBOOL inited = gcvFALSE;
     gctBOOL ret = gcvFALSE;
     gctPOINTER mHandle = gcvNULL;
     VIVGPUPtr gpuctx = NULL;
@@ -343,15 +341,8 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
         TRACE_ERROR("GPU DEVICE INIT FAILED\n");
         TRACE_EXIT(FALSE);
     }
-
+    inited = gcvTRUE;
     galInfo->mGpu = gpuctx;
-
-#if defined(GPU_NO_OVERLAP_BLIT)
-    // create helper surfaces
-    galInfo->mBlitInfo.mHelperRgb565Surf = VAllocBuffer(galInfo, SLICE_WIDTH, SLICE_HEIGHT, 16);
-    galInfo->mBlitInfo.mHelperRgba8888Surf = VAllocBuffer(galInfo, SLICE_WIDTH, SLICE_HEIGHT, 32);
-#endif
-
     TRACE_EXIT(TRUE);
 }
 
@@ -365,12 +356,6 @@ Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo) {
     }
 
     VDestroySurf();
-
-#if defined(GPU_NO_OVERLAP_BLIT)
-    // destroy helper surfaces
-    VFreeBuffer(galInfo->mBlitInfo.mHelperRgb565Surf);
-    VFreeBuffer(galInfo->mBlitInfo.mHelperRgba8888Surf);
-#endif
 
     gpuctx = (VIVGPUPtr) (galInfo->mGpu);
     ret = DestroyDevice(gpuctx->mDevice);
@@ -411,48 +396,55 @@ Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo) {
     TRACE_EXIT(TRUE);
 }
 
-Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type, int onLinearBuffer) {
+extern Bool vivEnableCacheMemory;
+Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type) {
     gceSTATUS status = gcvSTATUS_OK;
     GenericSurfacePtr surf = (GenericSurfacePtr) (ppix->mVidMemInfo);
-    VIVGPUPtr gpuctx = gcvNULL;
-    gcoOS Os = gcvNULL;
-    if(galInfo != gcvNULL)
-        gpuctx = (VIVGPUPtr) (galInfo->mGpu);
-    if(gpuctx != gcvNULL)
-        Os = gpuctx->mDriver->mOs;
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
 
-    if(onLinearBuffer)
-        surf = (GenericSurfacePtr) (ppix->mLinearVidMemInfo);
+#if defined(__mips__) || defined(mips)
+    TRACE_EXIT(TRUE);
+#endif
 
     if ( surf == NULL )
         TRACE_EXIT(TRUE);
+
+    if ( surf->mIsWrapped )
+    {
+        TRACE_EXIT(TRUE);
+    }
+
+    if ( vivEnableCacheMemory == FALSE )
+    {
+        TRACE_EXIT(TRUE);
+    }
 
     TRACE_INFO("FLUSH INFO => LOGICAL = %d PHYSICAL = %d STRIDE = %d  ALIGNED HEIGHT = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mStride, surf->mAlignedHeight);
 
     switch (flush_type) {
         case INVALIDATE:
-            status = gcoOS_CacheInvalidate(Os, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+            status = gcoOS_CacheInvalidate(gpuctx->mDriver->mOs, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
             }
             break;
         case FLUSH:
-            status = gcoOS_CacheFlush(Os, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+            status = gcoOS_CacheFlush(gpuctx->mDriver->mOs, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
             }
             break;
         case CLEAN:
-            status = gcoOS_CacheClean(Os, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
+            status = gcoOS_CacheClean(gpuctx->mDriver->mOs, surf->mVideoNode.mNode, surf->mVideoNode.mLogicalAddr, surf->mStride * surf->mAlignedHeight);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
             }
             break;
         case MEMORY_BARRIER:
-            status = gcoOS_MemoryBarrier(Os, surf->mVideoNode.mLogicalAddr);
+            status = gcoOS_MemoryBarrier(gpuctx->mDriver->mOs, surf->mVideoNode.mLogicalAddr);
             if (status != gcvSTATUS_OK) {
                 TRACE_ERROR("Cache Invalidation Failed\n");
                 TRACE_EXIT(FALSE);
@@ -469,34 +461,50 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
 Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
-    status = gcoHAL_MapUserMemory(
-            logical,
-            physical,
-            size,
-            mappingInfo,
-            (gctUINT32_PTR)gpuAddress
-            );
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("User Memory Mapping Failed\n");
+    gctUINT32 handle = 0;
+
+    gcsUSER_MEMORY_DESC desc = {
+        .flag     = gcvALLOC_FLAG_USERMEMORY,
+        .logical  = gcmPTR_TO_UINT64(logical),
+        .physical = (gctUINT32)physical,
+        .size     = (gctUINT32)size,
+    };
+
+    status = gcoHAL_WrapUserMemory(&desc, &handle);
+
+    if (status < 0) {
+        TRACE_ERROR("Wrap Failed\n");
+        *gpuAddress = 0;
         TRACE_EXIT(FALSE);
     }
+
+    status = LockVideoNode(gcvNULL, handle, gcvFALSE, &physical, (gctPOINTER *)&logical);
+
+    if (status < 0) {
+        TRACE_ERROR("Lock Failed\n");
+        gcoHAL_ReleaseVideoMemory(handle);
+        *mappingInfo = gcvNULL;
+        TRACE_EXIT(FALSE);
+    }
+    *mappingInfo = gcmINT2PTR(handle);
+    *gpuAddress = physical;
     TRACE_EXIT(TRUE);
 }
 
 Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, unsigned int  gpuAddress) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
-    status =
-            gcoHAL_UnmapUserMemory(
-            logical,
-            size,
-            mappingInfo,
-            (gctUINT32)gpuAddress
-            );
-    if (status != gcvSTATUS_OK) {
-        TRACE_ERROR("User Memory UnMapping Failed\n");
-        TRACE_EXIT(FALSE);
+
+    status = UnlockVideoNode(gcvNULL, (gctUINT32)mappingInfo, gcvSURF_BITMAP);
+    if (status < 0) {
+        TRACE_ERROR("Unlock Failed\n");
     }
+
+    status = FreeVideoNode(gcvNULL, (gctUINT32)mappingInfo);
+    if (status < 0) {
+        TRACE_ERROR("Free Failed\n");
+    }
+
     TRACE_EXIT(TRUE);
 }
 

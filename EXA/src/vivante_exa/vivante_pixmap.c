@@ -1,33 +1,35 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
 
 
 #include "vivante_exa.h"
+
 #include "vivante.h"
+
 #include "vivante_priv.h"
 
 /**
@@ -49,13 +51,10 @@ VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
     IGNORE(align);
     IGNORE(size);
     vivpixmap->mVidMemInfo = NULL;
-    vivpixmap->mLinearVidMemInfo = NULL;
-    vivpixmap->mLinearBufferNeedUpdate = FALSE;
-    vivpixmap->mGpuBusy = FALSE;
+    vivpixmap->mHWPath = FALSE;
     vivpixmap->mCpuBusy = FALSE;
     vivpixmap->mSwAnyWay = FALSE;
     vivpixmap->mNextGpuBusyPixmap = NULL;
-    vivpixmap->mFlags = 0;
     vivpixmap->mRef = 0;
     TRACE_EXIT(vivpixmap);
 }
@@ -100,9 +99,7 @@ Bool
 VivPixmapIsOffscreen(PixmapPtr pPixmap) {
     TRACE_ENTER();
     BOOL ret = FALSE;
-    Viv2DPixmapPtr vivPixmap = NULL;
     ScreenPtr pScreen = pPixmap->drawable.pScreen;
-    vivPixmap = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
 
     /* offscreen means in 'gpu accessible memory', not that it's off the
     * visible screen.
@@ -111,10 +108,7 @@ VivPixmapIsOffscreen(PixmapPtr pPixmap) {
         TRACE_EXIT(TRUE);
     }
 
-    if((vivPixmap->mVidMemInfo!=NULL)||(vivPixmap->mLinearVidMemInfo!=NULL))
-        ret = TRUE;
-    else
-        ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
+    ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
 
     TRACE_EXIT(ret);
 }
@@ -130,7 +124,6 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
     pointer pPixData) {
     TRACE_ENTER();
     Bool ret = FALSE;
-    GenericSurfacePtr surf;
     Bool isChanged = FALSE;
     int prev_w = pPixmap->drawable.width;
     int prev_h = pPixmap->drawable.height;
@@ -185,25 +178,16 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         const unsigned long offset =(CARD8*) (pPixData) - screenMemoryBegin;
 
-        LOGD("Wrapper address %08x in fb (%08x-%08x) to pixmap, offset=%d\n",
-            pPixData, screenMemoryBegin, screenMemoryEnd, offset);
-
-        /* Free old wrapper */
-        DestroySurface(&pViv->mGrCtx, vivPixmap);
-
         /* Store GPU address. */
-        const unsigned long physical = pViv->mFB.memGpuBase + offset;
-        if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap, pViv->mFakeExa.mExaDriver->memorySize/2)) { // reserved buffers size is greater than current pixmap used. TODO: move shadow buffer out
+        const unsigned long physical = pViv->mFB.memPhysBase + offset;
+        if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
             TRACE_EXIT(FALSE);
         }
 
-        // fb buffer is noncacheable
-        vivPixmap->mFlags = VIVPIXMAP_FLAG_NONCACHEABLE;
+        TRACE_EXIT(TRUE);
 
-        // clear the surface to prevent data leakage
-        //CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
     } else if (pPixData) {
 
         TRACE_ERROR("NO ACCERELATION\n");
@@ -223,17 +207,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         }
 
         vivPixmap->mVidMemInfo = NULL;
-        vivPixmap->mLinearVidMemInfo = NULL;
-        vivPixmap->mFlags = 0;
-
         TRACE_EXIT(FALSE);
-    } else {
 
-        // check gpu access: wait it done
-        if(vivPixmap && vivPixmap->mGpuBusy) {
-            VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
-            freePixmapQueue();
-        }
+    } else {
 
         if (isChanged) {
 
@@ -254,19 +230,20 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
             }
 
             pPixmap->devKind = GetStride(vivPixmap);
-            vivPixmap->mFlags = 0;
+
+            /* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
+            if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
+            {
+                CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
+            }
+
+
         }
 
-
-        // clear the surface to prevent data leakage
-        CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
     }
 
     TRACE_EXIT(TRUE);
 }
-
-// (PrepareAccess, FinishAccess) can embed:
-// (PrepareAccess1, PrepareAccess2, ..., FinishAccess2, FinishAccess1)
 
 /**
  * PrepareAccess() is called before CPU access to an offscreen pixmap.
@@ -305,40 +282,8 @@ Bool
 VivPrepareAccess(PixmapPtr pPix, int index) {
     TRACE_ENTER();
     Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
-
-    startDrawingSW();
 
     if (vivpixmap->mRef == 0) {
-        GenericSurfacePtr surf = (GenericSurfacePtr) vivpixmap->mVidMemInfo;
-
-        // create an auxiliary linear buffer if the main buffer is tiled
-        if(surf->mTiling != gcvLINEAR)
-        {
-            GenericSurfacePtr linearSurf = (GenericSurfacePtr) vivpixmap->mLinearVidMemInfo;
-
-            if(linearSurf == NULL)
-            {
-                // allocate linear surface
-                VIVGPUPtr gpuctx = (VIVGPUPtr) pViv->mGrCtx.mGpu;
-                if(VIV2DGPUSurfaceAllocEx(gpuctx,
-                        surf->mAlignedWidth,
-                        surf->mAlignedHeight,
-                        surf->mBytesPerPixel,
-                        &linearSurf,
-                        getPixmapCachePolicy()))
-                {
-                    vivpixmap->mLinearVidMemInfo = linearSurf;
-                }
-                else
-                {
-                    vivpixmap->mLinearVidMemInfo = NULL;
-                    TRACE_ERROR("No memory available\n");
-                    TRACE_EXIT(FALSE);
-                }
-            }
-        }
-
         pPix->devPrivate.ptr = MapSurface(vivpixmap);
     }
 
@@ -351,8 +296,7 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
 
     }
 
-    preCpuDraw(pViv, vivpixmap);
-
+    vivpixmap->mCpuBusy=TRUE;
     TRACE_EXIT(TRUE);
 }
 
@@ -370,10 +314,7 @@ void
 VivFinishAccess(PixmapPtr pPix, int index) {
     TRACE_ENTER();
     Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
-    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
     IGNORE(index);
-
-    postCpuDraw(pViv, vivpixmap);
 
     if (vivpixmap->mRef == 1) {
 
@@ -382,49 +323,7 @@ VivFinishAccess(PixmapPtr pPix, int index) {
     }
 
     vivpixmap->mRef--;
-
-    endDrawingSW();
-
     TRACE_EXIT();
 }
 
-PixmapPtr
-ShmCreatePixmap(ScreenPtr pScreen, int width, int height, int depth, char *addr)
-{
-    PixmapPtr pPixmap;
-    int bitsPerPixel = BitsPerPixel(depth);
-    int devKind = PixmapBytePad(width, depth);
-
-       /* width and height of 0 means don't allocate any pixmap data */
-       pPixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth, 0);
-    if (!pPixmap)
-           return NullPixmap;
-
-       if ((*pScreen->ModifyPixmapHeader)(pPixmap, width, height, depth,
-                                          bitsPerPixel, devKind, (pointer)addr))
-           return pPixmap;
-    else
-    {
-        (*pScreen->DestroyPixmap)(pPixmap);
-        return NULL;
-    }
-}
-
-void
-ShmPutImage(DrawablePtr dst,
-            GCPtr pGC,
-            int depth,
-            unsigned int format,
-            int w,
-            int h,
-            int sx,
-            int sy,
-            int sw,
-            int sh,
-            int dx,
-            int dy,
-            char *data)
-{
-    // TODO:
-}
 

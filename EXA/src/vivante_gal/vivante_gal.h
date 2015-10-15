@@ -1,32 +1,33 @@
- /****************************************************************************
- *
- *    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
- *    All Rights Reserved.
- *
- *    Permission is hereby granted, free of charge, to any person obtaining
- *    a copy of this software and associated documentation files (the
- *    'Software'), to deal in the Software without restriction, including
- *    without limitation the rights to use, copy, modify, merge, publish,
- *    distribute, sub license, and/or sell copies of the Software, and to
- *    permit persons to whom the Software is furnished to do so, subject
- *    to the following conditions:
- *
- *    The above copyright notice and this permission notice (including the
- *    next paragraph) shall be included in all copies or substantial
- *    portions of the Software.
- *
- *    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
- *    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- *    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
- *    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- *    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- *    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- *****************************************************************************/
+/****************************************************************************
+*
+*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
+
 
 #ifndef VIVANTE_GAL_H
-#define    VIVANTE_GAL_H
+#define VIVANTE_GAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,8 +64,8 @@ extern "C" {
     typedef struct _mmInfo {
         unsigned int mSize;
         void * mUserAddr;
-        void* mapping;
         unsigned int physical;
+        gctUINT32 handle;
     } MemMapInfo, *MemMapInfoPtr;
 
     /*Cache Ops*/
@@ -107,39 +108,23 @@ extern "C" {
     typedef struct _vivBox {
         int x1;
         int y1;
-
-        union {
-
-            struct {
-                int x2;
-                int y2;
-            };
-
-            struct {
-                int width;
-                int height;
-            };
-        };
+        int x2;
+        int y2;
+        int width;
+        int height;
     } VivBox, *VivBoxPtr;
 
     /*Prv Pixmap Structure*/
     typedef struct _vivPixmapPriv Viv2DPixmap;
     typedef Viv2DPixmap * Viv2DPixmapPtr;
 
-#define VIVPIXMAP_FLAG_NONCACHEABLE 1
-
     struct _vivPixmapPriv {
         /*Video Memory*/
         void * mVidMemInfo;
-        void * mLinearVidMemInfo;
-        Bool mLinearBufferNeedUpdate;
-        /* Tracks pixmaps busy with GPU operation since last GPU sync. */
-        Bool mGpuBusy;
+        Bool mHWPath;
         Bool mCpuBusy;
         Bool mSwAnyWay;
         Viv2DPixmapPtr mNextGpuBusyPixmap;
-        /* Flags */
-        unsigned int mFlags;
         /*reference*/
         int mRef;
     };
@@ -153,6 +138,7 @@ extern "C" {
         unsigned int mStride;
         unsigned int repeat;
         unsigned int repeatType;
+        unsigned int alpha;
     } VIV2DSURFINFO;
 
     /*Blit Info*/
@@ -163,11 +149,6 @@ extern "C" {
         VIV2DSURFINFO mSrcSurfInfo;
         /*Mask*/
         VIV2DSURFINFO mMskSurfInfo;
-#if defined(GPU_NO_OVERLAP_BLIT)
-        /*Helper*/
-        gcoSURF mHelperRgb565Surf;
-        gcoSURF mHelperRgba8888Surf;
-#endif
         /*BlitCode*/
         BlitCode mOperationCode;
         /*Operation Related*/
@@ -193,11 +174,18 @@ extern "C" {
         /* record old srcBox and dstBox */
         VivBox mOSrcBox;
         VivBox mODstBox;
-#if defined(GPU_NO_OVERLAP_BLIT)
-        /* copy */
-        int xdir;
-        int ydir;
-#endif
+        /*Source*/
+        VIV2DSURFINFO mSrcTempSurfInfo;
+        /* for scale */
+        VIV2DSURFINFO mSrcTempSurfInfo1;
+        /* for rotate */
+        VIV2DSURFINFO mSrcTempSurfInfo2;
+        /*Mask*/
+        VIV2DSURFINFO mMskTempSurfInfo;
+        /* for scale */
+        VIV2DSURFINFO mMskTempSurfInfo1;
+        /* for rotate */
+        VIV2DSURFINFO mMskTempSurfInfo2;
     } VIV2DBLITINFO, *VIV2DBLITINFOPTR;
 
     /*Gal Encapsulation*/
@@ -225,7 +213,7 @@ extern "C" {
     /*Creating and Destroying Functions*/
     Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix);
-    Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr toBeUpdatedpPix, int bytes);
+    Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
     Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
     unsigned int GetStride(Viv2DPixmapPtr pixmap);
@@ -242,16 +230,10 @@ extern "C" {
     Bool GetVivPictureFormat(int exa_fmt, VivPictFmtPtr viv);
     Bool GetDefaultFormat(int bpp, VivPictFmtPtr format);
     char *MapViv2DPixmap(Viv2DPixmapPtr pdst);
+    void VSetSurfIndex(int n);
     Bool VGetSurfAddrBy16(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
     Bool VGetSurfAddrBy32(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
-#if defined HAS_gcoSURF_Cache
-    void VFlushSurf(int surf16, void *logAddr, int size);
-#endif
     void VDestroySurf();
-#if defined(GPU_NO_OVERLAP_BLIT)
-    gcoSURF VAllocBuffer(GALINFOPTR galInfo,int width, int height, int bpp);
-    void VFreeBuffer(gcoSURF surf);
-#endif
     /************************************************************************
      *EXA RELATED UTILITY (END)
      ************************************************************************/
@@ -263,10 +245,9 @@ extern "C" {
     Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo);
     Bool VIV2DGPUCtxInit(GALINFOPTR galInfo);
     Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo);
-    Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type, int onLinearBuffer);
+    Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type);
     Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size, void ** mappingInfo, unsigned int * gpuAddress);
     Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, unsigned int gpuAddress);
-    Bool VIV2DGPUSurfaceReAllocNonCached(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
     Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo);
     /************************************************************************
@@ -292,5 +273,5 @@ extern "C" {
 }
 #endif
 
-#endif    /* VIVANTE_GAL_H */
+#endif  /* VIVANTE_GAL_H */
 
