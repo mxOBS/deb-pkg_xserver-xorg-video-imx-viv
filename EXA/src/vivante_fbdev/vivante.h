@@ -79,6 +79,13 @@ extern "C" {
         int mFBOffset; /*framebuffer offset*/
     } FBINFO, *FBINFOPTR;
 
+#ifdef ADD_FSL_XRANDR
+    typedef struct _fbSyncFlags {
+        char * modeName;
+        unsigned int syncFlags;
+    } FBSYNCFLAGS;
+#define MAX_MODES_SUPPORTED 256
+#endif
     typedef struct _vivRec {
         /*Graphics Context*/
         GALINFO mGrCtx;
@@ -133,7 +140,12 @@ extern "C" {
         void* displayPrivate;
 
         /* sync value: support FSL extension */
-        unsigned int fbSync;
+#ifdef ADD_FSL_XRANDR
+        unsigned char*    fbMemoryStart2_noxshift; /* A fix to fbMemoryStart2 to make sure xoffset==0 */
+        char  bootupVideoMode[64];
+        DisplayModePtr  lastVideoMode;
+        FBSYNCFLAGS fbSync[MAX_MODES_SUPPORTED];
+#endif
     } VivRec, * VivPtr;
 
     /********************************************************************************

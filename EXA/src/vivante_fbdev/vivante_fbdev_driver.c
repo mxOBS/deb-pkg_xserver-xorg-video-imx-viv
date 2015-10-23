@@ -35,6 +35,7 @@
 #include "../vivante_extension/vivante_ext.h"
 #include <errno.h>
 #include <linux/fb.h>
+#include <xorg/shadow.h>
 
 /* For ADD_FSL_XRANDR, only for freescale imx chips */
 /* To enable ADD_FSL_XRANDR, you should get FSL imx display module first and then you can enable it */
@@ -77,6 +78,7 @@ static const struct pci_id_match viv_device_match[] = {
 Bool vivEnableCacheMemory = TRUE;
 #ifdef ADD_FSL_XRANDR
 static Bool vivEnableXrandr = FALSE;
+static Bool gEnableFbSyncExt = TRUE;
 #endif
 
 #ifdef DEBUG
@@ -107,6 +109,15 @@ VivGetRec(ScrnInfoPtr pScrn) {
     }
     pScrn->driverPrivate = malloc(sizeof (VivRec));
     memset((char *)pScrn->driverPrivate, 0, sizeof(VivRec));
+#ifdef ADD_FSL_XRANDR
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+
+    vPtr->fbAlignOffset = ADDRESS_ALIGNMENT;
+    vPtr->fbAlignWidth  = WIDTH_ALIGNMENT;
+    vPtr->fbAlignHeight = HEIGHT_ALIGNMENT;
+
+    imxInitSyncFlagsStorage(pScrn);
+#endif
     TRACE_EXIT(TRUE);
 }
 
@@ -115,6 +126,14 @@ VivFreeRec(ScrnInfoPtr pScrn) {
     if (pScrn->driverPrivate == NULL) {
         TRACE_EXIT();
     }
+
+#ifdef ADD_FSL_XRANDR
+    VivPtr vPtr = GET_VIV_PTR(pScrn);
+    if(vPtr->lastVideoMode) {
+        xf86DeleteMode(&vPtr->lastVideoMode, vPtr->lastVideoMode);
+    }
+    imxFreeSyncFlagsStorage(pScrn);
+#endif
     free(pScrn->driverPrivate);
     pScrn->driverPrivate = NULL;
     TRACE_EXIT();
@@ -161,6 +180,10 @@ static Bool VivCreateScreenResources(ScreenPtr pScreen);
 enum { VIV_ROTATE_NONE=0, VIV_ROTATE_CW=270, VIV_ROTATE_UD=180, VIV_ROTATE_CCW=90 };
 static Bool VivShadowInit(ScreenPtr pScreen);
 
+#ifdef ADD_FSL_XRANDR
+static Bool SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn);
+static Bool RestoreSyncFlags(ScrnInfoPtr pScrn);
+#endif
 /************************************************************************
  * SUPPORTED CHIPSETS (START)
  ************************************************************************/
@@ -873,18 +896,13 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     }
 
 #ifdef ADD_FSL_XRANDR
+    strcpy(fPtr->fbDeviceName, dev_node + 5); // skip past "/dev/"
+    /* get device preferred video mode */
+    imxGetDevicePreferredMode(pScrn);
+
     /* save sync value */
-    if (1) {
-        int fdDev = fbdevHWGetFD(pScrn);
-        struct fb_var_screeninfo fbVarScreenInfo;
-        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "unable to get VSCREENINFO %s\n", strerror(errno));
-            return FALSE;
-        }
-        else {
-            fPtr->fbSync = fbVarScreenInfo.sync;
-        }
-    }
+    if(!SaveBuildInModeSyncFlags(pScrn))
+        return FALSE;
 #endif
 
     /*Get the default depth*/
@@ -1043,27 +1061,6 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     /*setting current mode*/
     pScrn->currentMode = pScrn->modes;
 
-#ifdef ADD_FSL_XRANDR
-    if ( !vivEnableXrandr )
-    {
-                /*Init the hardware in current mode*/
-                if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
-                        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mode initialization failed\n");
-                        TRACE_EXIT(FALSE);
-                }
-    }
-#else
-    /*Init the hardware in current mode*/
-    if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mode initialization failed\n");
-        TRACE_EXIT(FALSE);
-    }
-#endif
-
-    pScrn->videoRam = fbdevHWGetVidmem(pScrn);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "hardware: %s (video memory:"
-            " %dkB)\n", fbdevHWGetName(pScrn), pScrn->videoRam / 1024);
-
     xf86PrintModes(pScrn);
 
     /* Set display resolution */
@@ -1100,6 +1097,7 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
 #endif
     /* make sure display width is correctly aligned */
     pScrn->displayWidth = gcmALIGN(pScrn->virtualX, fPtr->fbAlignWidth);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VivPreInit: adjust display width %d\n",pScrn->displayWidth);
     TRACE_EXIT(TRUE);
 }
 
@@ -1144,6 +1142,12 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
             pScrn->mask.red, pScrn->mask.green, pScrn->mask.blue,
             pScrn->offset.red, pScrn->offset.green, pScrn->offset.blue);
 
+    /*Init the hardware in current mode*/
+    if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mode initialization failed\n");
+        TRACE_EXIT(FALSE);
+    }
+
     /*Mapping the Video memory*/
     if (NULL == (fPtr->mFB.mFBMemory = fbdevHWMapVidmem(pScrn))) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mapping of video memory"
@@ -1156,25 +1160,22 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
     /*Setting the physcal addr*/
     fPtr->mFB.memPhysBase = pScrn->memPhysBase;
 
+    /*Logical start address*/
+    fPtr->mFB.mFBStart = fPtr->mFB.mFBMemory + fPtr->mFB.mFBOffset;
+
     /*Save Configuration*/
     fbdevHWSave(pScrn);
-
 #ifdef ADD_FSL_XRANDR
-    /*Init the hardware in current mode*/
+    /* record last video mode for later hdmi hot plugout/in */
+    if(fPtr->lastVideoMode) {
+        xf86DeleteMode(&fPtr->lastVideoMode, fPtr->lastVideoMode);
+    }
+    /*pScrn->currentMode != NULL */
+    fPtr->lastVideoMode = xf86DuplicateMode(pScrn->currentMode);
+
+    /* init imx display engine */
     if ( vivEnableXrandr )
     {
-        if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mode initialization failed\n");
-            TRACE_EXIT(FALSE);
-        }
-        /* video Ram perhaps changes, update it */
-        pScrn->videoRam = fbdevHWGetVidmem(pScrn);
-        /*ReMapping the Video memory*/
-        if (NULL == (fPtr->mFB.mFBMemory = fbdevHWMapVidmem(pScrn))) {
-                xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mapping of video memory failed\n");
-                TRACE_EXIT(FALSE);
-        }
-        /* init imx display engine */
         imxSetShadowBuffer(pScreen);
     }
 #endif
@@ -1215,8 +1216,6 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
                 "Pitch updated to %d after ModeInit\n",
                 pScrn->displayWidth);
     }
-    /*Logical start address*/
-    fPtr->mFB.mFBStart = fPtr->mFB.mFBMemory + fPtr->mFB.mFBOffset;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
             "FB Start = %p  FB Base = %p  FB Offset = %p\n",
@@ -1445,27 +1444,9 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
 
     /* restore sync for FSL extension */
 #ifdef ADD_FSL_XRANDR
-    if (1) {
-        struct fb_var_screeninfo fbVarScreenInfo;
-        int fdDev = fbdevHWGetFD(pScrn);
-        if (-1 == fdDev) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "frame buffer device not available or initialized\n");
-            return TRUE;
-        }
-
-        /* Query the FB variable screen info */
-        if (-1 == ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "unable to get FB VSCREENINFO for current mode: %s\n", strerror(errno));
-            return TRUE;
-        }
-
-        fbVarScreenInfo.sync = fPtr->fbSync;
-
-        if (-1 == ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "unable to restore FB VSCREENINFO: %s\n", strerror(errno));
-            return TRUE;
-        }
-    }
+    /* restore sync for FSL extension */
+    if(!RestoreSyncFlags(pScrn))
+        return FALSE;
 #endif
 
     TRACE_EXIT(TRUE);
@@ -1539,3 +1520,71 @@ OnCrtcModeChanged(ScrnInfoPtr pScrn)
 #endif
 }
 
+#ifdef ADD_FSL_XRANDR
+// call this function at startup
+static Bool
+SaveBuildInModeSyncFlags(ScrnInfoPtr pScrn)
+{
+    if(gEnableFbSyncExt) {
+        int fdDev = fbdevHWGetFD(pScrn);
+        struct fb_var_screeninfo fbVarScreenInfo;
+        if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to get VSCREENINFO %s\n",
+                strerror(errno));
+            return FALSE;
+        }
+        else {
+            imxStoreSyncFlags(pScrn, "current", fbVarScreenInfo.sync);
+        }
+    }
+
+    return TRUE;
+}
+
+static Bool
+RestoreSyncFlags(ScrnInfoPtr pScrn)
+{
+    if(gEnableFbSyncExt) {
+        char *modeName = "current";
+        unsigned int fbSync = 0;
+        if(pScrn->currentMode)
+            modeName = (char*)pScrn->currentMode->name;
+
+        if(!imxLoadSyncFlags(pScrn, modeName, &fbSync)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                "Failed to load FB_SYNC_ flags from storage for mode %s\n",
+                modeName);
+            return TRUE;
+        }
+
+        struct fb_var_screeninfo fbVarScreenInfo;
+        int fdDev = fbdevHWGetFD(pScrn);
+        if (-1 == fdDev) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "frame buffer device not available or initialized\n");
+            return FALSE;
+        }
+
+        /* Query the FB variable screen info */
+        if (0 != ioctl(fdDev, FBIOGET_VSCREENINFO, &fbVarScreenInfo)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to get FB VSCREENINFO for current mode: %s\n",
+                strerror(errno));
+            return FALSE;
+        }
+
+        fbVarScreenInfo.sync = fbSync;
+
+        if (0 != ioctl(fdDev, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                "unable to restore FB VSCREENINFO: %s\n",
+                strerror(errno));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+#endif
