@@ -99,7 +99,9 @@ Bool
 VivPixmapIsOffscreen(PixmapPtr pPixmap) {
     TRACE_ENTER();
     BOOL ret = FALSE;
+    Viv2DPixmapPtr vivPixmap = NULL;
     ScreenPtr pScreen = pPixmap->drawable.pScreen;
+    vivPixmap = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
 
     /* offscreen means in 'gpu accessible memory', not that it's off the
     * visible screen.
@@ -108,7 +110,10 @@ VivPixmapIsOffscreen(PixmapPtr pPixmap) {
         TRACE_EXIT(TRUE);
     }
 
-    ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
+    if(vivPixmap->mVidMemInfo!=NULL)
+        ret = TRUE;
+    else
+        ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
 
     TRACE_EXIT(ret);
 }

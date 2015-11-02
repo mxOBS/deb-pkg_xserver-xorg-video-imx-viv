@@ -371,11 +371,11 @@ Bool EnableAlphaBlending(GALINFOPTR galInfo) {
     srcfactor = (gceSURF_BLEND_FACTOR_MODE)galInfo->mBlitInfo.mBlendOp.mSrcBlendingFactor;
     dstfactor = (gceSURF_BLEND_FACTOR_MODE)galInfo->mBlitInfo.mBlendOp.mDstBlendingFactor;
 
-     if (!pBlt->mSrcSurfInfo.alpha)
-            dstfactor = gcvSURF_BLEND_ONE;
+     //if (!pBlt->mSrcSurfInfo.alpha)
+     //       dstfactor = gcvSURF_BLEND_ONE;
 
-     if (!pBlt->mDstSurfInfo.alpha)
-            srcfactor = gcvSURF_BLEND_ONE;
+     //if (!pBlt->mDstSurfInfo.alpha)
+     //       srcfactor = gcvSURF_BLEND_ONE;
 
 
      status = gco2D_EnableAlphaBlendAdvanced
@@ -421,6 +421,7 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
     VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
     VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
+    GenericSurfacePtr surf = NULL;
 
     gcsRECT mSrcClip = {srcbox->x1, srcbox->y1, srcbox->x2, srcbox->y2};
     gcsRECT mDstClip = {dstbox->x1, dstbox->y1, dstbox->x2, dstbox->y2};
@@ -428,11 +429,15 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     gcsRECT mOSrcClip = {osrcbox->x1, osrcbox->y1, osrcbox->x2, osrcbox->y2};
     gcsRECT mODstClip = {odstbox->x1, odstbox->y1, odstbox->x2, odstbox->y2};
 
+    surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+    gceSURF_ROTATION oRotation = surf -> mRotation;
+    surf -> mRotation = pBlt->mRotation;
     /*setting the source surface*/
     if (!SetSourceSurface(galInfo)) {
         TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
         TRACE_EXIT(FALSE);
     }
+    surf -> mRotation = oRotation;
 
     /*Setting the dest surface*/
     if (!SetDestinationSurface(galInfo)) {
@@ -571,12 +576,47 @@ static Bool composite_stretch_blit_onebyonepixel(GALINFOPTR galInfo, VivBoxPtr o
 Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag)
 {
     *stretchflag = FALSE;
-    return FALSE;
+    if(-1==VIVGetRotation(ptransform))
+        return FALSE;
+    else
+        return TRUE;
 }
 
 gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
 {
-    return gcvSURF_0_DEGREE;
+    gceSURF_ROTATION rt=-1;
+
+    if ((ptransform->matrix[0][0]==pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==pixman_fixed_1))
+    {
+        rt = gcvSURF_0_DEGREE;
+    }
+
+    if ((ptransform->matrix[0][0]==0)
+        &&(ptransform->matrix[0][1]==pixman_fixed_1)
+        &&(ptransform->matrix[1][0]==-pixman_fixed_1)
+        &&(ptransform->matrix[1][1]==0))
+    {
+        rt = gcvSURF_270_DEGREE;
+    }
+
+    if ((ptransform->matrix[0][0]==0)
+        &&(ptransform->matrix[0][1]==-pixman_fixed_1)
+        &&(ptransform->matrix[1][0]==pixman_fixed_1)
+        &&(ptransform->matrix[1][1]==0))
+    {
+        rt = gcvSURF_90_DEGREE;
+    }
+    if ((ptransform->matrix[0][0]==-pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==-pixman_fixed_1))
+    {
+        rt = gcvSURF_180_DEGREE;
+    }
+    return rt;
 }
 
 void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 desheight, gctUINT32 *srcwidth, gctUINT32 *srcheight )
@@ -1699,8 +1739,8 @@ Bool GetBlendingFactors(int op, VivBlendOpPtr vivBlendOp) {
     Bool isFound = FALSE;
 
     /* Disable op= PIXMAN_OP_SRC, currently hw path can't defeat sw path */
-    if ( op == PIXMAN_OP_SRC )
-        TRACE_EXIT(FALSE);
+    //if ( op == PIXMAN_OP_SRC )
+    //    TRACE_EXIT(FALSE);
 
     for (i = 0; i < ARRAY_SIZE(blendingOps) && !isFound; i++) {
         if (blendingOps[i].mOp == op) {
