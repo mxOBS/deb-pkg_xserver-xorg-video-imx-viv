@@ -618,8 +618,8 @@ imxDisplaySetUserMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
 		fbVarScreenInfo.xoffset = 0;
 		fbVarScreenInfo.yoffset = 0;
-		fbVarScreenInfo.xres = pScrn->virtualX;
-		fbVarScreenInfo.yres = pScrn->virtualY;
+		fbVarScreenInfo.xres = mode->HDisplay;
+		fbVarScreenInfo.yres = mode->VDisplay;
 		fbVarScreenInfo.xres_virtual = IMX_ALIGN(fbVarScreenInfo.xres, imxPtr->fbAlignWidth);
 		fbVarScreenInfo.yres_virtual = IMX_ALIGN(fbVarScreenInfo.yres, imxPtr->fbAlignHeight);
 	}
@@ -1690,7 +1690,6 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
 				"xf86InitialConfiguration failed\n");
 		return FALSE;
 	}
-
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"imxDisplayPreInit: virtual set %d x %d, display width %d\n",
