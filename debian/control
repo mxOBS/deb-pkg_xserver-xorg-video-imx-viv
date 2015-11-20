@@ -9,6 +9,7 @@ Build-Depends: debhelper (>= 8.0.0),
  xserver-xorg-dev,
  libdrm-dev,
  libxext-dev,
+ lsb-release,
 Standards-Version: 3.9.3
 Section: libs
 #Homepage: <insert the upstream URL, if relevant>
