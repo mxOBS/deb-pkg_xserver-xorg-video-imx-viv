@@ -118,6 +118,26 @@ extern "C" {
      ************************************************************************/
 
     /************************************************************************
+     * NULL EXA (START)
+     ************************************************************************/
+    Bool
+    VivPrepareCopyFail(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
+            int xdir, int ydir, int alu, Pixel planemask);
+
+    Bool
+    VivPrepareSolidFail(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg);
+
+    Bool
+    VivCheckCompositeFail(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture, PicturePtr pDstPicture);
+
+    Bool
+    VivPrepareCompositeFail(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture, PicturePtr pDstPicture,
+            PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
+    /************************************************************************
+     * NULL EXA (FINISH)
+     ************************************************************************/
+
+    /************************************************************************
      * EXA OTHER FUNCTIONS  (START)
      ************************************************************************/
     void

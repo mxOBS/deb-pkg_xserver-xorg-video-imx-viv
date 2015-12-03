@@ -39,6 +39,7 @@ OBJS := vivante_gal/vivante_gal_blit.o \
 	vivante_gal/vivante_gal_surface.o \
 	vivante_fbdev/vivante_fbdev_driver.o \
 	vivante_exa/vivante_exa.o \
+	vivante_exa/vivante_exa_null.o \
 	vivante_exa/vivante_solid.o \
 	vivante_exa/vivante_copy.o \
 	vivante_exa/vivante_composite.o \
