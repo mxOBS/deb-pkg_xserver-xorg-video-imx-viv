@@ -73,6 +73,7 @@ extern "C" {
         gcoOS mOs;
         gcoHAL mHal;
         gco2D m2DEngine;
+        void* mG2DHandle;
         gcoBRUSH mBrush;
 
         /*video memory mapping*/

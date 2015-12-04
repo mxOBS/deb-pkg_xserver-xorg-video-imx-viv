@@ -29,6 +29,7 @@
 #include "vivante_priv.h"
 #include "vivante_common.h"
 #include "vivante_gal.h"
+#include "g2d.h"
 
 gctBOOL CHIP_SUPPORTA8 = gcvFALSE;
 /**
@@ -66,6 +67,7 @@ static gctBOOL SetupDriver
         TRACE_EXIT(gcvFALSE);
     }
 
+#ifndef G2D
     /*If Seperated*/
     pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
 
@@ -81,7 +83,9 @@ static gctBOOL SetupDriver
         TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
         TRACE_EXIT(gcvFALSE);
     }
-
+#else
+    status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_3D);
+#endif
 
     /* Query the amount of video memory. */
     status = gcoHAL_QueryVideoMemory
@@ -141,6 +145,7 @@ static gctBOOL SetupDriver
         }
     }
 
+#ifndef G2D
     /* Determine whether PE 2.0 is present. */
     pDrvHandle->mIsPe20Supported = gcoHAL_IsFeatureAvailable(pDrvHandle ->mHal,
             gcvFEATURE_2DPE20)
@@ -160,6 +165,13 @@ static gctBOOL SetupDriver
         TRACE_ERROR("Unable to construct 2DEngine object, status = %d\n", status);
         TRACE_EXIT(gcvFALSE);
     }
+#else
+    status = g2d_open(&(pDrvHandle->mG2DHandle));
+    if (status < 0) {
+        TRACE_ERROR("g2d_open failed, status = %d\n", status);
+        TRACE_EXIT(gcvFALSE);
+    }
+#endif
     *driver = pDrvHandle;
     TRACE_EXIT(gcvTRUE);
 }
@@ -179,7 +191,13 @@ static gctBOOL DestroyDriver
     /*Committing what is left*/
     gcoHAL_Commit(driver->mHal, gcvTRUE);
 
-
+    if(driver->mG2DHandle) {
+        status = g2d_close(driver->mG2DHandle);
+        if (status < 0) {
+            TRACE_ERROR("g2d_close failed, status = %d\n", status);
+            TRACE_EXIT(gcvFALSE);
+        }
+    }
     /*Unmapping the memory*/
     if (driver->g_Internal != gcvNULL) {
         /* Unmap the local internal memory. */
@@ -371,6 +389,7 @@ Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo) {
     TRACE_EXIT(TRUE);
 }
 
+#ifndef G2D
 Bool VIV2DGPUBlitComplete(GALINFOPTR galInfo, Bool wait) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
@@ -395,6 +414,7 @@ Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo) {
     }
     TRACE_EXIT(TRUE);
 }
+#endif
 
 extern Bool vivEnableCacheMemory;
 Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type) {
