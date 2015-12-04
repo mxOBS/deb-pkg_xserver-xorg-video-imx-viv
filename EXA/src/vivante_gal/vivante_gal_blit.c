@@ -371,12 +371,11 @@ Bool EnableAlphaBlending(GALINFOPTR galInfo) {
     srcfactor = (gceSURF_BLEND_FACTOR_MODE)galInfo->mBlitInfo.mBlendOp.mSrcBlendingFactor;
     dstfactor = (gceSURF_BLEND_FACTOR_MODE)galInfo->mBlitInfo.mBlendOp.mDstBlendingFactor;
 
-     //if (!pBlt->mSrcSurfInfo.alpha)
-     //       dstfactor = gcvSURF_BLEND_ONE;
+    if (!pBlt->mSrcSurfInfo.alpha)
+            dstfactor = gcvSURF_BLEND_ONE;
 
-     //if (!pBlt->mDstSurfInfo.alpha)
-     //       srcfactor = gcvSURF_BLEND_ONE;
-
+    if (!pBlt->mDstSurfInfo.alpha)
+            srcfactor = gcvSURF_BLEND_ONE;
 
      status = gco2D_EnableAlphaBlendAdvanced
      (
@@ -406,6 +405,23 @@ Bool DisableAlphaBlending(GALINFOPTR galInfo) {
     TRACE_EXIT(TRUE);
 }
 
+static gce2D_NATURE_ROTATION _convertToNR(gceSURF_ROTATION rt)
+{
+
+    switch(rt) {
+    case gcvSURF_0_DEGREE:
+       return gcvNR_0_DEGREE;
+    case gcvSURF_90_DEGREE:
+       return gcvNR_LEFT_90_DEGREE;
+    case gcvSURF_180_DEGREE:
+       return gcvNR_180_DEGREE;
+    case gcvSURF_270_DEGREE:
+       return gcvNR_RIGHT_90_DEGREE;
+    default:
+       return gcvNR_0_DEGREE;
+    }
+    return gcvNR_0_DEGREE;
+}
 /**
  *
  * @param galInfo
@@ -421,23 +437,29 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     VivBoxPtr dstbox = &galInfo->mBlitInfo.mDstBox;
     VivBoxPtr osrcbox = &galInfo->mBlitInfo.mOSrcBox;
     VivBoxPtr odstbox = &galInfo->mBlitInfo.mODstBox;
-    GenericSurfacePtr surf = NULL;
+    gceSURF_ROTATION rtx, rty,trt;
+    GenericSurfacePtr srcsurf;
 
     gcsRECT mSrcClip = {srcbox->x1, srcbox->y1, srcbox->x2, srcbox->y2};
     gcsRECT mDstClip = {dstbox->x1, dstbox->y1, dstbox->x2, dstbox->y2};
 
     gcsRECT mOSrcClip = {osrcbox->x1, osrcbox->y1, osrcbox->x2, osrcbox->y2};
     gcsRECT mODstClip = {odstbox->x1, odstbox->y1, odstbox->x2, odstbox->y2};
+    srcsurf = (GenericSurfacePtr)(pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+    if ( pBlt->mIsNotStretched && (pBlt->mRotation == gcvSURF_90_DEGREE ||
+        pBlt->mRotation == gcvSURF_180_DEGREE ||
+        pBlt->mRotation == gcvSURF_270_DEGREE)  )
+    {
+       gco2D_NatureRotateTranslation(gcvTRUE, _convertToNR(pBlt->mRotation),srcsurf->mAlignedWidth, srcsurf->mAlignedHeight, pBlt->mDstSurfInfo.mWidth, pBlt->mDstSurfInfo.mHeight, &mSrcClip, &mDstClip, &rtx, &rty);
+       trt = srcsurf->mRotation;
+       srcsurf->mRotation = rtx;
+    }
 
-    surf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
-    gceSURF_ROTATION oRotation = surf -> mRotation;
-    surf -> mRotation = pBlt->mRotation;
     /*setting the source surface*/
     if (!SetSourceSurface(galInfo)) {
-        TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
-        TRACE_EXIT(FALSE);
+            TRACE_ERROR("ERROR SETTING SOURCE SURFACE\n");
+            TRACE_EXIT(FALSE);
     }
-    surf -> mRotation = oRotation;
 
     /*Setting the dest surface*/
     if (!SetDestinationSurface(galInfo)) {
@@ -497,6 +519,13 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     if (!DisableAlphaBlending(galInfo)) {
         TRACE_ERROR("Disabling Alpha Blend Failed\n");
         TRACE_EXIT(FALSE);
+    }
+
+    if ( pBlt->mIsNotStretched && (pBlt->mRotation == gcvSURF_90_DEGREE ||
+        pBlt->mRotation == gcvSURF_180_DEGREE ||
+        pBlt->mRotation == gcvSURF_270_DEGREE)  )
+    {
+        srcsurf->mRotation = trt;
     }
 
     TRACE_EXIT(TRUE);
@@ -580,6 +609,7 @@ Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag)
         return FALSE;
     else
         return TRUE;
+
 }
 
 gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
@@ -617,13 +647,21 @@ gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
         rt = gcvSURF_180_DEGREE;
     }
     return rt;
+
 }
 
 void VIVGetSourceWH(PictTransform *ptransform, gctUINT32 deswidth, gctUINT32 desheight, gctUINT32 *srcwidth, gctUINT32 *srcheight )
 {
+    if (VIVGetRotation(ptransform)==gcvSURF_90_DEGREE || VIVGetRotation(ptransform)==gcvSURF_270_DEGREE)
+    {
+    *srcwidth = desheight;
+    *srcheight = deswidth;
+    } else {
     *srcwidth = deswidth;
     *srcheight = desheight;
+    }
     return ;
+
 }
 
 static void _rectIntersect(gcsRECT_PTR pdst, gcsRECT_PTR psrc1, gcsRECT_PTR psrc2)
@@ -1407,6 +1445,8 @@ static Bool BlendArbitraryPatternRect(GALINFOPTR galInfo, VivBoxPtr opbox) {
     TRACE_EXIT(TRUE);
 }
 
+
+
 /**
  * Alpha blends for a simple rectangle (SRC OP DST)
  * @param galInfo - GAL Layer
@@ -1473,7 +1513,7 @@ void VIVSWComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     pdst->mCpuBusy = TRUE;
 }
 #if defined(ENABLE_MASK_OP)
-static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox)
+static void SetTempSurfForRM(GALINFOPTR galInfo, VivBoxPtr opbox)
 {
     GenericSurfacePtr srcsurf;
     gceSTATUS status = gcvSTATUS_OK;
@@ -1677,7 +1717,7 @@ static void SetTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox)
 
 }
 
-static void ReleaseTempSurfForRT(GALINFOPTR galInfo, VivBoxPtr opbox)
+static void ReleaseTempSurfForRM(GALINFOPTR galInfo, VivBoxPtr opbox)
 {
     VIV2DBLITINFOPTR pBlt = &(galInfo->mBlitInfo);
 
@@ -1705,11 +1745,11 @@ Bool DoCompositeBlit(GALINFOPTR galInfo, VivBoxPtr opbox) {
         case VIVCOMPOSITE_MASKED_SIMPLE:
         case VIVCOMPOSITE_MASKED_SRC_REPEAT_ARBITRARY_SIZE_PATTERN:
             /* if REPEAT MODE happens, set temp surf */
-            SetTempSurfForRT(galInfo,opbox);
+            SetTempSurfForRM(galInfo,opbox);
 
             ret = BlendMaskedArbitraryPatternRect(galInfo, opbox);
 
-            ReleaseTempSurfForRT(galInfo,opbox);
+            ReleaseTempSurfForRM(galInfo,opbox);
 
             break;
     #endif
@@ -1737,10 +1777,6 @@ Bool GetBlendingFactors(int op, VivBlendOpPtr vivBlendOp) {
     TRACE_ENTER();
     int i;
     Bool isFound = FALSE;
-
-    /* Disable op= PIXMAN_OP_SRC, currently hw path can't defeat sw path */
-    //if ( op == PIXMAN_OP_SRC )
-    //    TRACE_EXIT(FALSE);
 
     for (i = 0; i < ARRAY_SIZE(blendingOps) && !isFound; i++) {
         if (blendingOps[i].mOp == op) {

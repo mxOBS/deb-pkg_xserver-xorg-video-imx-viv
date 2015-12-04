@@ -459,6 +459,7 @@ CalOrgBoxInfoWithoutMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, i
     int dstX, int dstY, int width, int height, VivBox *opBox)
 {
     gctUINT32 srcwidth,srcheight;
+    int src_x_t, src_y_t;
     int opWidth = width;
     int opHeight = height;
 
@@ -483,6 +484,40 @@ CalOrgBoxInfoWithoutMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, i
     pBlt->mDstBox.width = width;
     pBlt->mDstBox.height = height;
 
+
+    if ( pBlt->mRotation == gcvSURF_90_DEGREE )
+    {
+        src_x_t = -srcY + pixman_fixed_to_int ( ((struct pixman_transform *)pBlt->mTransform)->matrix[0][2] +  pixman_fixed_1 / 2 - pixman_fixed_e) - height;
+        src_y_t = srcX + pixman_fixed_to_int ( ((struct pixman_transform *)pBlt->mTransform)->matrix[1][2] +  pixman_fixed_1 / 2 - pixman_fixed_e);
+        srcX = src_x_t;
+        srcY = src_y_t;
+        /* Fix me for the next lines */
+        pBlt->mSrcSurfInfo.alpha = 1;
+        pBlt->mDstSurfInfo.alpha = 1;
+    }
+
+
+    if ( pBlt->mRotation == gcvSURF_270_DEGREE )
+    {
+        src_x_t = srcY + pixman_fixed_to_int (((struct pixman_transform *)pBlt->mTransform)->matrix[0][2] + pixman_fixed_1 / 2 - pixman_fixed_e);
+        src_y_t = -srcX + pixman_fixed_to_int (((struct pixman_transform *)pBlt->mTransform)->matrix[1][2] + pixman_fixed_1 / 2 - pixman_fixed_e) - width;
+        srcX = src_x_t;
+        srcY = src_y_t;
+        /* Fix me for the next lines */
+        pBlt->mSrcSurfInfo.alpha = 1;
+        pBlt->mDstSurfInfo.alpha = 1;
+    }
+
+    if ( pBlt->mRotation == gcvSURF_180_DEGREE )
+    {
+        src_x_t = pBlt->mSrcSurfInfo.mWidth - width - srcX;
+        src_y_t = pBlt->mSrcSurfInfo.mHeight - height - srcY;
+        srcX = src_x_t;
+        srcY = src_y_t;
+        /* Fix me for the next lines */
+        pBlt->mSrcSurfInfo.alpha = 1;
+        pBlt->mDstSurfInfo.alpha = 1;
+    }
 
     pBlt->mSrcBox.x1 = srcX;
     pBlt->mSrcBox.y1 = srcY;
@@ -551,9 +586,7 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
     float  xfactors = 0.0;
     float  yfactors = 0.0;
     Bool nstflag = TRUE;
-    int xoffset = 0;
-    int yoffset = 0;
-    GenericSurfacePtr srcSurf = (GenericSurfacePtr) (pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
+
 
     memcpy((void *)&(pBlt->mOSrcBox),(void *)srcbox,sizeof(VivBox));
     memcpy((void *)&(pBlt->mODstBox),(void *)dstbox,sizeof(VivBox));
@@ -606,24 +639,32 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
                 srcbox->x2 = srcbox->x1 + minwid;
                 srcbox->y2 = srcbox->y1 + minheight;
 
+                dstbox->x2 = dstbox->x1 + minwid;
+                dstbox->y2 = dstbox->y1 + minheight;
                 break;
             case gcvSURF_90_DEGREE:
             case gcvSURF_270_DEGREE:
                 dstbox->x2 = V_MIN(odstbox->x2, pBlt->mDstSurfInfo.mWidth);
                 minwid = dstbox->x2 - dstbox->x1;
 
-                srcbox->x2 = V_MIN(osrcbox->x2, pBlt->mSrcSurfInfo.mHeight);
-                minwid = V_MIN(srcbox->x2 - srcbox->x1, minwid);
+                srcbox->y2 = V_MIN(osrcbox->y2, pBlt->mSrcSurfInfo.mHeight);
+                minheight = srcbox->y2 - srcbox->y1;
 
-                srcbox->x2 = srcbox->x1 + minwid;
+                minheight = V_MIN(minwid, minheight);
+
+                srcbox->y2 = srcbox->y1 + minheight;
+                dstbox->x2 = dstbox->x1 + minheight;
 
                 dstbox->y2 = V_MIN(odstbox->y2, pBlt->mDstSurfInfo.mHeight);
                 minheight = dstbox->y2 - dstbox->y1;
 
-                srcbox->y2 = V_MIN(osrcbox->y2, pBlt->mSrcSurfInfo.mWidth);
-                minheight = (srcbox->y2 - srcbox->y1,minheight);
+                srcbox->x2 = V_MIN(osrcbox->x2, pBlt->mSrcSurfInfo.mWidth);
+                minwid = srcbox->x2 - srcbox->x1;
 
-                srcbox->y2 = srcbox->y1 + minheight;
+                minwid = V_MIN(minheight, minwid);
+
+                srcbox->x2 = srcbox->x1 + minwid;
+                dstbox->y2 = dstbox->y1 + minwid;
 
                 break;
             default :
@@ -655,25 +696,8 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
             default :
                 break;
         }
-    }
 
-    xoffset = srcSurf->mAlignedWidth-pBlt->mSrcSurfInfo.mWidth;
-    yoffset = srcSurf->mAlignedHeight-pBlt->mSrcSurfInfo.mHeight;
-    switch ( pBlt->mRotation ) {
-        case gcvSURF_180_DEGREE:
-            srcbox->y1 = srcbox->y1 + yoffset;
-            srcbox->y2 = srcbox->y2 + yoffset;
-            break;
-        case gcvSURF_90_DEGREE:
-            srcbox->y1 = srcbox->y1 + xoffset;
-            srcbox->y2 = srcbox->y2 + xoffset;
-            break;
-        case gcvSURF_270_DEGREE:
-            srcbox->x1 = srcbox->x1 + yoffset;
-            srcbox->x2 = srcbox->x2 + yoffset;
-            break;
-        default :
-            break;
+
     }
 
 }
@@ -801,13 +825,10 @@ VivDoneComposite(PixmapPtr pDst) {
     VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
 
     if ( pBlt && pBlt->mSwcmp )
-    {
-        pBlt->mSwcmp = FALSE;
         TRACE_EXIT();
-    }
-
+    pBlt->hwMask |= 0x1;
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
     TRACE_EXIT();
 }
 

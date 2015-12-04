@@ -35,6 +35,7 @@
 #include "../vivante_extension/vivante_ext.h"
 #include <errno.h>
 #include <linux/fb.h>
+#include <sys/ioctl.h>
 #include <xorg/shadow.h>
 
 /* For ADD_FSL_XRANDR, only for freescale imx chips */
@@ -280,7 +281,7 @@ static ExtensionModule VIVExt =
 {
     VIVExtensionInit,
     VIVEXTNAME,
-    &noVIVExtension,
+    &noVIVExtension
 };
 
 _X_EXPORT XF86ModuleData vivanteModuleData = {&VivVersRec, VivSetup, NULL};

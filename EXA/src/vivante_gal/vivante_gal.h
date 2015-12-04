@@ -186,6 +186,7 @@ extern "C" {
         VIV2DSURFINFO mMskTempSurfInfo1;
         /* for rotate */
         VIV2DSURFINFO mMskTempSurfInfo2;
+        gctUINT32 hwMask;
     } VIV2DBLITINFO, *VIV2DBLITINFOPTR;
 
     /*Gal Encapsulation*/

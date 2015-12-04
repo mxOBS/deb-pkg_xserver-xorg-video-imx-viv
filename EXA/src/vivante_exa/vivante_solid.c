@@ -108,12 +108,15 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
     Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
+
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
     /*Setting up the rectangle*/
     pViv->mGrCtx.mBlitInfo.mDstBox.x1 = x1;
     pViv->mGrCtx.mBlitInfo.mDstBox.y1 = y1;
     pViv->mGrCtx.mBlitInfo.mDstBox.x2 = x2;
     pViv->mGrCtx.mBlitInfo.mDstBox.y2 = y2;
 
+    pBlt->mSwsolid = FALSE;
     /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual solid size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
     if ( (  x2 - x1 ) * ( y2 - y1 ) < IMX_EXA_NONCACHESURF_SIZE )
     {
@@ -128,6 +131,8 @@ VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
         gcmASSERT((pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride%4)==0);
 
         pixman_fill((uint32_t *) MapViv2DPixmap(pdst), pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4, pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mFormat.mBpp, x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mBlitInfo.mColorARGB32);
+
+        pBlt->mSwsolid = TRUE;
         TRACE_EXIT();
     }
 
@@ -172,9 +177,13 @@ VivDoneSolid(PixmapPtr pPixmap) {
     TRACE_ENTER();
 
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
 
+    if ( pBlt && pBlt->mSwsolid )
+        TRACE_EXIT();
+    pBlt->hwMask |= 0x1;
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-    VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx, FALSE);
 
     TRACE_EXIT();
 }

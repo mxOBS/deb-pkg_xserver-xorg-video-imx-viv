@@ -145,8 +145,12 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
+
+
     Viv2DPixmapPtr psrc = NULL;
     Viv2DPixmapPtr pdst = NULL;
+    pBlt->mSwcpy = FALSE;
 
     pdst = pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mPriv;
     psrc = pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mPriv;
@@ -193,6 +197,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                     width,
                     height);
 
+                pBlt->mSwcpy = TRUE;
                 TRACE_EXIT();
             }
         }
@@ -247,9 +252,13 @@ VivDoneCopy(PixmapPtr pDstPixmap) {
 
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
 
+    if ( pBlt && pBlt->mSwcpy )
+        TRACE_EXIT();
+    pBlt->hwMask |= 0x1;
     VIV2DGPUFlushGraphicsPipe(&pViv->mGrCtx);
-    VIV2DGPUBlitComplete(&pViv->mGrCtx,TRUE);
+    VIV2DGPUBlitComplete(&pViv->mGrCtx,FALSE);
 
     TRACE_EXIT();
 }

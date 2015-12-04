@@ -99,10 +99,9 @@ Bool
 VivPixmapIsOffscreen(PixmapPtr pPixmap) {
     TRACE_ENTER();
     BOOL ret = FALSE;
-    Viv2DPixmapPtr vivPixmap = NULL;
     ScreenPtr pScreen = pPixmap->drawable.pScreen;
-    vivPixmap = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
 
+    Viv2DPixmapPtr vivPixmap = exaGetPixmapDriverPrivate(pPixmap);
     /* offscreen means in 'gpu accessible memory', not that it's off the
     * visible screen.
     */
@@ -236,13 +235,6 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
             pPixmap->devKind = GetStride(vivPixmap);
 
-            /* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
-            if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
-            {
-                CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
-            }
-
-
         }
 
     }
@@ -287,7 +279,8 @@ Bool
 VivPrepareAccess(PixmapPtr pPix, int index) {
     TRACE_ENTER();
     Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
-
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
     if (vivpixmap->mRef == 0) {
         pPix->devPrivate.ptr = MapSurface(vivpixmap);
     }
@@ -299,6 +292,12 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
         TRACE_ERROR("Logical Address is not set\n");
         TRACE_EXIT(FALSE);
 
+    }
+
+    if ( pBlt && (pBlt->hwMask & 0x1) )
+    {
+        pBlt->hwMask = 0x0;
+        VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
     }
 
     vivpixmap->mCpuBusy=TRUE;
