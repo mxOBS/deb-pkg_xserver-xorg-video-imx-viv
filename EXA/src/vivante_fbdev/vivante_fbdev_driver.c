@@ -246,6 +246,9 @@ static const OptionInfoRec VivOptions[] = {
 #ifdef ADD_FSL_XRANDR
     { OPTION_XRANDR, "FSLXRandr", OPTV_BOOLEAN, {0}, FALSE },
 #endif
+#ifdef HAVE_G2D
+    { OPTION_ACCELHW, "AccelHw", OPTV_STRING, {0}, FALSE },
+#endif
     { OPTION_VIV, "vivante", OPTV_STRING, {0}, FALSE},
     { OPTION_NOACCEL, "NoAccel", OPTV_BOOLEAN, {0}, FALSE},
     { OPTION_ACCELMETHOD, "AccelMethod", OPTV_STRING, {0}, FALSE},
@@ -616,34 +619,70 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
     /*This is for sure*/
     pExa->pixmapPitchAlign = PIXMAP_PITCH_ALIGN;
 
-    pExa->WaitMarker = VivEXASync;
+#ifdef HAVE_G2D
+    if(pViv->mGrCtx.mExaHwType == IMXG2D)
+    {
+        pExa->WaitMarker = G2dEXASync;
 
-    pExa->PrepareSolid = pViv->mFakeExa.mNoAccelFlag?
-                         VivPrepareSolidFail:VivPrepareSolid;
-    pExa->Solid = VivSolid;
-    pExa->DoneSolid = VivDoneSolid;
+        pExa->PrepareSolid = pViv->mFakeExa.mNoAccelFlag?
+                             VivPrepareSolidFail:G2dPrepareSolid;
+        pExa->Solid = G2dSolid;
+        pExa->DoneSolid = G2dDoneSolid;
 
-    pExa->PrepareCopy = pViv->mFakeExa.mNoAccelFlag?
-                        VivPrepareCopyFail:VivPrepareCopy;
-    pExa->Copy = VivCopy;
-    pExa->DoneCopy = VivDoneCopy;
+        pExa->PrepareCopy = pViv->mFakeExa.mNoAccelFlag?
+                            VivPrepareCopyFail:G2dPrepareCopy;
+        pExa->Copy = G2dCopy;
+        pExa->DoneCopy = G2dDoneCopy;
 
-    pExa->UploadToScreen = VivUploadToScreen;
+        pExa->UploadToScreen = pViv->mFakeExa.mNoAccelFlag?
+                               NULL:G2dUploadToScreen;
+
+        pExa->CheckComposite = pViv->mFakeExa.mNoAccelFlag?
+                               VivCheckCompositeFail:G2dCheckComposite;
+        pExa->PrepareComposite = pViv->mFakeExa.mNoAccelFlag?
+                                 VivPrepareCompositeFail:G2dPrepareComposite;
+        pExa->Composite = G2dComposite;
+        pExa->DoneComposite = G2dDoneComposite;
+
+        pExa->CreatePixmap = G2dVivCreatePixmap;
+        pExa->DestroyPixmap = G2dVivDestroyPixmap;
+        pExa->ModifyPixmapHeader = G2dVivModifyPixmapHeader;
+        pExa->PixmapIsOffscreen = G2dVivPixmapIsOffscreen;
+        pExa->PrepareAccess = G2dVivPrepareAccess;
+        pExa->FinishAccess = G2dVivFinishAccess;
+    }
+    else
+#endif
+    {
+        pExa->WaitMarker = VivEXASync;
+
+        pExa->PrepareSolid = pViv->mFakeExa.mNoAccelFlag?
+                             VivPrepareSolidFail:VivPrepareSolid;
+        pExa->Solid = VivSolid;
+        pExa->DoneSolid = VivDoneSolid;
+
+        pExa->PrepareCopy = pViv->mFakeExa.mNoAccelFlag?
+                            VivPrepareCopyFail:VivPrepareCopy;
+        pExa->Copy = VivCopy;
+        pExa->DoneCopy = VivDoneCopy;
+
+        pExa->UploadToScreen = VivUploadToScreen;
 
 
-    pExa->CheckComposite = pViv->mFakeExa.mNoAccelFlag?
-                           VivCheckCompositeFail:VivCheckComposite;
-    pExa->PrepareComposite = pViv->mFakeExa.mNoAccelFlag?
-                             VivPrepareCompositeFail:VivPrepareComposite;
-    pExa->Composite = VivComposite;
-    pExa->DoneComposite = VivDoneComposite;
+        pExa->CheckComposite = pViv->mFakeExa.mNoAccelFlag?
+                               VivCheckCompositeFail:VivCheckComposite;
+        pExa->PrepareComposite = pViv->mFakeExa.mNoAccelFlag?
+                                 VivPrepareCompositeFail:VivPrepareComposite;
+        pExa->Composite = VivComposite;
+        pExa->DoneComposite = VivDoneComposite;
 
-    pExa->CreatePixmap = VivCreatePixmap;
-    pExa->DestroyPixmap = VivDestroyPixmap;
-    pExa->ModifyPixmapHeader = VivModifyPixmapHeader;
-    pExa->PixmapIsOffscreen = VivPixmapIsOffscreen;
-    pExa->PrepareAccess = VivPrepareAccess;
-    pExa->FinishAccess = VivFinishAccess;
+        pExa->CreatePixmap = VivCreatePixmap;
+        pExa->DestroyPixmap = VivDestroyPixmap;
+        pExa->ModifyPixmapHeader = VivModifyPixmapHeader;
+        pExa->PixmapIsOffscreen = VivPixmapIsOffscreen;
+        pExa->PrepareAccess = VivPrepareAccess;
+        pExa->FinishAccess = VivFinishAccess;
+    }
 
     if (!exaDriverInit(pScreen, pExa)) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1038,6 +1077,25 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
         }
     }
 
+    if ((s = xf86GetOptValString(fPtr->mSupportedOptions, OPTION_ACCELHW)))
+    {
+        if (!xf86NameCmp(s, "gal2d")) {
+            fPtr->mGrCtx.mExaHwType = VIVGAL2D;
+#ifdef HAVE_G2D
+        }else if (!xf86NameCmp(s, "g2d")){
+            fPtr->mGrCtx.mExaHwType = IMXG2D;
+#endif
+        }else{
+            fPtr->mGrCtx.mExaHwType = VIVGAL2D;
+        }
+    } else {
+#ifdef HAVE_G2D
+        fPtr->mGrCtx.mExaHwType = IMXG2D;
+#else
+        fPtr->mGrCtx.mExaHwType = VIVGAL2D;
+#endif
+    }
+    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,"mExaHwType:%d\n",fPtr->mGrCtx.mExaHwType);
     /* select video modes */
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "checking modes against framebuffer device...\n");

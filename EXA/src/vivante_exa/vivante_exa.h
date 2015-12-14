@@ -34,6 +34,9 @@ extern "C" {
 #endif
 
 #include "vivante_common.h"
+#ifdef HAVE_G2D
+#include "vivante_exa_g2d.h"
+#endif
 
 #define IMX_EXA_MIN_AREA_CLEAN         40000
 #define IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    640

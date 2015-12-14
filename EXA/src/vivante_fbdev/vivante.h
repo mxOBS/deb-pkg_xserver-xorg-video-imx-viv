@@ -50,6 +50,7 @@ extern "C" {
         OPTION_ROTATE,
         OPTION_DUMP,
         OPTION_XRANDR,
+        OPTION_ACCELHW,
         OPTION_VIV,
         OPTION_NOACCEL,
         OPTION_ACCELMETHOD,

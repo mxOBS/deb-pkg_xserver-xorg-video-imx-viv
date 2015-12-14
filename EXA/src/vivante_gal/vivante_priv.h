@@ -73,7 +73,9 @@ extern "C" {
         gcoOS mOs;
         gcoHAL mHal;
         gco2D m2DEngine;
+#ifdef HAVE_G2D
         void* mG2DHandle;
+#endif
         gcoBRUSH mBrush;
 
         /*video memory mapping*/

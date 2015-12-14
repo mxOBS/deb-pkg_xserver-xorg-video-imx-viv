@@ -39,6 +39,10 @@ extern "C" {
 
 #include "HAL/gc_hal_base.h"
 
+#ifdef HAVE_G2D
+#include "g2dExt.h"
+#endif
+
     /*******************************************************************************
      *
      * Utility Macros (START)
@@ -189,14 +193,75 @@ extern "C" {
         gctUINT32 hwMask;
     } VIV2DBLITINFO, *VIV2DBLITINFOPTR;
 
+#ifdef HAVE_G2D
+    /*Format information*/
+    typedef struct _g2dPictFormats {
+        int mExaFmt;
+        int mBpp;
+        unsigned int mG2dFmt;
+        int mAlphaBits;
+    } G2dPictFormat, *G2dPictFmtPtr;
+
+    /*Blending Operations*/
+    typedef struct _g2dBlendOps {
+        int mOp;
+        Bool source_alpha;
+        Bool dest_alpha;
+        int mSrcBlendingFactor;
+        int mDstBlendingFactor;
+    } G2dBlendOp, *G2dBlendOpPtr;
+    /*Surface Info*/
+    typedef struct _g2dSurfInfo {
+        Viv2DPixmapPtr mPriv;
+        G2dPictFormat mFormat;
+        unsigned int mWidth;
+        unsigned int mHeight;
+        unsigned int mStride;
+        unsigned int repeat;
+        unsigned int repeatType;
+        unsigned int alpha;
+    } G2DSURFINFO;
+    /*Blit Info*/
+    typedef struct _g2dBlitInfo {
+        /*Destination*/
+        G2DSURFINFO mDstSurfInfo;
+        /*Source*/
+        G2DSURFINFO mSrcSurfInfo;
+        /*Mask*/
+        G2DSURFINFO mMskSurfInfo;
+        struct g2d_surfaceEx mSrcG2dSurf;
+        struct g2d_surfaceEx mDstG2dSurf;
+        G2dBlendOp mBlendOp;
+        /*Transformation for source*/
+        PictTransformPtr mTransform;
+        Pixel mColorARGB32; /*A8R8G8B8*/
+        Bool mColorConvert;
+        unsigned long mPlaneMask;
+        /*Rotation for source*/
+        enum g2d_rotation mRotation;
+        Bool mSwcpy;
+        Bool mSwsolid;
+        Bool mSwcmp;
+        gctUINT32 hwMask;
+    } G2DBLITINFO, *G2DBLITINFOPTR;
+#endif
+
+    typedef enum _exaHwType {
+        VIVGAL2D,
+        IMXG2D,
+    } EXAHWTYPE;
     /*Gal Encapsulation*/
     typedef struct _GALINFO {
         /*Encapsulated blit info*/
         VIV2DBLITINFO mBlitInfo;
+#ifdef HAVE_G2D
+        G2DBLITINFO   mG2dBlitInfo;
+#endif
         /*Gpu busy pixmap linked list */
         Viv2DPixmapPtr mBusyPixmapLinkList;
         /*Gpu related*/
         void * mGpu;
+        EXAHWTYPE mExaHwType;
     } GALINFO, *GALINFOPTR;
 
 

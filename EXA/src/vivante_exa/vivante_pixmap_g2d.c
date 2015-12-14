@@ -41,22 +41,22 @@
  */
 
 void *
-VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
+G2dVivCreatePixmap(ScreenPtr pScreen, int size, int align) {
     TRACE_ENTER();
-    Viv2DPixmapPtr vivpixmap = NULL;
-    vivpixmap = malloc(sizeof (Viv2DPixmap));
-    if (!vivpixmap) {
+    Viv2DPixmapPtr pVivPix = NULL;
+    pVivPix = malloc(sizeof (Viv2DPixmap));
+    if (!pVivPix) {
         TRACE_EXIT(NULL);
     }
     IGNORE(align);
     IGNORE(size);
-    vivpixmap->mVidMemInfo = NULL;
-    vivpixmap->mHWPath = FALSE;
-    vivpixmap->mCpuBusy = FALSE;
-    vivpixmap->mSwAnyWay = FALSE;
-    vivpixmap->mNextGpuBusyPixmap = NULL;
-    vivpixmap->mRef = 0;
-    TRACE_EXIT(vivpixmap);
+    pVivPix->mVidMemInfo = NULL;
+    pVivPix->mHWPath = FALSE;
+    pVivPix->mCpuBusy = FALSE;
+    pVivPix->mSwAnyWay = FALSE;
+    pVivPix->mNextGpuBusyPixmap = NULL;
+    pVivPix->mRef = 0;
+    TRACE_EXIT(pVivPix);
 }
 
 /**
@@ -65,7 +65,7 @@ VivCreatePixmap(ScreenPtr pScreen, int size, int align) {
  * @param dPriv
  */
 void
-VivDestroyPixmap(ScreenPtr pScreen, void *dPriv) {
+G2dVivDestroyPixmap(ScreenPtr pScreen, void *dPriv) {
     TRACE_ENTER();
     Viv2DPixmapPtr priv = (Viv2DPixmapPtr) dPriv;
     VivPtr pViv = VIVPTR_FROM_SCREEN(pScreen);
@@ -96,12 +96,12 @@ VivDestroyPixmap(ScreenPtr pScreen, void *dPriv) {
  * with the CPU.
  */
 Bool
-VivPixmapIsOffscreen(PixmapPtr pPixmap) {
+G2dVivPixmapIsOffscreen(PixmapPtr pPixmap) {
     TRACE_ENTER();
     BOOL ret = FALSE;
-    Viv2DPixmapPtr vivPixmap = NULL;
+    Viv2DPixmapPtr pVivPix = NULL;
     ScreenPtr pScreen = pPixmap->drawable.pScreen;
-    vivPixmap = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
+    pVivPix = (Viv2DPixmapPtr) exaGetPixmapDriverPrivate(pPixmap);
 
     /* offscreen means in 'gpu accessible memory', not that it's off the
     * visible screen.
@@ -110,7 +110,7 @@ VivPixmapIsOffscreen(PixmapPtr pPixmap) {
         TRACE_EXIT(TRUE);
     }
 
-    if(vivPixmap->mVidMemInfo!=NULL)
+    if(pVivPix->mVidMemInfo!=NULL)
         ret = TRUE;
     else
         ret = pPixmap->devPrivate.ptr ? FALSE : TRUE;
@@ -124,7 +124,7 @@ VivPixmapIsOffscreen(PixmapPtr pPixmap) {
  * be called.
  */
 Bool
-VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
+G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
     int depth, int bitsPerPixel, int devKind,
     pointer pPixData) {
     TRACE_ENTER();
@@ -134,9 +134,9 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
     int prev_h = pPixmap->drawable.height;
     int prev_bpp = pPixmap->drawable.bitsPerPixel;
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
-    Viv2DPixmapPtr vivPixmap = exaGetPixmapDriverPrivate(pPixmap);
+    Viv2DPixmapPtr pVivPix = exaGetPixmapDriverPrivate(pPixmap);
 
-    if (!pPixmap || !vivPixmap) {
+    if (!pPixmap || !pVivPix) {
         TRACE_EXIT(FALSE);
     }
     ret = miModifyPixmapHeader(pPixmap, width, height, depth, bitsPerPixel, devKind, pPixData);
@@ -165,7 +165,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
     }
 
-    isChanged = (!vivPixmap->mVidMemInfo || prev_h != height || prev_w != width || (prev_bpp != bitsPerPixel && bitsPerPixel > 16));
+    isChanged = (!pVivPix->mVidMemInfo || prev_h != height || prev_w != width || (prev_bpp != bitsPerPixel && bitsPerPixel > 16));
 
 
     /* What is the start of screen (and offscreen) memory and its size. */
@@ -185,11 +185,12 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         /* Store GPU address. */
         const unsigned long physical = pViv->mFB.memPhysBase + offset;
-        if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
+        if (!WrapSurface(pPixmap, pPixData, physical, pVivPix)) {
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
             TRACE_EXIT(FALSE);
         }
+        TRACE_EXA("%s:%d VivPixmap:%p",__FUNCTION__,__LINE__,pVivPix);
 
         TRACE_EXIT(TRUE);
 
@@ -203,43 +204,46 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         pPixmap->devKind = devKind;
 
-        //VIV2DCacheOperation(&pViv->mGrCtx, vivPixmap,FLUSH);
+        TRACE_EXA("%s:%d VivPixmap:%p",__FUNCTION__,__LINE__,pVivPix);
+        //VIV2DCacheOperation(&pViv->mGrCtx, pVivPix,FLUSH);
         //VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
         /*we never want to see this again*/
-        if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
+        if (!DestroySurface(&pViv->mGrCtx, pVivPix)) {
 
             TRACE_ERROR("ERROR : DestroySurface\n");
         }
 
-        vivPixmap->mVidMemInfo = NULL;
+        TRACE_EXA("%s:%d VivPixmap:%p",__FUNCTION__,__LINE__,pVivPix);
+        pVivPix->mVidMemInfo = NULL;
         TRACE_EXIT(FALSE);
 
     } else {
 
         if (isChanged) {
 
-            if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, vivPixmap) )
+            if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, pVivPix) )
             {
 
-                if (!DestroySurface(&pViv->mGrCtx, vivPixmap)) {
+                if (!DestroySurface(&pViv->mGrCtx, pVivPix)) {
                     TRACE_ERROR("ERROR : Destroying the surface\n");
                     fprintf(stderr,"Destroy surface failed\n");
                     TRACE_EXIT(FALSE);
                 }
 
-                if (!CreateSurface(&pViv->mGrCtx, pPixmap, vivPixmap)) {
+                if (!CreateSurface(&pViv->mGrCtx, pPixmap, pVivPix)) {
                     TRACE_ERROR("ERROR : Creating the surface\n");
                     fprintf(stderr,"CreateSurface failed\n");
                     TRACE_EXIT(FALSE);
                 }
             }
 
-            pPixmap->devKind = GetStride(vivPixmap);
+            TRACE_EXA("%s:%d VivPixmap:%p",__FUNCTION__,__LINE__,pVivPix);
+            pPixmap->devKind = GetStride(pVivPix);
 
             /* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
             if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
             {
-                CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
+                CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, pVivPix);
             }
 
 
@@ -284,24 +288,28 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
  * DownloadFromScreen() to migrate the pixmap out.
  */
 Bool
-VivPrepareAccess(PixmapPtr pPix, int index) {
+G2dVivPrepareAccess(PixmapPtr pPix, int index) {
     TRACE_ENTER();
-    Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
+    Viv2DPixmapPtr pVivPix = exaGetPixmapDriverPrivate(pPix);
+    VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
+    VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
+    VIVGPUPtr pGpuCtx = (VIVGPUPtr)(pViv->mGrCtx.mGpu);
 
-    if (vivpixmap->mRef == 0) {
-        pPix->devPrivate.ptr = MapSurface(vivpixmap);
+    if (pVivPix->mRef == 0) {
+        pPix->devPrivate.ptr = MapSurface(pVivPix);
     }
 
-    vivpixmap->mRef++;
+    pVivPix->mRef++;
 
+    TRACE_EXA("%s VivPixmap:%p",__FUNCTION__,pVivPix);
     if (pPix->devPrivate.ptr == NULL) {
 
-        TRACE_ERROR("Logical Address is not set\n");
+        TRACE_EXA("Logical Address is not set\n");
         TRACE_EXIT(FALSE);
 
     }
 
-    vivpixmap->mCpuBusy=TRUE;
+    pVivPix->mCpuBusy=TRUE;
     TRACE_EXIT(TRUE);
 }
 
@@ -316,21 +324,21 @@ VivPrepareAccess(PixmapPtr pPix, int index) {
  * called if PrepareAccess() failed and the pixmap was migrated out.
  */
 void
-VivFinishAccess(PixmapPtr pPix, int index) {
+G2dVivFinishAccess(PixmapPtr pPix, int index) {
     TRACE_ENTER();
-    Viv2DPixmapPtr vivpixmap = exaGetPixmapDriverPrivate(pPix);
+    Viv2DPixmapPtr pVivPix = exaGetPixmapDriverPrivate(pPix);
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPix);
     IGNORE(index);
 
-    VIV2DCacheOperation(&pViv->mGrCtx, vivpixmap, FLUSH);
-    vivpixmap->mCpuBusy=FALSE;
-    if (vivpixmap->mRef == 1) {
+    TRACE_EXA("%s VivPixmap:%p",__FUNCTION__,pVivPix);
+
+    if (pVivPix->mRef == 1) {
 
         pPix->devPrivate.ptr = NULL;
 
     }
 
-    vivpixmap->mRef--;
+    pVivPix->mRef--;
     TRACE_EXIT();
 }
 

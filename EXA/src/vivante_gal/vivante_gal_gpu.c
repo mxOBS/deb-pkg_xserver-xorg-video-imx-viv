@@ -29,7 +29,9 @@
 #include "vivante_priv.h"
 #include "vivante_common.h"
 #include "vivante_gal.h"
-#include "g2d.h"
+#ifdef HAVE_G2D
+#include "g2dExt.h"
+#endif
 
 gctBOOL CHIP_SUPPORTA8 = gcvFALSE;
 /**
@@ -39,7 +41,8 @@ gctBOOL CHIP_SUPPORTA8 = gcvFALSE;
  */
 static gctBOOL SetupDriver
 (
-        OUT Viv2DDriverPtr * driver
+        OUT Viv2DDriverPtr * driver,
+        IN EXAHWTYPE exaHwType
         ) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
@@ -67,25 +70,30 @@ static gctBOOL SetupDriver
         TRACE_EXIT(gcvFALSE);
     }
 
-#ifndef G2D
-    /*If Seperated*/
-    pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
+#ifdef HAVE_G2D
+    if(exaHwType == IMXG2D)
+    {
+        status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_3D);
+    }
+    else
+#endif
+    {
+        /*If Seperated*/
+        pDrvHandle->mIsSeperated = gcoHAL_QuerySeparated2D(pDrvHandle->mHal) == gcvSTATUS_TRUE;
 
-    if (pDrvHandle->mIsSeperated) {
-        status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_2D);
-        if (status < 0) {
-            TRACE_ERROR("Unable to gcoHAL_SetHardwareType, status = %d\n", status);
+        if (pDrvHandle->mIsSeperated) {
+            status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_2D);
+            if (status < 0) {
+                TRACE_ERROR("Unable to gcoHAL_SetHardwareType, status = %d\n", status);
+                TRACE_EXIT(gcvFALSE);
+            }
+        }
+
+        if (!gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_PIPE_2D)) {
+            TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
             TRACE_EXIT(gcvFALSE);
         }
     }
-
-    if (!gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_PIPE_2D)) {
-        TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
-        TRACE_EXIT(gcvFALSE);
-    }
-#else
-    status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_3D);
-#endif
 
     /* Query the amount of video memory. */
     status = gcoHAL_QueryVideoMemory
@@ -145,33 +153,38 @@ static gctBOOL SetupDriver
         }
     }
 
-#ifndef G2D
-    /* Determine whether PE 2.0 is present. */
-    pDrvHandle->mIsPe20Supported = gcoHAL_IsFeatureAvailable(pDrvHandle ->mHal,
-            gcvFEATURE_2DPE20)
-            == gcvSTATUS_TRUE;
-
-
-    /*Multi source options*/
-    pDrvHandle->mIsMultiSrcBltSupported = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_MULTI_SOURCE_BLT) == gcvSTATUS_TRUE;
-    pDrvHandle->mIsMultiSrcBltExSupported = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_MULTI_SOURCE_BLT_EX) == gcvSTATUS_TRUE;
-    pDrvHandle->mMaxSourceForMultiSrcOpt = pDrvHandle->mIsMultiSrcBltExSupported ? 8 : (pDrvHandle->mIsMultiSrcBltSupported ? 4 : 1);
-    CHIP_SUPPORTA8 = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_A8_TARGET) == gcvSTATUS_TRUE;
-
-    /*Getting the 2d engine*/
-    status = gcoHAL_Get2DEngine(pDrvHandle->mHal, &(pDrvHandle->m2DEngine));
-
-    if (status < 0) {
-        TRACE_ERROR("Unable to construct 2DEngine object, status = %d\n", status);
-        TRACE_EXIT(gcvFALSE);
+#ifdef HAVE_G2D
+    if(exaHwType == IMXG2D)
+    {
+        status = g2d_open(&(pDrvHandle->mG2DHandle));
+        if (status < 0) {
+            TRACE_ERROR("g2d_open failed, status = %d\n", status);
+            TRACE_EXIT(gcvFALSE);
+        }
     }
-#else
-    status = g2d_open(&(pDrvHandle->mG2DHandle));
-    if (status < 0) {
-        TRACE_ERROR("g2d_open failed, status = %d\n", status);
-        TRACE_EXIT(gcvFALSE);
-    }
+    else
 #endif
+    {
+        /* Determine whether PE 2.0 is present. */
+        pDrvHandle->mIsPe20Supported = gcoHAL_IsFeatureAvailable(pDrvHandle ->mHal,
+                gcvFEATURE_2DPE20)
+                == gcvSTATUS_TRUE;
+
+
+        /*Multi source options*/
+        pDrvHandle->mIsMultiSrcBltSupported = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_MULTI_SOURCE_BLT) == gcvSTATUS_TRUE;
+        pDrvHandle->mIsMultiSrcBltExSupported = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_MULTI_SOURCE_BLT_EX) == gcvSTATUS_TRUE;
+        pDrvHandle->mMaxSourceForMultiSrcOpt = pDrvHandle->mIsMultiSrcBltExSupported ? 8 : (pDrvHandle->mIsMultiSrcBltSupported ? 4 : 1);
+        CHIP_SUPPORTA8 = gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_2D_A8_TARGET) == gcvSTATUS_TRUE;
+
+        /*Getting the 2d engine*/
+        status = gcoHAL_Get2DEngine(pDrvHandle->mHal, &(pDrvHandle->m2DEngine));
+
+        if (status < 0) {
+            TRACE_ERROR("Unable to construct 2DEngine object, status = %d\n", status);
+            TRACE_EXIT(gcvFALSE);
+        }
+    }
     *driver = pDrvHandle;
     TRACE_EXIT(gcvTRUE);
 }
@@ -191,6 +204,7 @@ static gctBOOL DestroyDriver
     /*Committing what is left*/
     gcoHAL_Commit(driver->mHal, gcvTRUE);
 
+#ifdef HAVE_G2D
     if(driver->mG2DHandle) {
         status = g2d_close(driver->mG2DHandle);
         if (status < 0) {
@@ -198,6 +212,7 @@ static gctBOOL DestroyDriver
             TRACE_EXIT(gcvFALSE);
         }
     }
+#endif
     /*Unmapping the memory*/
     if (driver->g_Internal != gcvNULL) {
         /* Unmap the local internal memory. */
@@ -349,7 +364,7 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
         TRACE_EXIT(FALSE);
     }
     gpuctx = (VIVGPUPtr) (mHandle);
-    ret = SetupDriver(&gpuctx->mDriver);
+    ret = SetupDriver(&gpuctx->mDriver, galInfo->mExaHwType);
     if (ret != gcvTRUE) {
         TRACE_ERROR("GPU DRIVER  FAILED\n");
         TRACE_EXIT(FALSE);
@@ -389,7 +404,6 @@ Bool VIV2DGPUCtxDeInit(GALINFOPTR galInfo) {
     TRACE_EXIT(TRUE);
 }
 
-#ifndef G2D
 Bool VIV2DGPUBlitComplete(GALINFOPTR galInfo, Bool wait) {
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
@@ -414,7 +428,6 @@ Bool VIV2DGPUFlushGraphicsPipe(GALINFOPTR galInfo) {
     }
     TRACE_EXIT(TRUE);
 }
-#endif
 
 extern Bool vivEnableCacheMemory;
 Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type) {

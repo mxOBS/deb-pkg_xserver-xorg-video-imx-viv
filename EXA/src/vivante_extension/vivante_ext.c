@@ -47,7 +47,6 @@
 #include "cursorstr.h"
 #include "scrnintstr.h"
 #include "servermd.h"
-#include "swaprep.h"
 #include "drm.h"
 #include "xf86Module.h"
 #include "globals.h"
