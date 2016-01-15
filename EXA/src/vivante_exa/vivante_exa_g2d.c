@@ -398,7 +398,7 @@ G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
              pVivPixDst->mCpuBusy,pVivPixDst->mHWPath,
              pDstSurf->mAlignedWidth,pDstSurf->mAlignedHeight);
 
-    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr;
+    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mDstG2dSurf.base.left = x1;
     pBlt->mDstG2dSurf.base.top = y1;
     pBlt->mDstG2dSurf.base.right = x2;
@@ -601,7 +601,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                 pDstSurf->mAlignedWidth,pDstSurf->mAlignedHeight);
 
 
-    pBlt->mSrcG2dSurf.base.planes[0] = pSrcSurf->mVideoNode.mPhysicalAddr;
+    pBlt->mSrcG2dSurf.base.planes[0] = pSrcSurf->mVideoNode.mPhysicalAddr + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mSrcG2dSurf.base.left = srcX;
     pBlt->mSrcG2dSurf.base.top = srcY;
     pBlt->mSrcG2dSurf.base.right = srcX + width;
@@ -613,7 +613,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     pBlt->mSrcG2dSurf.base.rot = G2D_ROTATION_0;
     pBlt->mSrcG2dSurf.tiling = G2D_LINEAR;
 
-    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr;
+    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mDstG2dSurf.base.left = dstX;
     pBlt->mDstG2dSurf.base.top = dstY;
     pBlt->mDstG2dSurf.base.right = dstX + width;
@@ -912,7 +912,7 @@ G2dComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     pDstSurf = (GenericSurfacePtr)pVivPixDst->mVidMemInfo;
 
     CalG2dSurfParam(&(pBlt->mSrcG2dSurf.base),pBlt,srcX,srcY,srcX+width,srcY+height,pBlt->mRotation);
-    pBlt->mSrcG2dSurf.base.planes[0] = pSrcSurf->mVideoNode.mPhysicalAddr;
+    pBlt->mSrcG2dSurf.base.planes[0] = pSrcSurf->mVideoNode.mPhysicalAddr + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mSrcG2dSurf.base.format = pBlt->mSrcSurfInfo.mFormat.mG2dFmt;
     pBlt->mSrcG2dSurf.base.blendfunc = pBlt->mBlendOp.mSrcBlendingFactor;
     pBlt->mSrcG2dSurf.tiling = G2D_LINEAR;
@@ -932,7 +932,7 @@ G2dComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
         pBlt->mSrcG2dSurf.base.width,pBlt->mSrcG2dSurf.base.height,
         pBlt->mSrcG2dSurf.base.format,pBlt->mSrcG2dSurf.base.blendfunc);
 
-    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr;
+    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mDstG2dSurf.base.left = dstX;
     pBlt->mDstG2dSurf.base.top = dstY;
     pBlt->mDstG2dSurf.base.right = dstX + width;
@@ -1087,7 +1087,7 @@ static Bool G2dDoneByVSurf(PixmapPtr pDst, int x, int y, int w,
         aligned_start += aligned_pitch;
     }
 
-    pBlt->mSrcG2dSurf.base.planes[0] = mmap.physical;
+    pBlt->mSrcG2dSurf.base.planes[0] = mmap.physical + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mSrcG2dSurf.base.left = 0;
     pBlt->mSrcG2dSurf.base.top = 0;
     pBlt->mSrcG2dSurf.base.right = w;
@@ -1100,7 +1100,7 @@ static Bool G2dDoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     pBlt->mSrcG2dSurf.tiling = G2D_LINEAR;
 
 
-    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr;
+    pBlt->mDstG2dSurf.base.planes[0] = pDstSurf->mVideoNode.mPhysicalAddr + pGpuCtx->mDriver->mG2DBaseAddr;
     pBlt->mDstG2dSurf.base.left = x;
     pBlt->mDstG2dSurf.base.top = y;
     pBlt->mDstG2dSurf.base.right = x + w;

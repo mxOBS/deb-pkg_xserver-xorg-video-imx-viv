@@ -75,6 +75,7 @@ extern "C" {
         gco2D m2DEngine;
 #ifdef HAVE_G2D
         void* mG2DHandle;
+        gctUINT32 mG2DBaseAddr;
 #endif
         gcoBRUSH mBrush;
 

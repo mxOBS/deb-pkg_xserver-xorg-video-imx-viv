@@ -74,6 +74,15 @@ static gctBOOL SetupDriver
     if(exaHwType == IMXG2D)
     {
         status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_3D);
+        if (status < 0) {
+            TRACE_ERROR("Unable to SetHardwareType, status = %d\n", status);
+            TRACE_EXIT(gcvFALSE);
+        }
+        status = gcoOS_GetBaseAddress(gcvNULL, &pDrvHandle->mG2DBaseAddr);
+        if (status < 0) {
+            TRACE_ERROR("Unable to GetBaseAddress, status = %d\n", status);
+            TRACE_EXIT(gcvFALSE);
+        }
     }
     else
 #endif
