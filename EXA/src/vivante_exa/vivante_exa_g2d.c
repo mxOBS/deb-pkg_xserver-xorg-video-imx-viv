@@ -1133,5 +1133,5 @@ G2dUploadToScreen(PixmapPtr pDst, int x, int y, int w,
     if ( ( w*h ) < MAXSIZE_FORSWTOSCREEN )
         return G2dDoneBySWCPY(pDst, x, y, w, h, src, src_pitch);
     else
-        return G2dDonebyVSurf(pDst, x, y, w, h, src, src_pitch);
+        return G2dDoneByVSurf(pDst, x, y, w, h, src, src_pitch);
 }
