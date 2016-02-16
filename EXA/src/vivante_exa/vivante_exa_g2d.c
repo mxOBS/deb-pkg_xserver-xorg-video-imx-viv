@@ -408,7 +408,6 @@ G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
     pBlt->mDstG2dSurf.base.height = pDstSurf->mAlignedHeight;
     pBlt->mDstG2dSurf.base.format = pBlt->mDstSurfInfo.mFormat.mG2dFmt;
     pBlt->mDstG2dSurf.base.rot = G2D_ROTATION_0;
-    pBlt->mDstG2dSurf.base.clrcolor = pBlt->mColorARGB32 & pBlt->mPlaneMask;
     pBlt->mDstG2dSurf.tiling = G2D_LINEAR;
 
     pBlt->mSwsolid = FALSE;
@@ -440,6 +439,18 @@ G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
     {
         VIV2DCacheOperation(&pViv->mGrCtx, pVivPixDst, FLUSH);
         pVivPixDst->mCpuBusy=FALSE;
+    }
+
+    if(pPixmap->drawable.bitsPerPixel == 16)
+    {
+        pBlt->mDstG2dSurf.base.clrcolor = (((pBlt->mColorARGB32 >> 8 & 0xF8 ) | (pBlt->mColorARGB32 >> 11 & 0x7)) |
+                                          ((pBlt->mColorARGB32 >> 3 & 0xFC ) | (pBlt->mColorARGB32 >> 5 & 0x3))<<8 |
+                                          ((pBlt->mColorARGB32 << 3 & 0xF8 ) | (pBlt->mColorARGB32 & 0x7))<<16 |
+                                          0xff000000) & pBlt->mPlaneMask;
+    }
+    else
+    {
+        pBlt->mDstG2dSurf.base.clrcolor = pBlt->mColorARGB32 & pBlt->mPlaneMask;
     }
 
     g2d_set_clipping(pGpuCtx->mDriver->mG2DHandle,0,0,pBlt->mDstSurfInfo.mWidth,pBlt->mDstSurfInfo.mHeight);
