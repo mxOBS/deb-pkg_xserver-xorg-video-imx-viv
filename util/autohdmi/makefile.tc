@@ -28,15 +28,6 @@ else
 CC  := $(CROSS_COMPILE)gcc
 LD  := $(CROSS_COMPILE)gcc
 
-ifeq ($(BUILD_HARD_VFP),1)
-CFLAGS += -mfpu=vfp -mfloat-abi=hard
-else
-CFLAGS += -mfpu=vfp -mfloat-abi=softfp
-endif
-
-CFLAGS += -march=armv7-a
-CFLAGS += -marm
-
 CFLAGS += -O2
 
 ifneq ($(YOCTO),1)

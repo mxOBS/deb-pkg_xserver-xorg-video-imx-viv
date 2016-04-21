@@ -622,7 +622,7 @@ ProcVIVEXTPixmapPhysaddr(register ClientPtr client)
     rep.sequenceNumber = client->sequence;
     rep.length = 0;
     rep.pixmapState = VIV_PixmapUndefined;
-    rep.PixmapPhysaddr = (CARD32)NULL;
+    rep.PixmapPhysaddr = gcmPTR2INT(NULL);
     rep.pixmapStride = 0;
 
     /* Find the pixmap */

@@ -537,12 +537,12 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
 
-    status = UnlockVideoNode(gcvNULL, (gctUINT32)mappingInfo, gcvSURF_BITMAP);
+    status = UnlockVideoNode(gcvNULL, gcmPTR2INT(mappingInfo), gcvSURF_BITMAP);
     if (status < 0) {
         TRACE_ERROR("Unlock Failed\n");
     }
 
-    status = FreeVideoNode(gcvNULL, (gctUINT32)mappingInfo);
+    status = FreeVideoNode(gcvNULL, gcmPTR2INT(mappingInfo));
     if (status < 0) {
         TRACE_ERROR("Free Failed\n");
     }

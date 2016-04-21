@@ -350,7 +350,7 @@ static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
     mmap.mSize = h * aligned_pitch;
     mmap.physical = 0;
     start = calloc(1, mmap.mSize + 64);
-    mmap.mUserAddr = aligned_start = (char*) VIV_ALIGN(((int) start), 64);
+    mmap.mUserAddr = aligned_start = gcmINT2PTR(VIV_ALIGN(gcmPTR2INT(start), 64));
 
     while (height--) {
         memcpy(aligned_start, src, width_in_bytes);

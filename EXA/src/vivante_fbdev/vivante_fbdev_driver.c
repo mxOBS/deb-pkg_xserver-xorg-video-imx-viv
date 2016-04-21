@@ -1284,7 +1284,7 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
             "FB Start = %p  FB Base = %p  FB Offset = %p\n",
-            (void *)fPtr->mFB.mFBStart, (void *)fPtr->mFB.mFBMemory, (void *)fPtr->mFB.mFBOffset);
+            gcmINT2PTR(fPtr->mFB.mFBStart), gcmINT2PTR(fPtr->mFB.mFBMemory), gcmINT2PTR(fPtr->mFB.mFBOffset));
 
     if(fPtr->rotate == VIV_ROTATE_CW || fPtr->rotate == VIV_ROTATE_CCW)
     {
