@@ -42,9 +42,3 @@ prefix ?= /usr
 # sysroot: compiler need this path to search header and library files
 sysroot ?= /
 
-# get git commit number
-COMMITNR := `git log -n 1 --format=%H`
-DIRTY := `git diff-index --quiet HEAD || echo '-dirty'`
-LOCAL_CFLAGS += -DCOMMIT="${COMMITNR}${DIRTY}"
-
-
