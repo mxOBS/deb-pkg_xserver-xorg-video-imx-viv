@@ -365,7 +365,7 @@ void * FslLockPixmap(Display *dpy, Pixmap pixmap, int *stride)
         return NULL;
     }
 
-    return (void *)logAddr[0];
+    return gcmINT2PTR(logAddr[0]);
 }
 
 /*
