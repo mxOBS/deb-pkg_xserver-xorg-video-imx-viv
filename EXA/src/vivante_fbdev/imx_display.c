@@ -180,7 +180,6 @@ Bool imxSetShadowBuffer(ScreenPtr pScreen)
 	}
 	else {
 		xf86DrvMsg(scrnIndex, X_ERROR, "fb memory is not big enough to hold shadow buffer!\n");
-		return FALSE;
 	}
 
 	if (!imxDisplayStartScreenInit(scrnIndex, pScreen)) {
@@ -988,16 +987,14 @@ imxCrtcResize(ScrnInfoPtr pScrn, int width, int height)
 	/* Access the screen pixmap */
 	PixmapPtr pScreenPixmap = (*pScreen->GetScreenPixmap)(pScreen);
 	if (NULL == pScreenPixmap) {
-
 		return FALSE;
 	}
 
 	pScrn->virtualX = width;
 	pScrn->virtualY = height;
-	pScrn->displayWidth = IMX_ALIGN(width, imxPtr->fbAlignWidth);
 
 	const int bytesPerPixel = (pScrn->bitsPerPixel + 7) / 8;
-	const int stride = pScrn->displayWidth * bytesPerPixel;
+	const int stride = fbdevHWGetLineLength(pScrn);
 
 	/* Resize the screen pixmap to new size */
 	(*pScreen->ModifyPixmapHeader)(

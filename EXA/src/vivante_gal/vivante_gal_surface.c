@@ -617,9 +617,9 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     memset(mHandle, 0, sizeof (GenericSurface));
     surf = (GenericSurfacePtr) mHandle;
 
-    alignedWidth = gcmALIGN(pPixmap->drawable.width, WIDTH_ALIGNMENT);
-    alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
     bytesPerPixel = BITSTOBYTES(pPixmap->drawable.bitsPerPixel);
+    alignedWidth = gcmALIGN(pPixmap->devKind/bytesPerPixel, WIDTH_ALIGNMENT);
+    alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
 
     surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
     surf->mVideoNode.mPool = gcvPOOL_USER;

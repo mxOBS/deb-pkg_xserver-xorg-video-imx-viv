@@ -220,6 +220,35 @@ static Bool G2dTransformSupported(PictTransform *ptransform, enum g2d_rotation *
     return isSupported;
 }
 
+
+static void printG2dSurfaceInfo(struct g2d_surfaceEx* g2dSurface, const char* msg)
+{
+	xf86DrvMsg(0, X_ERROR,
+		"%s physicAddr = %x left = %d right = %d top=%d bottom=%d stride= %d tiling = %d, format=%d, width=%d, height=%d \n",
+				msg,
+				g2dSurface->base.planes[0],
+				g2dSurface->base.left,
+				g2dSurface->base.right,
+				g2dSurface->base.top,
+				g2dSurface->base.bottom,
+				g2dSurface->base.stride,
+				g2dSurface->tiling,
+				g2dSurface->base.format,
+				g2dSurface->base.width,
+				g2dSurface->base.height);
+}
+
+static void g2d_blitSurface(void *handle, struct g2d_surfaceEx * srcG2dSurface,
+	                                struct g2d_surfaceEx *dstG2dSurface, const char* msg)
+{
+	if(g2d_blitEx(handle, srcG2dSurface, dstG2dSurface))
+	{
+		xf86DrvMsg(0, X_ERROR, "From API %s\n", msg);
+		printG2dSurfaceInfo(srcG2dSurface, "ERR SRC:");
+		printG2dSurfaceInfo(dstG2dSurface, "ERR DST:");
+	}
+}
+
 static void CalG2dSurfParam(struct g2d_surface *pg2d_surf,G2DBLITINFOPTR pBlt,
                         int left, int top,int right, int bottom,enum g2d_rotation rot)
 {
@@ -453,7 +482,6 @@ G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
         pBlt->mDstG2dSurf.base.clrcolor = pBlt->mColorARGB32 & pBlt->mPlaneMask;
     }
 
-    g2d_set_clipping(pGpuCtx->mDriver->mG2DHandle,0,0,pBlt->mDstSurfInfo.mWidth,pBlt->mDstSurfInfo.mHeight);
     g2d_clear(pGpuCtx->mDriver->mG2DHandle, &(pBlt->mDstG2dSurf.base));
     _last_hw_solid = 1;
     return;
@@ -690,8 +718,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
         pVivPixDst->mCpuBusy=FALSE;
     }
 
-    g2d_set_clipping(pGpuCtx->mDriver->mG2DHandle,0,0,pBlt->mDstSurfInfo.mWidth,pBlt->mDstSurfInfo.mHeight);
-    g2d_blitEx(pGpuCtx->mDriver->mG2DHandle,&pBlt->mSrcG2dSurf,&pBlt->mDstG2dSurf);
+    g2d_blitSurface(pGpuCtx->mDriver->mG2DHandle,&pBlt->mSrcG2dSurf,&pBlt->mDstG2dSurf, "G2dCopy");
     _last_hw_cpy = 1;
     return;
 }
@@ -988,9 +1015,8 @@ G2dComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
         VIV2DCacheOperation(&pViv->mGrCtx, pVivPixDst, FLUSH);
         pVivPixSrc->mCpuBusy=FALSE;
     }
-    g2d_set_clipping(pGpuCtx->mDriver->mG2DHandle,0,0,pBlt->mDstSurfInfo.mWidth,pBlt->mDstSurfInfo.mHeight);
     g2d_enable(pGpuCtx->mDriver->mG2DHandle,G2D_BLEND);
-    g2d_blitEx(pGpuCtx->mDriver->mG2DHandle,&pBlt->mSrcG2dSurf,&pBlt->mDstG2dSurf);
+    g2d_blitSurface(pGpuCtx->mDriver->mG2DHandle,&pBlt->mSrcG2dSurf,&pBlt->mDstG2dSurf, "G2dComposite");
     g2d_disable(pGpuCtx->mDriver->mG2DHandle,G2D_BLEND);
     _last_hw_composite = 1;
     return;
@@ -1131,8 +1157,7 @@ static Bool G2dDoneByVSurf(PixmapPtr pDst, int x, int y, int w,
        pVivPixDst->mCpuBusy = FALSE;
     }
 
-    g2d_set_clipping(pGpuCtx->mDriver->mG2DHandle,0,0,pBlt->mDstSurfInfo.mWidth,pBlt->mDstSurfInfo.mHeight);
-    g2d_blitEx(pGpuCtx->mDriver->mG2DHandle,&pBlt->mSrcG2dSurf,&pBlt->mDstG2dSurf);
+    g2d_blitSurface(pGpuCtx->mDriver->mG2DHandle,&pBlt->mSrcG2dSurf,&pBlt->mDstG2dSurf, "G2dUploadToScreen");
     g2d_finish(pGpuCtx->mDriver->mG2DHandle);
     return TRUE;
 }
