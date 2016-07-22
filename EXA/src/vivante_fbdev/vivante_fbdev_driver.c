@@ -1210,7 +1210,6 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
     /*Init the hardware in current mode*/
     if (!fbdevHWModeInit(pScrn, pScrn->currentMode)) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "mode initialization failed\n");
-        TRACE_EXIT(FALSE);
     }
 
     /*Mapping the Video memory*/
