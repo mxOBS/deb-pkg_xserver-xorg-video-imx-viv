@@ -78,6 +78,7 @@ extern "C" {
         unsigned char* mFBStart; /*logical memory start address*/
         unsigned char* mFBMemory; /*memory  address*/
         int mFBOffset; /*framebuffer offset*/
+        unsigned long memGpuBase;
     } FBINFO, *FBINFOPTR;
 
 #ifdef ADD_FSL_XRANDR

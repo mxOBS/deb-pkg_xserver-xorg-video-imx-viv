@@ -183,7 +183,7 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         const unsigned long offset =(CARD8*) (pPixData) - screenMemoryBegin;
 
         /* Store GPU address. */
-        const unsigned long physical = pViv->mFB.memPhysBase + offset;
+        const unsigned long physical = pViv->mFB.memGpuBase + offset;
         if (!WrapSurface(pPixmap, pPixData, physical, vivPixmap)) {
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
@@ -234,6 +234,10 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
             }
 
             pPixmap->devKind = GetStride(vivPixmap);
+            if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
+            {
+                CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);
+            }
 
         }
 

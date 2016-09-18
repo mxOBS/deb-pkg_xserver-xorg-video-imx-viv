@@ -238,78 +238,7 @@ static const int imxSysnodeNameMonitorInfoCount =
 static xf86OutputStatus
 imxDisplayGetCableState(int scrnIndex, const char* fbId)
 {
-#if 1
 	return XF86OutputStatusConnected;
-#else
-	/* Loop through each sysnode entry looking for the cable state */
-	/* for the frame buffer device matching the specified ID. */
-	int iEntry;
-	for (iEntry = 0; iEntry < imxSysnodeNameMonitorInfoCount; ++iEntry) {
-
-		char sysnodeName[80];
-
-		/* Look for this sysnode entry which contains the id */
-		/* of the associated frame buffer device driver. */
-		strcpy(sysnodeName, imxSysnodeNameMonitorInfoArray[iEntry]);
-		strcat(sysnodeName, "fb_name");
-		FILE* fp = fopen(sysnodeName, "r");
-		if (NULL == fp) {
-
-			continue;
-		}
-
-		/* The name of the frame buffer device */
-		char linebuf[80] = "";
-		const BOOL bNoName =
-			(NULL == fgets(linebuf, sizeof(linebuf), fp));
-		fclose(fp);
-		if (bNoName || (0 != strncmp(linebuf, fbId, strlen(fbId)))) {
-
-			continue;
-		}
-
-		/* Look for sysnode entry which contains cable state info. */
-		strcpy(sysnodeName, imxSysnodeNameMonitorInfoArray[iEntry]);
-		strcat(sysnodeName, "cable_state");
-		fp = fopen(sysnodeName, "r");
-		if (NULL == fp) {
-
-			continue;
-		}
-
-		/* Read the line that contains the cable state. */
-		char strCableState[80];
-		strcpy(strCableState, "");
-		const Bool bNoInfo =
-			(NULL == fgets(strCableState, sizeof(strCableState), fp));
-		fclose(fp);
-		if (bNoInfo) {
-
-			break;
-		}
-	
-		imxRemoveTrailingNewLines(strCableState);
-
-		/* Determine cable state from the string. */
-		if (0 == strcmp(strCableState, "plugin")) {
-
-			return XF86OutputStatusConnected;
-
-		} else if (0 == strcmp(strCableState, "plugout")) {
-
-#if 0
-			return XF86OutputStatusDisconnected;
-#else
-			return XF86OutputStatusUnknown;
-#endif
-		}
-
-		/* No need to keep looking. Found file we were looking for. */
-		break;
-	}
-
-	return XF86OutputStatusUnknown;
-#endif
 }
 
 static xf86MonPtr
@@ -334,8 +263,7 @@ imxDisplayGetEdid(ScrnInfoPtr pScrn, const char* fbId, Uchar edidDataBytes[],
 
 		/* The name of the frame buffer device */
 		char linebuf[80] = "";
-		const BOOL bNoName =
-			(NULL == fgets(linebuf, sizeof(linebuf), fp));
+		const BOOL bNoName = (NULL == fgets(linebuf, sizeof(linebuf), fp));
 		fclose(fp);
 		if (bNoName || (0 != strncmp(linebuf, fbId, strlen(fbId)))) {
 
@@ -2032,48 +1960,6 @@ static void imxSetPreferFlag(ScrnInfoPtr pScrn, DisplayModePtr mode)
 Bool
 imxPostHWModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 {
-#if 0
-    ImxPtr fPtr = IMXPTR(pScrn);
-    const char *pModeName;
-    FILE *fpMode;
-    char sysnodeName[80];
-
-    // mode != NULL
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "executing imxPostHWModeInit\n");
-
-    if(strcmp("current", mode->name) != 0)
-    {
-        pModeName = mode->name;
-    }
-    else
-    {
-        pModeName = fPtr->bootupVideoMode;
-    }
-
-    sprintf(sysnodeName, "/sys/class/graphics/%s/mode", fPtr->fbDeviceName);
-
-    fpMode = fopen(sysnodeName, "w");
-
-    if (NULL == fpMode)
-    {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-            "unable to open sysnode '%s':%s \n",
-            sysnodeName, strerror(errno));
-        return FALSE;
-    }
-
-    if(fwrite(mode->name, strlen(mode->name), 1, fpMode) != 1)
-    {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-            "unable to write sysnode '%s':%s \n",
-            sysnodeName, strerror(errno));
-        fclose(fpMode);
-        return FALSE;
-    }
-
-    fclose(fpMode);
-#endif
 	return TRUE;
 }
 
@@ -2238,15 +2124,6 @@ errorGetModes:
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Choose %s as new mode\n", suggestMode);
     }
 
-#if 0
-    while (pScrn->modes)
-    xf86DeleteMode(&pScrn->modes, pScrn->modes);
-
-    while (pScrn->modePool)
-    xf86DeleteMode(&pScrn->modePool, pScrn->modePool);
-
-    pScrn->currentMode;
-#endif
 
     /* Turn off frame buffer blanking */
     if (-1 != fdDev) {

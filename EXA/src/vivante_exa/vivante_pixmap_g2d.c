@@ -32,6 +32,7 @@
 
 #include "vivante_priv.h"
 
+#ifdef HAVE_G2D
 /**
  *
  * @param pScreen
@@ -184,7 +185,7 @@ G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         const unsigned long offset =(CARD8*) (pPixData) - screenMemoryBegin;
 
         /* Store GPU address. */
-        const unsigned long physical = pViv->mFB.memPhysBase + offset;
+        const unsigned long physical = pViv->mFB.memGpuBase + offset;
         if (!WrapSurface(pPixmap, pPixData, physical, pVivPix)) {
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
@@ -342,4 +343,5 @@ G2dVivFinishAccess(PixmapPtr pPix, int index) {
     TRACE_EXIT();
 }
 
+#endif
 

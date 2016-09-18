@@ -151,6 +151,7 @@ gceSTATUS UnlockVideoNode(
     gcmASSERT(Node != gcvNULL);
 
     iface.engine = gcvENGINE_RENDER;
+    iface.ignoreTLS = gcvFALSE;
     iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
     iface.u.UnlockVideoMemory.node = Node;
     iface.u.UnlockVideoMemory.type = surftype;
@@ -592,13 +593,66 @@ Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix) {
 Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix)
 {
     GenericSurfacePtr surf = NULL;
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+    gceSTATUS status = gcvSTATUS_OK;
+    VivPictFormat mFormat;
+    gcsRECT dstRect = {0, 0, pPixmap->drawable.width, pPixmap->drawable.height};
 
     if ( pPix == NULL )
         TRACE_EXIT(FALSE);
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 
+#ifdef HAVE_G2D
+    mFormat = mFormat;
+    dstRect = dstRect;
     pPix->mCpuBusy = TRUE;
     memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
+#else
+    pPix->mCpuBusy = FALSE;
+    if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &mFormat)) {
+        TRACE_EXIT(FALSE);
+    }
+    status = gco2D_SetGenericTarget
+            (
+            gpuctx->mDriver->m2DEngine,
+            &surf->mVideoNode.mPhysicalAddr,
+            1,
+            &surf->mStride,
+            1,
+            surf->mTiling,
+            mFormat.mVivFmt,
+            surf->mRotation,
+            surf->mAlignedWidth,
+            surf->mAlignedHeight
+            );
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("In CleanSurfaceBySW gco2D_SetGenericTarget failed\n");
+        TRACE_EXIT(FALSE);
+    }
+    status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("In CleanSurfaceBySW gco2D_SetClipping failed\n");
+        TRACE_EXIT(FALSE);
+    }
+    status = gco2D_LoadSolidBrush
+            (
+            gpuctx->mDriver->m2DEngine,
+            (gceSURF_FORMAT) mFormat.mVivFmt,
+            gcvFALSE,
+            0,
+            (gctUINT64)(0xFFFFFFFFFFFFFFFF)
+            );
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("In CleanSurfaceBySW gco2D_LoadSolidBrush failed\n");
+        TRACE_EXIT(FALSE);
+    }
+    status = gco2D_Clear(gpuctx->mDriver->m2DEngine, 1, &dstRect, 0, 0xCC, 0xCC, mFormat.mVivFmt);
+    if (status != gcvSTATUS_OK) {
+        TRACE_ERROR("In CleanSurfaceBySW gco2D_Clear failed\n");
+        TRACE_EXIT(FALSE);
+    }
+    VIV2DGPUBlitComplete(galInfo, TRUE);
+#endif
     TRACE_EXIT(TRUE);
 
 }

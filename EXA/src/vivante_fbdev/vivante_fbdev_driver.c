@@ -606,7 +606,7 @@ static Bool InitExaLayer(ScreenPtr pScreen) {
         TRACE_EXIT(FALSE);
     }
 
-    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, (unsigned int *)&pViv->mFB.memPhysBase)) {
+    if (!VIV2DGPUUserMemMap((char*) pExa->memoryBase, pScrn->memPhysBase, pExa->memorySize, &pViv->mFB.mMappingInfo, (unsigned int *)&pViv->mFB.memGpuBase)) {
         TRACE_ERROR("ERROR ON MAPPING FB\n");
         TRACE_EXIT(FALSE);
     }
@@ -701,7 +701,7 @@ static Bool DestroyExaLayer(ScreenPtr pScreen) {
     xf86DrvMsg(pScreen->myNum, X_INFO, "Shutdown EXA\n");
 
     ExaDriverPtr pExa = pViv->mFakeExa.mExaDriver;
-    if (!VIV2DGPUUserMemUnMap((char*) pExa->memoryBase, pExa->memorySize, pViv->mFB.mMappingInfo, pViv->mFB.memPhysBase)) {
+    if (!VIV2DGPUUserMemUnMap((char*) pExa->memoryBase, pExa->memorySize, pViv->mFB.mMappingInfo, pViv->mFB.memGpuBase)) {
         TRACE_ERROR("Unmapping User memory Failed\n");
     }
 
@@ -1160,6 +1160,7 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     if ( vivEnableXrandr )
         imxDisplayPreInit(pScrn);
 #endif
+    pScrn->videoRam = fbdevHWGetVidmem(pScrn);
     /* make sure display width is correctly aligned */
     pScrn->displayWidth = gcmALIGN(pScrn->virtualX, fPtr->fbAlignWidth);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VivPreInit: adjust display width %d\n",pScrn->displayWidth);

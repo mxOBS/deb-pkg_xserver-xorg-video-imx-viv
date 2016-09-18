@@ -1708,7 +1708,7 @@ static void SetTempSurfForRM(GALINFOPTR galInfo, VivBoxPtr opbox)
 
         pinfo->mAlignedWidth = aligned_width;
         pinfo->mAlignedHeight = aligned_height;
-        pinfo->mLogicalAddr = (gctPOINTER)linearaddr;
+        pinfo->mLogicalAddr = gcmINT2PTR(linearaddr);
         pinfo->mStride = aligned_pitch;
         pinfo->mVideoNode.mPhysicalAddr = physicaladdr;
         pinfo->mRotation = gcvSURF_0_DEGREE;
