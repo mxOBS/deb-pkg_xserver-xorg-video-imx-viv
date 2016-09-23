@@ -62,7 +62,7 @@ gceSTATUS AllocVideoNode(
     if ( cacheable )
         iface.u.AllocateLinearVideoMemory.flag = gcvALLOC_FLAG_CACHEABLE;
     else
-        iface.u.AllocateLinearVideoMemory.flag = gcvALLOC_FLAG_NONE;
+        iface.u.AllocateLinearVideoMemory.flag = gcvALLOC_FLAG_CMA_LIMIT;
 
     /* Call kernel API. */
     gcmONERROR(gcoHAL_Call(Hal, &iface));
