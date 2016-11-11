@@ -279,8 +279,6 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
             ppriv = (Viv2DPixmapPtr)exaGetPixmapDriverPrivate(pWinPixmap);
             surf = (GenericSurfacePtr) (ppriv->mVidMemInfo);
 
-            tstnode = surf->mVideoNode.mNode;
-
             *X = (int)(pWinPixmap->drawable.x);
             *Y = (int)(pWinPixmap->drawable.y);
             *W = (int)(pWinPixmap->drawable.width);
@@ -289,7 +287,7 @@ VIVEXTDrawableInfo(ScreenPtr pScreen,
             *alignedWidth = gcmALIGN(pWinPixmap->drawable.width, WIDTH_ALIGNMENT);
             *alignedHeight = gcmALIGN(pWinPixmap->drawable.height, HEIGHT_ALIGNMENT);
             if (surf) {
-
+                tstnode = surf->mVideoNode.mNode;
                 if ( tstnode )
                 gcoHAL_NameVideoMemory(tstnode, nodeName);
                 else
