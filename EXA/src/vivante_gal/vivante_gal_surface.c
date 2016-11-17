@@ -87,6 +87,7 @@ gceSTATUS FreeVideoNode(
         IN gcoHAL Hal,
         IN gctUINT32 Node) {
     gcsHAL_INTERFACE iface;
+    gceSTATUS status;
 
     gcmASSERT(Node != gcvNULL);
 
@@ -94,7 +95,14 @@ gceSTATUS FreeVideoNode(
     iface.u.ReleaseVideoMemory.node = Node;
 
     /* Call kernel API. */
-    return gcoHAL_Call(Hal, &iface);
+    status = gcoHAL_Call(Hal, &iface);
+
+/* When unlock the video memory node, set event to the kernel,
+ * That is why Commit is needed here to make it work.
+ */
+    gcoHAL_Commit(gcvNULL, gcvFALSE);
+
+    return status;
 }
 
 /**
