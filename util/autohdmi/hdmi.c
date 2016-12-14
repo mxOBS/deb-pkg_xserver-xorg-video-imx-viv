@@ -1,4 +1,6 @@
 /*
+ *    Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
+ *    Copyright 2000 VA Linux Systems, Inc.
  *    Copyright (C) 2014 by Freescale Semiconductor, Inc.
  *
  *    This program is free software; you can redistribute it and/or modify
