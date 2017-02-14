@@ -640,6 +640,7 @@ G2dPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
  *
 **/
 static int  _last_hw_cpy = 0;
+static int  _support_pixman_blit = 1;
 void
 G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     int dstX, int dstY, int width, int height) {
@@ -701,7 +702,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
          (0 == (pViv->mGrCtx.mG2dBlitInfo.mSrcSurfInfo.mStride%4)))
     {
         /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-        if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE )
+        if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE && _support_pixman_blit )
         {
             if ( MapViv2DPixmap(pVivPixSrc) != MapViv2DPixmap(pVivPixDst) )
             {
@@ -714,7 +715,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                 }
                 _last_hw_cpy = 0;
 
-                pixman_blt((uint32_t *) MapViv2DPixmap(pVivPixSrc),
+                if(pixman_blt((uint32_t *) MapViv2DPixmap(pVivPixSrc),
                     (uint32_t *) MapViv2DPixmap(pVivPixDst),
                     pViv->mGrCtx.mG2dBlitInfo.mSrcSurfInfo.mStride/4,
                     pViv->mGrCtx.mG2dBlitInfo.mDstSurfInfo.mStride/4,
@@ -725,10 +726,15 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                     dstX,
                     dstY,
                     width,
-                    height);
-
-                pBlt->mSwcpy = TRUE;
-                return;
+                    height))
+               {
+                    pBlt->mSwcpy = TRUE;
+                    return;
+               }
+               else
+               {
+                   _support_pixman_blit = 0;
+               }
             }
         }
     }
