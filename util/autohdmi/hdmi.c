@@ -2,6 +2,7 @@
  *    Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  *    Copyright 2000 VA Linux Systems, Inc.
  *    Copyright (C) 2014 by Freescale Semiconductor, Inc.
+ *    Copyright 2017 NXP
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -20,14 +21,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <memory.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <errno.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xlibint.h>
@@ -76,38 +74,41 @@ static int is_hdmi_event(struct uevent *e)
     return 0;
 }
 
-static int init_hotplug_sock(void)
+/*Reference: http://man7.org/linux/man-pages/man7/netlink.7.html */
+static int setup_nl_socket(void)
 {
-    struct sockaddr_nl snl;
-    const int buffersize = 16 * 1024 * 1024;
-    int retval;
+    int sfd = 0;
+    const int sz = 16 * 1024 * 1024;
+    int ret = 0;
+    struct sockaddr_nl sa;
 
-    memset(&snl, 0, sizeof(struct sockaddr_nl));
-    snl.nl_family = AF_NETLINK;
-    snl.nl_pid = getpid();
-    snl.nl_groups = 1;
-
-    int hotplug_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
-    if (hotplug_sock == -1) {
-        FSLPRINTF("Error getting socket: %s", strerror(errno));
+    sfd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
+    if(sfd == -1) {
+        FSLPRINTF("Error creating socket: %s", strerror(errno));
+        return -1;
+    }
+    sa.nl_family = AF_NETLINK;
+    sa.nl_pid = getpid();
+    sa.nl_groups = RTMGRP_LINK;
+    ret = setsockopt(sfd, SOL_SOCKET, SO_RCVBUFFORCE, &sz, sizeof(sz));
+    if(ret < 0) {
+        FSLPRINTF("Error setting socket option SO_RCVBUFFORCE : %s", strerror(errno));
+        close(sfd);
         return -1;
     }
 
-    /* set receive buffersize */
-    setsockopt(hotplug_sock, SOL_SOCKET, SO_RCVBUFFORCE, &buffersize, sizeof(buffersize));
-    retval = bind(hotplug_sock, (struct sockaddr *) &snl, sizeof(struct sockaddr_nl));
-    if (retval < 0) {
+    ret = bind(sfd, (struct sockaddr *) &sa, sizeof(sa));
+    if (ret < 0) {
         FSLPRINTF("Error binding socket: %s", strerror(errno));
-        close(hotplug_sock);
-        hotplug_sock = -1;
+        close(sfd);
+        sfd = -1;
     }
-
-    return hotplug_sock;
+    return sfd;
 }
 
-static void free_hotplug_sock(int sock)
+static void free_nl_socket(int sfd)
 {
-    close(sock);
+    close(sfd);
 }
 
 static const char *get_uevent_param(struct uevent *event, const char *param_name)
@@ -376,7 +377,7 @@ static int handle_hdmi_plugin(struct uevent *event)
 int main(int argc, const char **argv)
 {
     struct uevent *event;
-	int hotplug_sock = init_hotplug_sock();
+	int hotplug_sock = setup_nl_socket();
 
 	if (!(event = (struct uevent *)malloc(sizeof(struct uevent)))) {
 		FSLPRINTF("Error allocating memory (%s)", strerror(errno));
@@ -429,9 +430,6 @@ int main(int argc, const char **argv)
 			s+= strlen(s) + 1;
         }
 
-        /* debug dump */
-//        dump_uevent(event);
-
         /* check uevent */
         if(is_hdmi_event(event)) {
 			const char *state = get_uevent_param(event, "EVENT");
@@ -458,7 +456,7 @@ int main(int argc, const char **argv)
             free(event->param[param_idx]);
     }
 
-    free_hotplug_sock(hotplug_sock);
+    free_nl_socket(hotplug_sock);
     free(event);
 
     return 0;
