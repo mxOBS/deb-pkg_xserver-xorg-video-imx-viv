@@ -39,6 +39,9 @@ License: GPL-1.0
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-1".
 
 Files: EXA/*
 Copyright: Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -60,6 +63,9 @@ License: GPL-1.0
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-1".
 
 Files: FslExt/*
 Copyright: 2013-2014 Freescale Semiconductor, Inc.
@@ -98,6 +104,9 @@ License: GPL-1.0
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-1".
 
 Files: debian/*
 Copyright: 2014 Josua Mayer <privacy@not.given>
