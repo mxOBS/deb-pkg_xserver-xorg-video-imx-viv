@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -733,13 +733,12 @@ ReCalBoxByStretchInfoWithMask(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
  * This call is required if PrepareComposite() ever succeeds.
  */
 #define MAX_COMPOSITE_SUB_SIZE IMX_EXA_MIN_PIXEL_AREA_COMPOSITE
-static int  _last_hw_composite = 0;
 void
 VivComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     int dstX, int dstY, int width, int height) {
 
     TRACE_ENTER();
-
+    static int  _last_hw_composite = 0;
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pxDst);
     VivBox opBox;
     VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;

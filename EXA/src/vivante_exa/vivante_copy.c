@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -138,11 +138,12 @@ VivPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
  * This call is required if PrepareCopy ever succeeds.
  *
 **/
-static int  _last_hw_cpy = 0;
 void
 VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     int dstX, int dstY, int width, int height) {
     TRACE_ENTER();
+    static int  _support_pixman_blit = 1;
+    static int  _last_hw_cpy = 0;
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
 
     VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
@@ -168,7 +169,9 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     if ( psrc->mHWPath == FALSE && pdst->mHWPath == FALSE )
     {
         /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-        if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE && pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY )
+        if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE
+            && pViv->mGrCtx.mBlitInfo.mOperationCode == VIVSIMCOPY
+            && _support_pixman_blit )
         {
 
             /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
@@ -184,7 +187,7 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                     VIV2DGPUBlitComplete(&pViv->mGrCtx,TRUE);
                 _last_hw_cpy = 0;
 
-                pixman_blt((uint32_t *) MapViv2DPixmap(psrc),
+                if ( pixman_blt((uint32_t *) MapViv2DPixmap(psrc),
                     (uint32_t *) MapViv2DPixmap(pdst),
                     pViv->mGrCtx.mBlitInfo.mSrcSurfInfo.mStride/4,
                     pViv->mGrCtx.mBlitInfo.mDstSurfInfo.mStride/4,
@@ -195,10 +198,13 @@ VivCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                     dstX,
                     dstY,
                     width,
-                    height);
-
-                pBlt->mSwcpy = TRUE;
-                TRACE_EXIT();
+                    height) )
+                {
+                    pBlt->mSwcpy = TRUE;
+                    TRACE_EXIT();
+                } else {
+                    _support_pixman_blit = 0;
+                }
             }
         }
     }

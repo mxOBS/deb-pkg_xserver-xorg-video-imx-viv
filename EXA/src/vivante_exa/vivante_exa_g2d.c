@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2016 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -28,25 +28,25 @@
 
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.  All Rights Reserved.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation 
- * files (the "Software"), to deal in the Software without 
- * restriction, including without limitation the rights to use, copy, 
- * modify, merge, publish, distribute, sublicense, and/or sell copies 
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy,
+ * modify, merge, publish, distribute, sublicense, and/or sell copies
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
@@ -55,6 +55,7 @@
 #include "vivante_priv.h"
 
 #ifdef HAVE_G2D
+
 #define MAXSIZE_FORSWTOSCREEN  160000
 #define MAX_COMPOSITE_SUB_SIZE IMX_EXA_MIN_PIXEL_AREA_COMPOSITE
 
@@ -252,30 +253,30 @@ static Bool G2dTransformSupported(PictTransform *ptransform, enum g2d_rotation *
 
 static void printG2dSurfaceInfo(struct g2d_surfaceEx* g2dSurface, const char* msg)
 {
-	xf86DrvMsg(0, X_ERROR,
-		"%s physicAddr = %x left = %d right = %d top=%d bottom=%d stride= %d tiling = %d, format=%d, width=%d, height=%d \n",
-				msg,
-				g2dSurface->base.planes[0],
-				g2dSurface->base.left,
-				g2dSurface->base.right,
-				g2dSurface->base.top,
-				g2dSurface->base.bottom,
-				g2dSurface->base.stride,
-				g2dSurface->tiling,
-				g2dSurface->base.format,
-				g2dSurface->base.width,
-				g2dSurface->base.height);
+    xf86DrvMsg(0, X_ERROR,
+        "%s physicAddr = %x left = %d right = %d top=%d bottom=%d stride= %d tiling = %d, format=%d, width=%d, height=%d \n",
+        msg,
+        g2dSurface->base.planes[0],
+        g2dSurface->base.left,
+        g2dSurface->base.right,
+        g2dSurface->base.top,
+        g2dSurface->base.bottom,
+        g2dSurface->base.stride,
+        g2dSurface->tiling,
+        g2dSurface->base.format,
+        g2dSurface->base.width,
+        g2dSurface->base.height);
 }
 
 static void g2d_blitSurface(void *handle, struct g2d_surfaceEx * srcG2dSurface,
-	                                struct g2d_surfaceEx *dstG2dSurface, const char* msg)
+                        struct g2d_surfaceEx *dstG2dSurface, const char* msg)
 {
-	if(g2d_blitEx(handle, srcG2dSurface, dstG2dSurface))
-	{
-		xf86DrvMsg(0, X_ERROR, "From API %s\n", msg);
-		printG2dSurfaceInfo(srcG2dSurface, "ERR SRC:");
-		printG2dSurfaceInfo(dstG2dSurface, "ERR DST:");
-	}
+    if(g2d_blitEx(handle, srcG2dSurface, dstG2dSurface))
+    {
+        xf86DrvMsg(0, X_ERROR, "From API %s\n", msg);
+        printG2dSurfaceInfo(srcG2dSurface, "ERR SRC:");
+        printG2dSurfaceInfo(dstG2dSurface, "ERR DST:");
+    }
 }
 
 static void CalG2dSurfParam(struct g2d_surface *pg2d_surf,G2DBLITINFOPTR pBlt,
@@ -433,12 +434,13 @@ G2dPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  *
  * This call is required if PrepareSolid() ever succeeds.
  */
-static int _last_hw_solid = 0;
+
 void
 G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
     VIVGPUPtr pGpuCtx = (VIVGPUPtr)(pViv->mGrCtx.mGpu);
     G2DBLITINFOPTR pBlt = &pViv->mGrCtx.mG2dBlitInfo;
+    static int _last_hw_solid = 0;
 
     Viv2DPixmapPtr pVivPixDst = NULL;
 
@@ -639,14 +641,14 @@ G2dPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
  * This call is required if PrepareCopy ever succeeds.
  *
 **/
-static int  _last_hw_cpy = 0;
-static int  _support_pixman_blit = 1;
 void
 G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     int dstX, int dstY, int width, int height) {
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pDstPixmap);
     VIVGPUPtr pGpuCtx = (VIVGPUPtr)(pViv->mGrCtx.mGpu);
     G2DBLITINFOPTR pBlt = &pViv->mGrCtx.mG2dBlitInfo;
+    static int  _support_pixman_blit = 1;
+    static int  _last_hw_cpy = 0;
 
     Viv2DPixmapPtr pVivPixSrc = NULL;
     Viv2DPixmapPtr pVivPixDst = NULL;
@@ -702,7 +704,8 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
          (0 == (pViv->mGrCtx.mG2dBlitInfo.mSrcSurfInfo.mStride%4)))
     {
         /* when surface > IMX_EXA_NONCACHESURF_SIZE but actual copy size < IMX_EXA_NONCACHESURF_SIZE, go sw path */
-        if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE && _support_pixman_blit )
+        if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE
+            && _support_pixman_blit )
         {
             if ( MapViv2DPixmap(pVivPixSrc) != MapViv2DPixmap(pVivPixDst) )
             {
@@ -715,7 +718,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                 }
                 _last_hw_cpy = 0;
 
-                if(pixman_blt((uint32_t *) MapViv2DPixmap(pVivPixSrc),
+                if ( pixman_blt((uint32_t *) MapViv2DPixmap(pVivPixSrc),
                     (uint32_t *) MapViv2DPixmap(pVivPixDst),
                     pViv->mGrCtx.mG2dBlitInfo.mSrcSurfInfo.mStride/4,
                     pViv->mGrCtx.mG2dBlitInfo.mDstSurfInfo.mStride/4,
@@ -726,15 +729,13 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                     dstX,
                     dstY,
                     width,
-                    height))
-               {
+                    height) )
+                {
                     pBlt->mSwcpy = TRUE;
                     return;
-               }
-               else
-               {
-                   _support_pixman_blit = 0;
-               }
+                } else {
+                    _support_pixman_blit = 0;
+                }
             }
         }
     }
@@ -966,13 +967,14 @@ G2dPrepareComposite(int op, PicturePtr pSrc, PicturePtr pMsk,
  *
  * This call is required if PrepareComposite() ever succeeds.
  */
-static int  _last_hw_composite = 0;
+
 void
 G2dComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
     int dstX, int dstY, int width, int height) {
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pxDst);
     VIVGPUPtr pGpuCtx = (VIVGPUPtr)(pViv->mGrCtx.mGpu);
     G2DBLITINFOPTR pBlt = &pViv->mGrCtx.mG2dBlitInfo;
+    static int  _last_hw_composite = 0;
 
     Viv2DPixmapPtr pVivPixSrc = NULL;
     Viv2DPixmapPtr pVivPixDst = NULL;

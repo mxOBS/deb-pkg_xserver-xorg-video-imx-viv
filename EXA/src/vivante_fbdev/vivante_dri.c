@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -40,9 +40,6 @@
 static char VivKernelDriverName[] = "vivante";
 static char VivClientDriverName[] = "vivante";
 
-/* TODO: xserver receives driver's swapping event and does something
- *       according the data initialized in this function.
- */
 static Bool
 VivCreateContext(ScreenPtr pScreen, VisualPtr visual,
         drm_context_t hwContext, void *pVisualConfigPriv,

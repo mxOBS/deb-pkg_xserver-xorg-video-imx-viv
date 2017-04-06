@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -234,6 +234,8 @@ VivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
             }
 
             pPixmap->devKind = GetStride(vivPixmap);
+
+            /* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
             if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
             {
                 CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, vivPixmap);

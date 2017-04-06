@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -1160,7 +1160,10 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     if ( vivEnableXrandr )
         imxDisplayPreInit(pScrn);
 #endif
+
+
     pScrn->videoRam = fbdevHWGetVidmem(pScrn);
+
     /* make sure display width is correctly aligned */
     pScrn->displayWidth = gcmALIGN(pScrn->virtualX, fPtr->fbAlignWidth);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VivPreInit: adjust display width %d\n",pScrn->displayWidth);

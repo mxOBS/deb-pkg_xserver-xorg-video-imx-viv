@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -49,6 +49,15 @@ static gctBOOL SetupDriver
     Viv2DDriverPtr pDrvHandle = gcvNULL;
     gctPOINTER mHandle = gcvNULL;
 
+#define VDRIVER_MASK 0x1
+#define VOS_MASK 0x2
+#define VHAL_MASK 0x4
+#define VINTERNAL_MASK 0x8
+#define VEXTERNAL_MASK 0x10
+#define VCONTIGUOUS_MASK 0x20
+
+    gctUINT32 smask = 0x0;
+
     /*Allocating the driver*/
     gcmASSERT(*driver == gcvNULL);
     status = gcoOS_Allocate(gcvNULL, sizeof (Viv2DDriver), &mHandle);
@@ -57,18 +66,22 @@ static gctBOOL SetupDriver
         TRACE_EXIT(gcvFALSE);
     }
     pDrvHandle = (Viv2DDriverPtr) mHandle;
+    smask |= VDRIVER_MASK;
 
     status = gcoOS_Construct(gcvNULL, &(pDrvHandle->mOs));
     if (status < 0) {
         TRACE_ERROR("Unable to construct OS object, status = %d\n", status);
-        TRACE_EXIT(gcvFALSE);
+        goto FREESOURCE;
     }
+    smask |= VOS_MASK;
 
     status = gcoHAL_Construct(gcvNULL, pDrvHandle->mOs, &(pDrvHandle->mHal));
     if (status < 0) {
         TRACE_ERROR("Unable to construct HAL object, status = %d\n", status);
-        TRACE_EXIT(gcvFALSE);
+        goto FREESOURCE;
     }
+
+    smask |= VHAL_MASK;
 
 #ifdef HAVE_G2D
     if(exaHwType == IMXG2D)
@@ -76,12 +89,12 @@ static gctBOOL SetupDriver
         status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_3D);
         if (status < 0) {
             TRACE_ERROR("Unable to SetHardwareType, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
         status = gcoOS_GetBaseAddress(gcvNULL, &pDrvHandle->mG2DBaseAddr);
         if (status < 0) {
             TRACE_ERROR("Unable to GetBaseAddress, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
     else
@@ -94,13 +107,13 @@ static gctBOOL SetupDriver
             status = gcoHAL_SetHardwareType(pDrvHandle->mHal, gcvHARDWARE_2D);
             if (status < 0) {
                 TRACE_ERROR("Unable to gcoHAL_SetHardwareType, status = %d\n", status);
-                TRACE_EXIT(gcvFALSE);
+                goto FREESOURCE;
             }
         }
 
         if (!gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_PIPE_2D)) {
             TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
 
@@ -118,21 +131,24 @@ static gctBOOL SetupDriver
 
     if (status < 0) {
         TRACE_ERROR("gcoHAL_QueryVideoMemory failed, status = %d\n", status);
-        TRACE_EXIT(gcvFALSE);
+        goto FREESOURCE;
     }
     /* Map the local internal memory. */
     if (pDrvHandle->g_InternalSize > 0) {
         status = gcoHAL_MapMemory(
                 pDrvHandle->mHal,
                 pDrvHandle->g_InternalPhysical,
-                pDrvHandle-> g_InternalSize,
+                pDrvHandle->g_InternalSize,
                 &pDrvHandle->g_Internal
                 );
         if (status < 0) {
             TRACE_ERROR("gcoHAL_MapMemory failed, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
+
+    smask |= VINTERNAL_MASK;
+
     /* Map the local external memory. */
     if (pDrvHandle->g_ExternalSize > 0) {
         status = gcoHAL_MapMemory(
@@ -143,9 +159,12 @@ static gctBOOL SetupDriver
                 );
         if (status < 0) {
             TRACE_ERROR("gcoHAL_MapMemory failed, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
+
+    smask |= VEXTERNAL_MASK;
+
     /* Map the contiguous memory. */
     if (pDrvHandle->g_ContiguousSize > 0) {
         status = gcoHAL_MapMemory
@@ -158,9 +177,12 @@ static gctBOOL SetupDriver
         TRACE_INFO("Physcal : %d LOGICAL ADDR = %p  SIZE = %d\n", pDrvHandle->g_ContiguousPhysical, pDrvHandle->g_Contiguous, pDrvHandle->g_ContiguousSize);
         if (status < 0) {
             TRACE_ERROR("gcoHAL_MapMemory failed, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
+
+    smask |= VCONTIGUOUS_MASK;
+
 
 #ifdef HAVE_G2D
     if(exaHwType == IMXG2D)
@@ -168,7 +190,7 @@ static gctBOOL SetupDriver
         status = g2d_open(&(pDrvHandle->mG2DHandle));
         if (status < 0) {
             TRACE_ERROR("g2d_open failed, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
     else
@@ -191,11 +213,44 @@ static gctBOOL SetupDriver
 
         if (status < 0) {
             TRACE_ERROR("Unable to construct 2DEngine object, status = %d\n", status);
-            TRACE_EXIT(gcvFALSE);
+            goto FREESOURCE;
         }
     }
     *driver = pDrvHandle;
     TRACE_EXIT(gcvTRUE);
+
+FREESOURCE:
+    if (smask & VINTERNAL_MASK)
+        gcoHAL_UnmapMemory(pDrvHandle->mHal,
+                pDrvHandle->g_InternalPhysical,
+                pDrvHandle->g_InternalSize,
+                pDrvHandle->g_Internal
+                );
+
+    if (smask & VEXTERNAL_MASK)
+        gcoHAL_UnmapMemory(pDrvHandle->mHal,
+                pDrvHandle->g_ExternalPhysical,
+                pDrvHandle->g_ExternalSize,
+                pDrvHandle->g_External
+                );
+
+    if (smask & VCONTIGUOUS_MASK)
+        gcoHAL_UnmapMemory(pDrvHandle->mHal,
+                pDrvHandle->g_ContiguousPhysical,
+                pDrvHandle->g_ContiguousSize,
+                pDrvHandle->g_Contiguous
+                );
+
+    if (smask & VHAL_MASK)
+        gcoHAL_Destroy(pDrvHandle->mHal);
+
+    if (smask & VOS_MASK)
+        gcoOS_Destroy(pDrvHandle->mOs);
+
+    if (smask & VDRIVER_MASK)
+        gcoOS_Free(gcvNULL, mHandle);
+
+    TRACE_EXIT(gcvFALSE);
 }
 
 /**
@@ -324,6 +379,7 @@ static gctBOOL SetupDevice
             gcvNULL);
 
     if (status != gcvSTATUS_OK) {
+        gcoOS_Free(gcvNULL, mHandle);
         TRACE_ERROR("Unable to query chip Info, status = %d\n", status);
         TRACE_EXIT(gcvFALSE);
     }
@@ -375,11 +431,13 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
     gpuctx = (VIVGPUPtr) (mHandle);
     ret = SetupDriver(&gpuctx->mDriver, galInfo->mExaHwType);
     if (ret != gcvTRUE) {
+        gcoOS_Free(gcvNULL, mHandle);
         TRACE_ERROR("GPU DRIVER  FAILED\n");
         TRACE_EXIT(FALSE);
     }
     ret = SetupDevice(&(gpuctx->mDevice), gpuctx->mDriver);
     if (ret != gcvTRUE) {
+        gcoOS_Free(gcvNULL, mHandle);
         TRACE_ERROR("GPU DEVICE INIT FAILED\n");
         TRACE_EXIT(FALSE);
     }

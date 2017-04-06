@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -512,12 +512,20 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
         status = AllocVideoNode(gpuctx->mDriver->mHal, &surf->mVideoNode.mSizeInBytes, &surf->mVideoNode.mPool, cacheable, surftype, (gctUINT32 *)&surf->mVideoNode.mNode);
         if (status != gcvSTATUS_OK) {
 
+            if ( mHandle != gcvNULL )
+                gcoOS_Free(gcvNULL, mHandle);
+
             TRACE_ERROR("Unable to allocate video node\n");
             TRACE_EXIT(FALSE);
         }
 
         status = LockVideoNode(gpuctx->mDriver->mHal, (gctUINT32)surf->mVideoNode.mNode, cacheable, &surf->mVideoNode.mPhysicalAddr, &surf->mVideoNode.mLogicalAddr);
         if (status != gcvSTATUS_OK) {
+
+            FreeVideoNode(gpuctx->mDriver->mHal, surf->mVideoNode.mNode);
+            if ( mHandle != gcvNULL )
+                gcoOS_Free(gcvNULL, mHandle);
+
             TRACE_ERROR("Unable to Lock video node\n");
             TRACE_EXIT(FALSE);
         }
@@ -611,15 +619,22 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 
 #ifdef HAVE_G2D
+
+/* Make compiler happer */
+
     mFormat = mFormat;
     dstRect = dstRect;
+
     pPix->mCpuBusy = TRUE;
     memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
+
 #else
     pPix->mCpuBusy = FALSE;
+
     if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &mFormat)) {
         TRACE_EXIT(FALSE);
     }
+
     status = gco2D_SetGenericTarget
             (
             gpuctx->mDriver->m2DEngine,
@@ -637,11 +652,13 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
         TRACE_ERROR("In CleanSurfaceBySW gco2D_SetGenericTarget failed\n");
         TRACE_EXIT(FALSE);
     }
+
     status = gco2D_SetClipping(gpuctx->mDriver->m2DEngine, &dstRect);
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("In CleanSurfaceBySW gco2D_SetClipping failed\n");
         TRACE_EXIT(FALSE);
     }
+
     status = gco2D_LoadSolidBrush
             (
             gpuctx->mDriver->m2DEngine,
@@ -650,6 +667,7 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
             0,
             (gctUINT64)(0xFFFFFFFFFFFFFFFF)
             );
+
     if (status != gcvSTATUS_OK) {
         TRACE_ERROR("In CleanSurfaceBySW gco2D_LoadSolidBrush failed\n");
         TRACE_EXIT(FALSE);
@@ -659,8 +677,11 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
         TRACE_ERROR("In CleanSurfaceBySW gco2D_Clear failed\n");
         TRACE_EXIT(FALSE);
     }
+
     VIV2DGPUBlitComplete(galInfo, TRUE);
+
 #endif
+
     TRACE_EXIT(TRUE);
 
 }
@@ -679,9 +700,11 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     memset(mHandle, 0, sizeof (GenericSurface));
     surf = (GenericSurfacePtr) mHandle;
 
+
     bytesPerPixel = BITSTOBYTES(pPixmap->drawable.bitsPerPixel);
     alignedWidth = gcmALIGN(pPixmap->devKind/bytesPerPixel, WIDTH_ALIGNMENT);
     alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
+
 
     surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
     surf->mVideoNode.mPool = gcvPOOL_USER;

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2015 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -102,12 +102,12 @@ VivPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg) {
  *
  * This call is required if PrepareSolid() ever succeeds.
  */
- static int _last_hw_solid = 0;
 void
 VivSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
     TRACE_ENTER();
     VivPtr pViv = VIVPTR_FROM_PIXMAP(pPixmap);
     Viv2DPixmapPtr pdst = exaGetPixmapDriverPrivate(pPixmap);
+    static int _last_hw_solid = 0;
 
     VIV2DBLITINFOPTR pBlt = &pViv->mGrCtx.mBlitInfo;
     /*Setting up the rectangle*/
