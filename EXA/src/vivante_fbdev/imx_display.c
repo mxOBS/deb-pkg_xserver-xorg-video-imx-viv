@@ -426,7 +426,7 @@ imxDisplaySetMode(ScrnInfoPtr pScrn, const char* fbDeviceName,
 
         /* Write the desired mode name */
         if (-1 == write(fd, validModeName, strlen(validModeName))) {
-
+            close(fd);
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
             "unable to write '%s' to sysnode '%s': %s\n",
             validModeName, sysnodeName, strerror(errno));
@@ -841,7 +841,13 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 
         /* Check whether meet XRandR requirement (SL/SX: some modes are not supported) */
         if (!imxDisplayCheckModeXRandR(pScrn)) {
-            free((void *)mode);
+            if ( NULL != mode )
+            {
+                if (NULL != mode->name) {
+                    free((void *)((char*)mode->name));
+                }
+                free((void *)mode);
+            }
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                 "Mode '%s' is eliminated from XRandR support\n",
                 modeName);
@@ -857,6 +863,14 @@ imxDisplayGetModes(ScrnInfoPtr pScrn, const char* fbDeviceName)
 
             xf86PrintModeline(pScrn->scrnIndex, mode);
             modesList = xf86ModesAdd(modesList, mode);
+        } else {
+            if ( NULL != mode )
+            {
+                if (NULL != mode->name) {
+                    free((void *)((char*)mode->name));
+                }
+                free((void *)mode);
+            }
         }
     }
 
@@ -2073,6 +2087,14 @@ imxRefreshModes(ScrnInfoPtr pScrn, int fbIndex, char *suggestMode)
 
             xf86PrintModeline(pScrn->scrnIndex, mode);
             modesList = xf86ModesAdd(modesList, mode);
+        } else {
+            if ( NULL != mode )
+            {
+                if (NULL != mode->name) {
+                    free((void *)((char*)mode->name));
+                }
+                free((void *)mode);
+            }
         }
     }
 
