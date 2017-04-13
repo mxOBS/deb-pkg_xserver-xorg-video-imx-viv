@@ -2,11 +2,11 @@ xserver-xorg-video-imx-viv (3.10.17-1.0.1) stable; urgency=low
 
   * change version
 
- -- unknown <unknown>  Sun, 10 May 2015 17:33:45 +0200
+ -- Josua Mayer <josua.mayer97@gmail.com>  Sun, 10 May 2015 17:33:45 +0200
 
 xserver-xorg-video-imx-viv (1-1) unstable; urgency=low
 
   * Initial release
   * xserver-xorg-video-imx-viv-3.10.17-1.0.1
 
- -- unknown <unknown>  Fri, 28 Nov 2014 00:43:46 +0100
+ -- Josua Mayer <josua.mayer97@gmail.com>  Fri, 28 Nov 2014 00:43:46 +0100

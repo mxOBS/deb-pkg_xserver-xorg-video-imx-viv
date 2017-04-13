@@ -1,6 +1,6 @@
 Source: xserver-xorg-video-imx-viv
 Priority: extra
-Maintainer: unknown <unknown>
+Maintainer: Josua Mayer <josua.mayer97@gmail.com>
 Build-Depends:
  debhelper (>= 8.0.0),
  gpu-viv-bin-x11 (>= 3.10.17~1.0.1),
@@ -20,5 +20,5 @@ Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xviddriver:Depends}, gpu-viv-bin-x11 (>= 3.10.17~1.0.1), gpu-viv-bin-x11 (<< 3.10.17~1.0.2)
 Provides: xorg-driver-video
-Description: Todo
- T. O. D. O.
+Description: Xorg driver for Vivante
+ Provides the X.org driver for Vivante GPUs (using galcore).
