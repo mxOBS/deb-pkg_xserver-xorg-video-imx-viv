@@ -53,6 +53,9 @@
 #include "vivante.h"
 #include "vivante_priv.h"
 #include "vivante_common.h"
+#include "imx_display.h"
+gctBOOL VIV2DGPUSurfaceReAllocNonCached(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv);
+
 
 static unsigned char VIVEXTReqCode = 0;
 static int VIVEXTErrorBase;

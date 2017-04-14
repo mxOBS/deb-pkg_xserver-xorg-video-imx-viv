@@ -27,7 +27,9 @@
 
 #include <fcntl.h>
 #include <errno.h>
- 
+#include <unistd.h>
+#include <sys/ioctl.h>
+
 #include <linux/fb.h>
 #include "xf86DDC.h"
 
@@ -83,7 +85,7 @@ GCD(int a, int b)
 }
 
 static int
-LCM(a, b)
+LCM(int a, int b)
 {
 	return (a * b) / GCD(a, b);
 }

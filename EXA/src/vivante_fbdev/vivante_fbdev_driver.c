@@ -29,8 +29,10 @@
 #include "vivante.h"
 #include "vivante_exa.h"
 #include "vivante_ext.h"
+#include "vivante_dri.h"
 #include "imx_display.h"
 #include <errno.h>
+#include <sys/ioctl.h>
 #include <linux/fb.h>
 #include <xorg/shmint.h>
 
