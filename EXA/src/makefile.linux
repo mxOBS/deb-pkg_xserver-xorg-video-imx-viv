@@ -62,6 +62,7 @@ endif
 
 LOCAL_CFLAGS  += -DSMALL_THRESHOLD -DADD_FSL_XRANDR -DHAVE_G2D
 LOCAL_CFLAGS += -fvisibility=hidden -fPIC -DPIC
+LOCAL_CFLAGS += -DLINUX
 LOCAL_CFLAGS += -I. -I.. -I$(sysroot)/usr/include -I$(sysroot)/usr/include/xorg -I$(sysroot)/usr/include/X11/dri -I$(sysroot)/usr/include/$(PIXMAN)
 LOCAL_CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension
 LOCAL_CFLAGS += -I$(sysroot)/usr/include/drm
