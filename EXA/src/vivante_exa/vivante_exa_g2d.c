@@ -247,13 +247,23 @@ static Bool G2dTransformSupported(PictTransform *ptransform, enum g2d_rotation *
         *rot = G2D_ROTATION_180;
         isSupported = TRUE;
     }
+
+    //reflect X
+    if ((ptransform->matrix[0][0]==-pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==pixman_fixed_1))
+    {
+        *rot = G2D_FLIP_H;
+        isSupported = TRUE;
+    }
     return isSupported;
 }
 
 
 static void printG2dSurfaceInfo(struct g2d_surfaceEx* g2dSurface, const char* msg)
 {
-    xf86DrvMsg(0, X_ERROR,
+    TRACE_EXA_ERROR(
         "%s physicAddr = %x left = %d right = %d top=%d bottom=%d stride= %d tiling = %d, format=%d, width=%d, height=%d \n",
         msg,
         g2dSurface->base.planes[0],
@@ -273,7 +283,7 @@ static void g2d_blitSurface(void *handle, struct g2d_surfaceEx * srcG2dSurface,
 {
     if(g2d_blitEx(handle, srcG2dSurface, dstG2dSurface))
     {
-        xf86DrvMsg(0, X_ERROR, "From API %s\n", msg);
+        TRACE_EXA_ERROR("From API %s\n", msg);
         printG2dSurfaceInfo(srcG2dSurface, "ERR SRC:");
         printG2dSurfaceInfo(dstG2dSurface, "ERR DST:");
     }
@@ -313,6 +323,12 @@ static void CalG2dSurfParam(struct g2d_surface *pg2d_surf,G2DBLITINFOPTR pBlt,
             pg2d_surf->top = pg2d_surf->height - bottom;
             pg2d_surf->right = pg2d_surf->width - left;
             pg2d_surf->bottom = pg2d_surf->height - top;
+            break;
+       case G2D_FLIP_H:
+            pg2d_surf->left = pg2d_surf->width - right;
+            pg2d_surf->top = top;
+            pg2d_surf->right = pg2d_surf->width - left;
+            pg2d_surf->bottom = bottom;
             break;
     }
 }
