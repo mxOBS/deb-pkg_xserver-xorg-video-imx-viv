@@ -187,7 +187,7 @@ G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         /* Store GPU address. */
         const unsigned long physical = pViv->mFB.memGpuBase + offset;
-        if (!WrapSurface(pPixmap, pPixData, physical, pVivPix)) {
+        if (!WrapSurface(pPixmap, pPixData, physical, pVivPix, pViv->mFakeExa.mExaDriver->memorySize/2)) {
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
             TRACE_EXIT(FALSE);

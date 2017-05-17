@@ -686,7 +686,7 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
 
 }
 
-Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix) {
+Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix, int bytes) {
     gceSTATUS status = gcvSTATUS_OK;
     gctUINT alignedWidth, alignedHeight;
     gctUINT bytesPerPixel;
@@ -706,7 +706,7 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     alignedHeight = gcmALIGN(pPixmap->drawable.height, HEIGHT_ALIGNMENT);
 
 
-    surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
+    surf->mVideoNode.mSizeInBytes = bytes;
     surf->mVideoNode.mPool = gcvPOOL_USER;
 
     surf->mVideoNode.mPhysicalAddr = physical;
@@ -716,7 +716,7 @@ Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2D
     surf->mTiling = gcvLINEAR;
     surf->mAlignedWidth = alignedWidth;
     surf->mAlignedHeight = alignedHeight;
-    surf->mStride = alignedWidth * bytesPerPixel;
+    surf->mStride = pPixmap->devKind;;
     surf->mRotation = gcvSURF_0_DEGREE;
     surf->mLogicalAddr = surf->mVideoNode.mLogicalAddr;
     surf->mIsWrapped = gcvTRUE;
