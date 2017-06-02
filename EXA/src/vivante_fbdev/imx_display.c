@@ -1523,7 +1523,6 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
     if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
             "unable to support largest resolution (%s)", strerror(errno));
-        return FALSE;
     }
 
     /* Access all the modes supported by frame buffer driver. */
