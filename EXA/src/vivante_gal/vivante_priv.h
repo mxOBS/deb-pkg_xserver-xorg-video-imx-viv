@@ -58,6 +58,7 @@ extern "C" {
         gctPOINTER mLogicalAddr;
         gctUINT32 mStride;
         VideoNode mVideoNode;
+        struct g2d_buf *g2dbuf;
         gctPOINTER mData;
     } GenericSurface, *GenericSurfacePtr;
 
@@ -69,14 +70,11 @@ extern "C" {
      * DRIVER & DEVICE  Structs (START)
      *************************************************************************/
     typedef struct _viv2DDriver {
+#ifdef HAVE_VIVANTE_2D
         /*Base Objects*/
         gcoOS mOs;
         gcoHAL mHal;
         gco2D m2DEngine;
-#ifdef HAVE_G2D
-        void* mG2DHandle;
-        gctUINT32 mG2DBaseAddr;
-#endif
         gcoBRUSH mBrush;
 
         /*video memory mapping*/
@@ -90,18 +88,28 @@ extern "C" {
         gctBOOL mIsMultiSrcBltSupported;
         gctBOOL mIsMultiSrcBltExSupported;
         gctUINT mMaxSourceForMultiSrcOpt;
-    } Viv2DDriver, *Viv2DDriverPtr;
+#endif
+#ifdef HAVE_G2D
+        void* mG2DHandle;
+        gctUINT32 mG2DBaseAddr;
+#endif
 
+    } Viv2DDriver, *Viv2DDriverPtr;
+#ifdef HAVE_VIVANTE_2D
     typedef struct _viv2DDevice {
         gceCHIPMODEL mChipModel; /*chip model */
         unsigned int mChipRevision; /* chip revision */
     } Viv2DDevice, *Viv2DDevicePtr;
+#endif
 
     typedef struct _vivanteGpu {
         Viv2DDriverPtr mDriver;
+#ifdef HAVE_VIVANTE_2D
         Viv2DDevicePtr mDevice;
+#endif
     } VIVGPU, *VIVGPUPtr;
 
+#ifdef HAVE_VIVANTE_2D
 gceSTATUS AllocVideoNode(
         IN gcoHAL Hal,
         IN OUT gctUINT_PTR Size,
@@ -125,6 +133,7 @@ gceSTATUS UnlockVideoNode(
     IN gcoHAL Hal,
     IN gctUINT32 Node,
     IN gceSURF_TYPE surftype);
+#endif
     /**************************************************************************
      * DRIVER & DEVICE  Structs (END)
      *************************************************************************/

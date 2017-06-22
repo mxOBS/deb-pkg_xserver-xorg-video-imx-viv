@@ -50,20 +50,23 @@
  * SOFTWARE.
  */
 
-#include "vivante_common.h"
-#include "vivante.h"
-
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-
+#include <string.h>
+#include "xorg-server.h"
 #include <linux/fb.h>
 #include "xf86DDC.h"
+#include <X11/Xatom.h>
+
+
+#include "vivante_common.h"
+#include "vivante.h"
+#include "compat-api.h"
 
 #include "imx_display.h"
 
-#include <X11/Xatom.h>
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,7,6,0,0)
 #include <X11/extensions/dpmsconst.h>
@@ -1707,12 +1710,7 @@ imxDisplayFinishScreenInit(int scrnIndex, ScreenPtr pScreen)
 Bool
 imxDisplaySwitchMode(SWITCH_MODE_ARGS_DECL)
 {
-#ifndef XF86_SCRN_INTERFACE
-    ScrnInfoPtr pScrn = xf86Screens[arg];
-#else
-    ScrnInfoPtr pScrn = arg;
-#endif
-    // deprecated?
+    SCRN_INFO_PTR(arg);
 
     return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
 }
@@ -1725,11 +1723,7 @@ imxDisplayAdjustFrame(ADJUST_FRAME_ARGS_DECL)
 Bool
 imxDisplayEnterVT(VT_FUNC_ARGS_DECL)
 {
-#ifndef XF86_SCRN_INTERFACE
-    ScrnInfoPtr pScrn = xf86Screens[arg];
-#else
-    ScrnInfoPtr pScrn = arg;
-#endif
+    SCRN_INFO_PTR(arg);
 
     return xf86SetDesiredModes(pScrn);
 }
@@ -1737,26 +1731,16 @@ imxDisplayEnterVT(VT_FUNC_ARGS_DECL)
 void
 imxDisplayLeaveVT(VT_FUNC_ARGS_DECL)
 {
-#ifndef XF86_SCRN_INTERFACE
-    ScrnInfoPtr pScrn = xf86Screens[arg];
-#else
-    ScrnInfoPtr pScrn = arg;
-#endif
-
+    SCRN_INFO_PTR(arg);
     xf86RotateFreeShadow(pScrn);
 
     xf86_hide_cursors(pScrn);
 }
 
 ModeStatus
-imxDisplayValidMode(VALID_MODE_DECL)
+imxDisplayValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode, Bool verbose, int flags)
 {
-#ifndef XF86_SCRN_INTERFACE
-    ScrnInfoPtr pScrn = xf86Screens[arg];
-#else
-    ScrnInfoPtr pScrn = arg;
-#endif
-
+    SCRN_INFO_PTR(arg);
     if (mode->Flags & V_INTERLACE) {
         if (verbose) {
             xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
@@ -1781,13 +1765,9 @@ imxDisplayValidMode(VALID_MODE_DECL)
  * than suspend/resume.
  */
 Bool
-imxPMEvent(PM_EVENT_DECL)
+imxPMEvent(SCRN_ARG_TYPE arg, pmEvent event, Bool undo)
 {
-#ifndef XF86_SCRN_INTERFACE
-    ScrnInfoPtr pScrn = xf86Screens[arg];
-#else
-    ScrnInfoPtr pScrn = arg;
-#endif
+    SCRN_INFO_PTR(arg);
     ImxPtr fPtr = IMXPTR(pScrn);
 
     switch (event) {
@@ -1796,7 +1776,7 @@ imxPMEvent(PM_EVENT_DECL)
     case XF86_APM_USER_SUSPEND:
     case XF86_APM_SYS_STANDBY:
     case XF86_APM_USER_STANDBY:
-        if (!undo && !fPtr->suspended) {
+        /*if (!undo && !fPtr->suspended) {
             pScrn->LeaveVT(VT_FUNC_ARGS(0));
             fPtr->suspended = TRUE;
             sleep(SUSPEND_SLEEP);
@@ -1804,14 +1784,14 @@ imxPMEvent(PM_EVENT_DECL)
             sleep(RESUME_SLEEP);
             pScrn->EnterVT(VT_FUNC_ARGS(0));
             fPtr->suspended = FALSE;
-        }
+        }*/
         break;
     case XF86_APM_STANDBY_RESUME:
     case XF86_APM_NORMAL_RESUME:
     case XF86_APM_CRITICAL_RESUME:
         if (fPtr->suspended) {
             sleep(RESUME_SLEEP);
-            pScrn->EnterVT(VT_FUNC_ARGS(0));
+            /*pScrn->EnterVT(VT_FUNC_ARGS(0));*/
             fPtr->suspended = FALSE;
             /*
              * Turn the screen saver off when resuming.  This seems to be

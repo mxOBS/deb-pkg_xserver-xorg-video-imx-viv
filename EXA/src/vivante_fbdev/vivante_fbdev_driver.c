@@ -27,8 +27,13 @@
 
 
 #include "vivante_common.h"
+#include "compat-api.h"
 #include "vivante.h"
 #include "vivante_exa.h"
+#include "vivante_exa_null.h"
+#include "vivante_exa_g2d.h"
+
+
 #ifndef DISABLE_VIVANTE_DRI
 #include "vivante_dri.h"
 #endif
@@ -76,7 +81,7 @@ static const struct pci_id_match viv_device_match[] = {
 #endif
 
 
-Bool vivEnableCacheMemory = TRUE;
+extern Bool vivEnableCacheMemory;
 #ifdef ADD_FSL_XRANDR
 static Bool vivEnableXrandr = FALSE;
 static Bool gEnableFbSyncExt = TRUE;
@@ -209,7 +214,7 @@ typedef enum _chipSetID {
  */
 static int pix24bpp = 0;
 
-
+#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 /************************************************************************
  * X Window System Registration (START)
  ************************************************************************/
@@ -235,7 +240,7 @@ static SymTabRec VivChipsets[] = {
     {GCCORE_ID, GCCORE_STR},
     {-1, NULL}
 };
-
+#endif
 
 static const OptionInfoRec VivOptions[] = {
     { OPTION_SHADOW_FB, "ShadowFB", OPTV_BOOLEAN, {0}, FALSE },
@@ -255,7 +260,7 @@ static const OptionInfoRec VivOptions[] = {
     { OPTION_VIVCACHEMEM, "VivCacheMem", OPTV_BOOLEAN, {0}, FALSE},
     { -1, NULL, OPTV_NONE, {0}, FALSE}
 };
-
+#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 /* -------------------------------------------------------------------- */
 
 #ifdef XFree86LOADER
@@ -277,7 +282,6 @@ static XF86ModuleVersionInfo VivVersRec = {
     {0, 0, 0, 0}
 };
 
-
 static Bool noVIVExtension;
 
 static ExtensionModule VIVExt =
@@ -288,6 +292,8 @@ static ExtensionModule VIVExt =
 };
 
 _X_EXPORT XF86ModuleData vivanteModuleData = {&VivVersRec, VivSetup, NULL};
+
+#endif
 
 pointer
 VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
@@ -420,9 +426,9 @@ VivDGASetMode(ScrnInfoPtr pScrn, DGAModePtr pDGAMode)
     frameY0 = pScrn->frameY0;
     }
 
-    if (!(*pScrn->SwitchMode)(SWITCH_MODE_ARGS(pScrn, pMode)))
+    if (!(*pScrn->SwitchMode)(pScrn, pMode))
     return FALSE;
-    (*pScrn->AdjustFrame)(ADJUST_FRAME_ARGS(pScrn, frameX0, frameY0));
+    (*pScrn->AdjustFrame)(pScrn, frameX0, frameY0);
 
     return TRUE;
 }
@@ -430,7 +436,7 @@ VivDGASetMode(ScrnInfoPtr pScrn, DGAModePtr pDGAMode)
 static void
 VivDGASetViewport(ScrnInfoPtr pScrn, int x, int y, int flags)
 {
-    (*pScrn->AdjustFrame)(ADJUST_FRAME_ARGS(pScrn, x, y));
+    (*pScrn->AdjustFrame)(pScrn, x, y);
 }
 
 static int
@@ -720,6 +726,7 @@ static Bool DestroyExaLayer(ScreenPtr pScreen) {
 /************************************************************************
  * START OF THE IMPLEMENTATION FOR CORE FUNCTIONS
  ************************************************************************/
+#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 
 static const OptionInfoRec *
 VivAvailableOptions(int chipid, int busid) {
@@ -734,7 +741,7 @@ VivIdentify(int flags) {
     xf86PrintChipsets(VIVANTE_NAME, "fb driver for vivante", VivChipsets);
     TRACE_EXIT();
 }
-
+#endif
 static Bool
 VivProbe(DriverPtr drv, int flags) {
     int i;
@@ -1194,7 +1201,7 @@ VivCreateScreenResources(ScreenPtr pScreen) {
 static Bool
 VivScreenInit(SCREEN_INIT_ARGS_DECL)
 {
-    ScrnInfoPtr pScrn = GET_PSCR(pScreen);
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     VivPtr fPtr = GET_VIV_PTR(pScrn);
     VisualPtr visual;
     int init_picture = 0;
@@ -1250,7 +1257,7 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
 
 
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
-    fbdevHWAdjustFrame(FBDEVHWADJUSTFRAME_ARGS(0, 0));
+    fbdevHWAdjustFrame(pScrn, 0, 0);
 
     /* mi layer */
     miClearVisualTypes();
@@ -1654,5 +1661,10 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
     }
 
     return TRUE;
+}
+#endif
+#ifndef USE_VIV_FBDEV_DRIVER
+Bool vivante_fbdev_VivProbe(DriverPtr drv, int flags) {
+    return VivProbe(drv, flags);
 }
 #endif

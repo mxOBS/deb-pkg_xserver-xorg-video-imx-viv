@@ -131,6 +131,7 @@ extern "C" {
         Viv2DPixmapPtr mNextGpuBusyPixmap;
         /*reference*/
         int mRef;
+        int pixmapfd;
     };
 
     /*Surface Info*/
@@ -264,6 +265,7 @@ extern "C" {
         EXAHWTYPE mExaHwType;
     } GALINFO, *GALINFOPTR;
 
+#ifdef HAVE_VIVANTE_2D
 
     /* Format convertor */
     Bool VIVTransformSupported(PictTransform *ptransform,Bool *stretchflag);
@@ -277,10 +279,11 @@ extern "C" {
      * PIXMAP RELATED (START)
      ************************************************************************/
     /*Creating and Destroying Functions*/
-    Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
+    Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);    
     Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix);
     Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix, int bytes);
-    Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
+    Bool WrapSurfaceFromFD(PixmapPtr pPixmap, int width, int height, int stride, int fd, Viv2DPixmapPtr pPix );
+    Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);    
     Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
     unsigned int GetStride(Viv2DPixmapPtr pixmap);
     /*Mapping Functions*/
@@ -289,7 +292,7 @@ extern "C" {
     /************************************************************************
      * PIXMAP RELATED (END)
      ************************************************************************/
-
+#endif
     /************************************************************************
      * EXA RELATED UTILITY (START)
      ************************************************************************/
@@ -303,7 +306,7 @@ extern "C" {
     /************************************************************************
      *EXA RELATED UTILITY (END)
      ************************************************************************/
-
+#ifdef HAVE_VIVANTE_2D
     /************************************************************************
      * GPU RELATED (START)
      ************************************************************************/
@@ -335,6 +338,8 @@ extern "C" {
     /************************************************************************
      * 2D Operations (END)
      ************************************************************************/
+#endif
+    
 #ifdef __cplusplus
 }
 #endif

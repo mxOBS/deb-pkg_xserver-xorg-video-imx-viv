@@ -464,9 +464,6 @@ delete_wrapper:
     TRACE_EXIT(gcvTRUE);
 }
 
-
-
-
 static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUINT alignedHeight,
     gctUINT bytesPerPixel, GenericSurfacePtr * surface) {
     TRACE_ENTER();
@@ -529,7 +526,9 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
             TRACE_ERROR("Unable to Lock video node\n");
             TRACE_EXIT(FALSE);
         }
+        
         TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
+        fprintf(stderr,"VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
     }
 
     surf->mTiling = gcvLINEAR;
@@ -582,6 +581,7 @@ Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpda
     TRACE_EXIT(FALSE);
 }
 
+
 /*Creating and Destroying Functions*/
 Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix) {
     GenericSurfacePtr surf = gcvNULL;
@@ -597,6 +597,7 @@ Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix) {
         bytesPerPixel = 2;
     }
 
+    
     if (!VIV2DGPUSurfaceAlloc(gpuctx, alignedWidth, alignedHeight, bytesPerPixel, &surf)) {
         TRACE_ERROR("Surface Creation Error\n");
         TRACE_EXIT(FALSE);
@@ -618,17 +619,6 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
         TRACE_EXIT(FALSE);
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 
-#ifdef HAVE_G2D
-
-/* Make compiler happer */
-
-    mFormat = mFormat;
-    dstRect = dstRect;
-
-    pPix->mCpuBusy = TRUE;
-    memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
-
-#else
     pPix->mCpuBusy = FALSE;
 
     if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &mFormat)) {
@@ -679,8 +669,6 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
     }
 
     VIV2DGPUBlitComplete(galInfo, TRUE);
-
-#endif
 
     TRACE_EXIT(TRUE);
 
@@ -744,9 +732,9 @@ void * MapSurface(Viv2DPixmapPtr priv) {
     GenericSurfacePtr surf;
     surf = (GenericSurfacePtr) priv->mVidMemInfo;
 
-    if ( surf == NULL )
-    TRACE_EXIT(0);
-
+    if ( surf == NULL ) {
+        TRACE_EXIT(0);
+    }
     returnaddr = surf->mLogicalAddr;
     TRACE_EXIT(returnaddr);
 }

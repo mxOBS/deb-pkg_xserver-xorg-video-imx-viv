@@ -74,7 +74,7 @@ extern Bool
 imxDisplayFinishScreenInit(int scrnIndex, ScreenPtr pScreen);
 
 extern ModeStatus
-imxDisplayValidMode(VALID_MODE_DECL);
+imxDisplayValidMode(SCRN_ARG_TYPE arg, DisplayModePtr mode, Bool verbose, int flags);
 
 extern Bool
 imxDisplaySwitchMode(SWITCH_MODE_ARGS_DECL);
@@ -89,7 +89,7 @@ extern void
 imxDisplayLeaveVT(VT_FUNC_ARGS_DECL);
 
 extern Bool
-imxPMEvent(PM_EVENT_DECL);
+imxPMEvent(SCRN_ARG_TYPE arg, pmEvent event, Bool undo);
 
 extern Bool
 imxSetShadowBuffer(ScreenPtr pScreen);
