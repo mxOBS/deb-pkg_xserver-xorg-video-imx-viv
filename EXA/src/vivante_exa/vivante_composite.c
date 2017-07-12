@@ -519,6 +519,28 @@ CalOrgBoxInfoWithoutMask(VIV2DBLITINFOPTR pBlt, int srcX, int srcY, int maskX, i
         pBlt->mDstSurfInfo.alpha = 1;
     }
 
+    if ( pBlt->mRotation == gcvSURF_FLIP_X )
+    {
+        src_x_t = pBlt->mSrcSurfInfo.mWidth - width - srcX;
+        srcX = src_x_t;
+        /* Fix me for the next lines */
+        pBlt->mSrcSurfInfo.alpha = 1;
+        pBlt->mDstSurfInfo.alpha = 1;
+    }
+
+    if ( pBlt->mRotation == gcvSURF_FLIP_Y )
+    {
+        src_y_t = pBlt->mSrcSurfInfo.mHeight - height - srcY;
+        srcY = src_y_t;
+        /* Fix me for the next lines */
+        pBlt->mSrcSurfInfo.alpha = 1;
+        pBlt->mDstSurfInfo.alpha = 1;
+    }
+
+
+    opBox->x1 = srcX;
+    opBox->y1 = srcY;
+
     pBlt->mSrcBox.x1 = srcX;
     pBlt->mSrcBox.y1 = srcY;
     pBlt->mSrcBox.x2 = srcX+srcwidth;
@@ -624,6 +646,8 @@ ReCalBoxByStretchInfo(VIV2DBLITINFOPTR pBlt, VivBox *opBox) {
         switch ( pBlt->mRotation ) {
             case gcvSURF_0_DEGREE:
             case gcvSURF_180_DEGREE:
+            case gcvSURF_FLIP_X:
+            case gcvSURF_FLIP_Y:
                 dstbox->x2 = V_MIN(odstbox->x2, pBlt->mDstSurfInfo.mWidth);
                 minwid = dstbox->x2 - dstbox->x1;
 

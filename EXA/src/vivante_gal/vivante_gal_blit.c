@@ -417,6 +417,10 @@ static gce2D_NATURE_ROTATION _convertToNR(gceSURF_ROTATION rt)
        return gcvNR_180_DEGREE;
     case gcvSURF_270_DEGREE:
        return gcvNR_RIGHT_90_DEGREE;
+    case gcvSURF_FLIP_X:
+       return gcvNR_FLIP_X;
+    case gcvSURF_FLIP_Y:
+       return gcvNR_FLIP_Y;
     default:
        return gcvNR_0_DEGREE;
     }
@@ -448,6 +452,8 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
     srcsurf = (GenericSurfacePtr)(pBlt->mSrcSurfInfo.mPriv->mVidMemInfo);
     if ( pBlt->mIsNotStretched && (pBlt->mRotation == gcvSURF_90_DEGREE ||
         pBlt->mRotation == gcvSURF_180_DEGREE ||
+        pBlt->mRotation == gcvSURF_FLIP_X ||
+        pBlt->mRotation == gcvSURF_FLIP_Y ||
         pBlt->mRotation == gcvSURF_270_DEGREE)  )
     {
        gco2D_NatureRotateTranslation(gcvTRUE, _convertToNR(pBlt->mRotation),srcsurf->mAlignedWidth, srcsurf->mAlignedHeight, pBlt->mDstSurfInfo.mWidth, pBlt->mDstSurfInfo.mHeight, &mSrcClip, &mDstClip, &rtx, &rty);
@@ -523,6 +529,8 @@ static Bool composite_one_pass(GALINFOPTR galInfo, VivBoxPtr opbox) {
 
     if ( pBlt->mIsNotStretched && (pBlt->mRotation == gcvSURF_90_DEGREE ||
         pBlt->mRotation == gcvSURF_180_DEGREE ||
+        pBlt->mRotation == gcvSURF_FLIP_X ||
+        pBlt->mRotation == gcvSURF_FLIP_Y ||
         pBlt->mRotation == gcvSURF_270_DEGREE)  )
     {
         srcsurf->mRotation = trt;
@@ -646,6 +654,23 @@ gceSURF_ROTATION VIVGetRotation(PictTransform *ptransform)
     {
         rt = gcvSURF_180_DEGREE;
     }
+
+    if ((ptransform->matrix[0][0]==-pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==pixman_fixed_1))
+    {
+        rt = gcvSURF_FLIP_X;
+    }
+
+    if ((ptransform->matrix[0][0]==pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==-pixman_fixed_1))
+    {
+        rt = gcvSURF_FLIP_Y;
+    }
+
     return rt;
 
 }
