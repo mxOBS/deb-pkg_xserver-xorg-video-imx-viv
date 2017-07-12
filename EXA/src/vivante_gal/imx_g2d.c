@@ -75,7 +75,7 @@ static gctBOOL DestroyDriver(IN Viv2DDriverPtr driver) {
     gceSTATUS status = gcvSTATUS_OK;
     gcmASSERT(driver != gcvNULL);
     TRACE_ENTER();
-    
+
     if(driver->mG2DHandle) {
         status = g2d_close(driver->mG2DHandle);
         if (status < 0) {
@@ -124,8 +124,9 @@ Bool SetupG2D(GALINFOPTR galInfo) {
         TRACE_ERROR("GPU DRIVER  FAILED\n");
         TRACE_EXIT(FALSE);
     }
-   
+
     inited = gcvTRUE;
+    galInfo->mPreferredAllocator = IMXG2D;
     galInfo->mGpu = gpuctx;
     TRACE_EXIT(TRUE);
 }
@@ -139,24 +140,73 @@ char *MapG2DPixmap(Viv2DPixmapPtr pdst ){
 
 Bool G2DGPUFlushGraphicsPipe(GALINFOPTR galInfo) {
     TRACE_ENTER();
-    
+
     TRACE_EXIT(TRUE);
 }
 
 extern Bool vivEnableCacheMemory;
 Bool G2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flush_type) {
-   
+    int status = 0;
+    GenericSurfacePtr surf = (GenericSurfacePtr) (ppix->mVidMemInfo);
+    VIVGPUPtr gpuctx = (VIVGPUPtr) (galInfo->mGpu);
+
 #if defined(__mips__) || defined(mips)
     TRACE_EXIT(TRUE);
 #endif
 
-  
+    if ( surf == NULL )
+        TRACE_EXIT(TRUE);
+
+    if ( surf->mIsWrapped ) {
+        TRACE_EXIT(TRUE);
+    }
+
+    if (surf->g2dbuf == NULL) {
+        TRACE_EXIT(TRUE);
+    }
+
+    if (vivEnableCacheMemory == FALSE){
+        TRACE_EXIT(TRUE);
+    }
+
+    if(galInfo->mPreferredAllocator == VIVGAL2D) {
+        return VIV2DCacheOperation(galInfo, ppix, flush_type);
+    }
+
+    TRACE_INFO("FLUSH INFO => LOGICAL = %d PHYSICAL = %d STRIDE = %d  ALIGNED HEIGHT = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mStride, surf->mAlignedHeight);
+
+    switch (flush_type) {
+        case INVALIDATE:
+            status = g2d_cache_op(surf->g2dbuf, G2D_CACHE_INVALIDATE);
+            if (status < 0) {
+                TRACE_ERROR("Cache Invalidation Failed\n");
+                TRACE_EXIT(FALSE);
+            }
+            break;
+        case FLUSH:
+            status = g2d_cache_op(surf->g2dbuf, G2D_CACHE_FLUSH);
+            if (status < 0) {
+                TRACE_ERROR("Cache Invalidation Failed\n");
+                TRACE_EXIT(FALSE);
+            }
+            break;
+        case CLEAN:
+           status = g2d_cache_op(surf->g2dbuf, G2D_CACHE_CLEAN);
+            if (status < 0) {
+                TRACE_ERROR("Cache Invalidation Failed\n");
+                TRACE_EXIT(FALSE);
+            }
+            break;
+        default:
+            TRACE_ERROR("UNIDENTIFIED Cache Operation\n");
+            TRACE_EXIT(FALSE);
+            break;
+    }
     TRACE_EXIT(TRUE);
 }
 
 Bool G2DReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix)
 {
-
     GenericSurfacePtr surf = gcvNULL;
     gctUINT alignedWidth, alignedHeight;
     gctUINT bytesPerPixel;
@@ -170,7 +220,7 @@ Bool G2DReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeU
     }
 
     surf = (GenericSurfacePtr)toBeUpdatedpPix->mVidMemInfo;
-    
+
     if ( surf && surf->mVideoNode.mSizeInBytes >= (alignedWidth * alignedHeight * bytesPerPixel))
     {
         surf->mTiling = gcvLINEAR;
@@ -187,7 +237,6 @@ Bool G2DReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeU
         surf->mData = gcvNULL;
         TRACE_EXIT(TRUE);
     }
-
     TRACE_EXIT(FALSE);
 }
 
@@ -255,14 +304,14 @@ static gctBOOL G2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctUIN
 
         surf->mVideoNode.mSizeInBytes = alignedWidth * bytesPerPixel * alignedHeight;
         surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
-        
+
         if(fd > 0 ) {
             surf->g2dbuf = g2d_buf_from_fd(fd);
         }
         else {
             surf->g2dbuf = g2d_alloc(surf->mVideoNode.mSizeInBytes, 0);
         }
-		
+
         if (!surf->g2dbuf) {
             TRACE_ERROR("Unable to allocate generic surface\n");
 
@@ -303,7 +352,7 @@ Bool G2DCreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
     if (bytesPerPixel < 2) {
         bytesPerPixel = 2;
     }
-    
+
     if (!G2DGPUSurfaceAlloc(gpuctx, alignedWidth, alignedHeight, bytesPerPixel, &surf, fd)) {
 
         TRACE_ERROR("Surface Creation Error\n");
@@ -350,7 +399,7 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
         goto delete_wrapper;
     }
     TRACE_INFO("DESTROYED SURFACE ADDRESS = %x - %x\n", surf, ppriv->mVidMemInfo);
-    
+
     if ( surf->mData )
         pixman_image_unref( (pixman_image_t *)surf->mData );
 

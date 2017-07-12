@@ -263,6 +263,7 @@ extern "C" {
         /*Gpu related*/
         void * mGpu;
         EXAHWTYPE mExaHwType;
+        EXAHWTYPE mPreferredAllocator;
     } GALINFO, *GALINFOPTR;
 
 #ifdef HAVE_VIVANTE_2D
@@ -282,7 +283,6 @@ extern "C" {
     Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);    
     Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix);
     Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix, int bytes);
-    Bool WrapSurfaceFromFD(PixmapPtr pPixmap, int width, int height, int stride, int fd, Viv2DPixmapPtr pPix );
     Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);    
     Bool DestroySurface(GALINFOPTR galInfo, Viv2DPixmapPtr ppriv);
     unsigned int GetStride(Viv2DPixmapPtr pixmap);

@@ -442,7 +442,9 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
         TRACE_EXIT(FALSE);
     }
     inited = gcvTRUE;
+    galInfo->mPreferredAllocator = VIVGAL2D;
     galInfo->mGpu = gpuctx;
+
     TRACE_EXIT(TRUE);
 }
 

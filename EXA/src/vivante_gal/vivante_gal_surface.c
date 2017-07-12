@@ -528,7 +528,6 @@ static gctBOOL VIV2DGPUSurfaceAlloc(VIVGPUPtr gpuctx, gctUINT alignedWidth, gctU
         }
         
         TRACE_INFO("VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
-        fprintf(stderr,"VIDEO NODE CREATED =>  LOGICAL = %d  PHYSICAL = %d  SIZE = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mVideoNode.mSizeInBytes);
     }
 
     surf->mTiling = gcvLINEAR;
@@ -619,6 +618,12 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
         TRACE_EXIT(FALSE);
     surf = (GenericSurfacePtr)pPix->mVidMemInfo;
 
+#ifdef HAVE_G2D
+    mFormat = mFormat;
+    dstRect = dstRect;
+    pPix->mCpuBusy = TRUE;
+    memset((char *)surf->mVideoNode.mLogicalAddr,0,surf->mVideoNode.mSizeInBytes);
+#else
     pPix->mCpuBusy = FALSE;
 
     if (!GetDefaultFormat(pPixmap->drawable.bitsPerPixel, &mFormat)) {
@@ -669,6 +674,7 @@ Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix
     }
 
     VIV2DGPUBlitComplete(galInfo, TRUE);
+#endif
 
     TRACE_EXIT(TRUE);
 
@@ -732,9 +738,9 @@ void * MapSurface(Viv2DPixmapPtr priv) {
     GenericSurfacePtr surf;
     surf = (GenericSurfacePtr) priv->mVidMemInfo;
 
-    if ( surf == NULL ) {
+    if ( surf == NULL )
         TRACE_EXIT(0);
-    }
+
     returnaddr = surf->mLogicalAddr;
     TRACE_EXIT(returnaddr);
 }

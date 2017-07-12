@@ -66,12 +66,12 @@ ifeq ($(VIVANTE_ENABLE_3D),0)
        CFLAGS += -DDISABLE_VIVANTE_DRI
    endif
 endif
-LOCAL_CFLAGS += -DHAVE_DRI3
+#LOCAL_CFLAGS += -DHAVE_DRI3
 
 LOCAL_CFLAGS  += -DSMALL_THRESHOLD -DADD_FSL_XRANDR -DHAVE_G2D -DHAVE_VIVANTE_2D
 LOCAL_CFLAGS += -fvisibility=hidden -fPIC -DPIC
 LOCAL_CFLAGS += -DLINUX
-LOCAL_CFLAGS += -I. -I.. -I$(ROOTFS)/usr/include -I$(ROOTFS)/usr/include/xorg -I$(ROOTFS)/usr/include/dri -I$(ROOTFS)/usr/include/$(PIXMAN)
+LOCAL_CFLAGS += -I. -I.. -I$(ROOTFS)/usr/include -I$(ROOTFS)/usr/include/xorg -I$(ROOTFS)/usr/include/xcb -I$(ROOTFS)/usr/include/$(PIXMAN)
 LOCAL_CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension -I./imx_drm
 LOCAL_CFLAGS += -I$(ROOTFS)/usr/include/drm
 
