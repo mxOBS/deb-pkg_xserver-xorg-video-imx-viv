@@ -334,6 +334,7 @@ static void CalG2dSurfParam(struct g2d_surface *pg2d_surf,G2DBLITINFOPTR pBlt,
             pg2d_surf->top = pg2d_surf->height - bottom;
             pg2d_surf->right = pg2d_surf->width - left;
             pg2d_surf->bottom = pg2d_surf->height - top;
+            break;
        case G2D_FLIP_H:
             pg2d_surf->left = pg2d_surf->width - right;
             pg2d_surf->top = top;
