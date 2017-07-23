@@ -81,7 +81,7 @@ static const struct pci_id_match viv_device_match[] = {
 #endif
 
 
-extern Bool vivEnableCacheMemory;
+Bool vivEnableCacheMemory=TRUE;
 #ifdef ADD_FSL_XRANDR
 static Bool vivEnableXrandr = FALSE;
 static Bool gEnableFbSyncExt = TRUE;
@@ -1664,7 +1664,7 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
 }
 #endif
 #ifndef USE_VIV_FBDEV_DRIVER
-Bool vivante_fbdev_VivProbe(DriverPtr drv, int flags) {
+Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags) {
     return VivProbe(drv, flags);
 }
 #endif

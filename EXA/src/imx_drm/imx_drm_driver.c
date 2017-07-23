@@ -130,7 +130,6 @@ static const OptionInfoRec Options[] = {
 	{-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
-
 int modesettingEntityIndex = -1;
 
 
@@ -1419,7 +1418,7 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
                     "in ScreenInit()\n");
     }
 #ifdef HAVE_DRI3
-    if (!imxG2dDRI3ScreenInit(pScreen)) {
+    if (!imx_g2d_dri3_creenInit(pScreen)) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				   "[drm] IMX G2D DRI3 initialization failed, running unaccelerated\n");
     }
@@ -1447,8 +1446,8 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
 	fPtr->BlockHandler = pScreen->BlockHandler;
 	pScreen->BlockHandler = msBlockHandler;
 
-    /*TODO*/
-    /*pScreen->SharePixmapBacking = msSharePixmapBacking;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,0,0,0)    
+    pScreen->SharePixmapBacking = msSharePixmapBacking;
     pScreen->SetSharedPixmapBacking = msSetSharedPixmapBacking;
     pScreen->StartPixmapTracking = PixmapStartDirtyTracking;
     pScreen->StopPixmapTracking = PixmapStopDirtyTracking;
@@ -1462,7 +1461,8 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
 
 #ifdef MODESETTING_OUTPUT_SLAVE_SUPPORT
 	pScreen->SetSharedPixmapBacking = msSetSharedPixmapBacking;
-#endif*/
+#endif
+#endif
 
 	if (!xf86CrtcScreenInit(pScreen))
 		return FALSE;

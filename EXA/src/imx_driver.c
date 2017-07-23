@@ -42,18 +42,18 @@
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (START)
  ************************************************************************/
-#define VIVANTE_VERSION           1000
-#define VIVANTE_VERSION_MAJOR      1
-#define VIVANTE_VERSION_MINOR      0
-#define VIVANTE_VERSION_PATCHLEVEL 0
-#define VIVANTE_VERSION_STRING  "1.0"
+#define IMX_VERSION           1000
+#define IMX_VERSION_MAJOR      1
+#define IMX_VERSION_MINOR      0
+#define IMX_VERSION_PATCHLEVEL 0
+#define IMX_VERSION_STRING  "1.0"
 
-#define VIVANTE_NAME              "VIVANTE"
-#define VIVANTE_DRIVER_NAME       "vivante"
+#define IMX_NAME              "VIVANTE"
+#define IMX_DRIVER_NAME       "vivante"
 
-/*Can be moved to seprate header*/
+/*Can be moved to separate header*/
 #ifndef USE_VIV_FBDEV_DRIVER
-Bool vivante_fbdev_VivProbe(DriverPtr drv, int flags);
+Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags);
 #endif
 Bool imx_kms_probe(DriverPtr drv, int flags);
 
@@ -70,88 +70,52 @@ static const struct pci_id_match viv_device_match[] = {
 #endif
 
 
-Bool vivEnableCacheMemory = TRUE;
-#ifdef ADD_FSL_XRANDR
-static Bool vivEnableXrandr = FALSE;
-static Bool gEnableFbSyncExt = TRUE;
-#endif
-
-#ifdef DEBUG
-unsigned int  vivEnableDump = VIV_NOMSG;
-#endif
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (END)
  ************************************************************************/
 
-
-
 /************************************************************************
  * R Const/Dest Functions (END)
  ************************************************************************/
-static const OptionInfoRec *VivAvailableOptions(int chipid, int busid);
-static void VivIdentify(int flags);
-static Bool VivProbe(DriverPtr drv, int flags);
+static const OptionInfoRec *imx_availableOptions(int chipid, int busid);
+static void imx_identify(int flags);
+static Bool imx_probe(DriverPtr drv, int flags);
 #ifdef XSERVER_LIBPCIACCESS
-static Bool VivPciProbe(DriverPtr drv, int entity_num, struct pci_device *dev, intptr_t match_data);
+static Bool imx_pci_probe(DriverPtr drv, int entity_num, struct pci_device *dev, intptr_t match_data);
 #endif
 
-
-static Bool VivDriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op,
+static Bool imx_driver_func(ScrnInfoPtr pScrn, xorgDriverFuncOp op,
         pointer ptr);
-
-/************************************************************************
- * SUPPORTED CHIPSETS (START)
- ************************************************************************/
-
-typedef enum _chipSetID {
-    GC500_ID = 0x33,
-    GC2100_ID,
-    GCCORE_ID
-} CHIPSETID;
-
-/*CHIP NAMES*/
-#define GCCORE_STR "VivanteGCCORE"
-#define GC500_STR  "VivanteGC500"
-#define GC2100_STR "VivanteGC2100"
-
-/************************************************************************
- * SUPPORTED CHIPSETS (END)
- ************************************************************************/
-/*
- * This is intentionally screen-independent.  It indicates the binding
- * choice made in the first PreInit.
- */
-static int pix24bpp = 0;
 
 /************************************************************************
  * X Window System Registration (START)
  ************************************************************************/
-_X_EXPORT DriverRec VIV = {
-    VIVANTE_VERSION,
-    VIVANTE_DRIVER_NAME,
-    VivIdentify,
-    VivProbe,
-    VivAvailableOptions,
+_X_EXPORT DriverRec IMX = {
+    IMX_VERSION,
+    IMX_DRIVER_NAME,
+    imx_identify,
+    imx_probe,
+    imx_availableOptions,
     NULL,
     0,
-    VivDriverFunc,
+    imx_driver_func,
 #ifdef XSERVER_LIBPCIACCESS
     viv_device_match,
-    VivPciProbe,
+    imx_pci_probe,
 #endif
 
 };
 
 /* Supported "chipsets" */
-static SymTabRec VivChipsets[] = {
-    {GC500_ID, GC500_STR},
-    {GC2100_ID, GC2100_STR},
-    {GCCORE_ID, GCCORE_STR},
+static SymTabRec imxChipsets[] = {
+    {0, "i.MX6 with Vivante GCCORE"},
+    {0, "i.MX7ULP with Vivante GCCORE"},
+    {0, "i.MX8 with IMX G2D"},
     {-1, NULL}
 };
 
 
-static const OptionInfoRec VivOptions[] = {
+static const OptionInfoRec imxOptions[] = {
     { OPTION_SHADOW_FB, "ShadowFB", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ROTATE, "Rotate", OPTV_STRING, {0}, FALSE },
 #ifdef DEBUG
@@ -174,17 +138,17 @@ static const OptionInfoRec VivOptions[] = {
 
 #ifdef XFree86LOADER
 
-MODULESETUPPROTO(VivSetup);
+MODULESETUPPROTO(imx_setup);
 
-static XF86ModuleVersionInfo VivVersRec = {
-    VIVANTE_DRIVER_NAME,
+static XF86ModuleVersionInfo imxVersRec = {
+    IMX_DRIVER_NAME,
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
     XORG_VERSION_CURRENT,
-    VIVANTE_VERSION_MAJOR,
-    VIVANTE_VERSION_MINOR,
-    VIVANTE_VERSION_PATCHLEVEL,
+    IMX_VERSION_MAJOR,
+    IMX_VERSION_MINOR,
+    IMX_VERSION_PATCHLEVEL,
     ABI_CLASS_VIDEODRV,
     ABI_VIDEODRV_VERSION,
     NULL,
@@ -200,17 +164,17 @@ static ExtensionModule VIVExt =
     &noVIVExtension
 };
 
-_X_EXPORT XF86ModuleData vivanteModuleData = {&VivVersRec, VivSetup, NULL};
+_X_EXPORT XF86ModuleData imxModuleData = {&imxVersRec, imx_setup, NULL};
 
 pointer
-VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
+imx_setup(pointer module, pointer opts, int *errmaj, int *errmin) {
     TRACE_ENTER();
     pointer ret;
     static Bool setupDone = FALSE;
 
     if (!setupDone) {
         setupDone = TRUE;
-        xf86AddDriver(&VIV, module, HaveDriverFuncs);
+        xf86AddDriver(&IMX, module, HaveDriverFuncs);
         ret = (pointer) 1;
 
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,15,0,0,0)
@@ -230,51 +194,10 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
 
 
 #ifdef XSERVER_LIBPCIACCESS
-static Bool VivPciProbe(DriverPtr drv, int entity_num,
+static Bool imx_pci_probe(DriverPtr drv, int entity_num,
               struct pci_device *dev, intptr_t match_data)
 {
-    ScrnInfoPtr pScrn = NULL;
-
-    if (!xf86LoadDrvSubModule(drv, "fbdevhw"))
-    return FALSE;
-
-    pScrn = xf86ConfigPciEntity(NULL, 0, entity_num, NULL, NULL,
-                NULL, NULL, NULL, NULL);
-    if (pScrn) {
-    const char *device;
-    GDevPtr devSection = xf86GetDevFromEntity(pScrn->entityList[0],
-                          pScrn->entityInstanceList[0]);
-
-    device = xf86FindOptionValue(devSection->options, "vivante");
-
-    if (fbdevHWProbe(NULL, (char *)device, NULL)) {
-/*TODO*/
-#if 0
-        pScrn->driverVersion = VIVANTE_VERSION;
-        pScrn->driverName    = VIVANTE_DRIVER_NAME;
-        pScrn->name          = VIVANTE_NAME;
-        pScrn->Probe         = VivProbe;
-        pScrn->PreInit       = VivPreInit;
-        pScrn->ScreenInit    = VivScreenInit;
-        pScrn->SwitchMode    = fbdevHWSwitchModeWeak();
-        pScrn->AdjustFrame   = fbdevHWAdjustFrameWeak();
-        pScrn->EnterVT       = fbdevHWEnterVTWeak();
-        pScrn->LeaveVT       = fbdevHWLeaveVTWeak();
-        pScrn->ValidMode     = fbdevHWValidModeWeak();
-
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-               "claimed PCI slot %d@%d:%d:%d\n",
-               dev->bus, dev->domain, dev->dev, dev->func);
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-               "using %s\n", device ? device : "default device");
-#endif
-    }
-    else {
-        pScrn = NULL;
-    }
-    }
-
-    return (pScrn != NULL);
+   return FALSE;
 }
 #endif
 
@@ -283,21 +206,21 @@ static Bool VivPciProbe(DriverPtr drv, int entity_num,
  ************************************************************************/
 
 static const OptionInfoRec *
-VivAvailableOptions(int chipid, int busid) {
+imx_availableOptions(int chipid, int busid) {
     /*Chip id may also be used for special cases*/
     TRACE_ENTER();
-    TRACE_EXIT(VivOptions);
+    TRACE_EXIT(imxOptions);
 }
 
 static void
-VivIdentify(int flags) {
+imx_identify(int flags) {
     TRACE_ENTER();
-    xf86PrintChipsets(VIVANTE_NAME, "fb driver for vivante", VivChipsets);
+    xf86PrintChipsets(IMX_NAME, "Driver for i.MX Chipsets\n", imxChipsets);
     TRACE_EXIT();
 }
 
 static Bool
-VivProbe(DriverPtr drv, int flags) {
+imx_probe(DriverPtr drv, int flags) {
     int i;
     ScrnInfoPtr pScrn;
     GDevPtr *devSections;
@@ -324,7 +247,7 @@ VivProbe(DriverPtr drv, int flags) {
      * (using things like the Card statement, etc). For single headed servers
      * there will of course be just one such Device section.
      */
-    numDevSections = xf86MatchDevice(VIVANTE_DRIVER_NAME, &devSections);
+    numDevSections = xf86MatchDevice(IMX_DRIVER_NAME, &devSections);
     if (numDevSections <= 0) {
         TRACE_ERROR("No matching device\n");
         TRACE_EXIT(FALSE);
@@ -344,7 +267,7 @@ VivProbe(DriverPtr drv, int flags) {
         }
     }
     if(isFB){
-        foundScreen = vivante_fbdev_VivProbe(drv, flags);
+        foundScreen = vivante_fbdev_viv_probe(drv, flags);
     }
     else if(isKMS){
         foundScreen = imx_kms_probe(drv, flags);
@@ -353,7 +276,7 @@ VivProbe(DriverPtr drv, int flags) {
     TRACE_EXIT(foundScreen);
 }
 
-static Bool VivDriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op,
+static Bool imx_driver_func(ScrnInfoPtr pScrn, xorgDriverFuncOp op,
         pointer ptr) {
     TRACE_ENTER();
     xorgHWFlags *flag;

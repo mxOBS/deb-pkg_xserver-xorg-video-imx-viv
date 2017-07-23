@@ -123,7 +123,6 @@ static int imx_g2d_dri3_fd_from_pixmap(ScreenPtr pScreen, PixmapPtr pPixmap,
     ScrnInfoPtr pScrn = GET_PSCR(pScreen);
     Viv2DPixmapPtr pVivPix = exaGetPixmapDriverPrivate(pPixmap);
     
-    
     if (!pVivPix || !pVivPix->mVidMemInfo ) {
 		return BadMatch;
     }
@@ -148,7 +147,7 @@ static dri3_screen_info_rec imx_g2d_dri3_info = {
 	.fd_from_pixmap = imx_g2d_dri3_fd_from_pixmap,
 };
 
-Bool imxG2dDRI3ScreenInit(ScreenPtr pScreen){
+Bool imx_g2d_dri3_creenInit(ScreenPtr pScreen){
     ScrnInfoPtr pScrn = GET_PSCR(pScreen);
     VivPtr fPtr = GET_VIV_PTR(pScrn);
     fPtr->device_name = drmGetDeviceNameFromFd(fPtr->fd);
