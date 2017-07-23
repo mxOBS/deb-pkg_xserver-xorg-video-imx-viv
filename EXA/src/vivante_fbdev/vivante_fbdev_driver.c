@@ -1201,7 +1201,7 @@ VivCreateScreenResources(ScreenPtr pScreen) {
 static Bool
 VivScreenInit(SCREEN_INIT_ARGS_DECL)
 {
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    ScrnInfoPtr pScrn = GET_PSCR(pScreen);
     VivPtr fPtr = GET_VIV_PTR(pScrn);
     VisualPtr visual;
     int init_picture = 0;

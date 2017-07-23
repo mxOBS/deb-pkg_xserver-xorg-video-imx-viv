@@ -83,7 +83,12 @@ extern "C" {
     #define xf86ScrnToScreen(s) screenInfo.screens[(s)->scrnIndex]
 #endif
 
+#ifndef XF86_SCRN_INTERFACE
+#define PM_EVENT_DECL int arg, pmEvent event, Bool undo
+#else
 
+#define PM_EVENT_DECL ScrnInfoPtr arg, pmEvent event, Bool undo
+#endif
 
 #if XF86_HAS_SCRN_CONV
 #define GET_PSCR(pScreen) (xf86ScreenToScrn(pScreen))
