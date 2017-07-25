@@ -164,7 +164,7 @@ static ExtensionModule VIVExt =
     &noVIVExtension
 };
 
-_X_EXPORT XF86ModuleData imxModuleData = {&imxVersRec, imx_setup, NULL};
+_X_EXPORT XF86ModuleData vivanteModuleData = {&imxVersRec, imx_setup, NULL};
 
 pointer
 imx_setup(pointer module, pointer opts, int *errmaj, int *errmin) {

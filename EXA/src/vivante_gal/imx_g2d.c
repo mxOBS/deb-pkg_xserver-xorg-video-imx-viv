@@ -153,6 +153,9 @@ Bool G2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flu
 #if defined(__mips__) || defined(mips)
     TRACE_EXIT(TRUE);
 #endif
+    if(galInfo && galInfo->mPreferredAllocator == VIVGAL2D) {
+        return VIV2DCacheOperation(galInfo, ppix, flush_type);
+    }
 
     if ( surf == NULL )
         TRACE_EXIT(TRUE);
@@ -167,10 +170,6 @@ Bool G2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE flu
 
     if (vivEnableCacheMemory == FALSE){
         TRACE_EXIT(TRUE);
-    }
-
-    if(galInfo->mPreferredAllocator == VIVGAL2D) {
-        return VIV2DCacheOperation(galInfo, ppix, flush_type);
     }
 
     TRACE_INFO("FLUSH INFO => LOGICAL = %d PHYSICAL = %d STRIDE = %d  ALIGNED HEIGHT = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mStride, surf->mAlignedHeight);
