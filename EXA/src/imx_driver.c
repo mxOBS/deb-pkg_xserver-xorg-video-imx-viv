@@ -36,9 +36,6 @@
 #include <sys/ioctl.h>
 #include <xorg/shadow.h>
 
-#ifdef XSERVER_LIBPCIACCESS
-#include <pciaccess.h>
-#endif
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (START)
  ************************************************************************/
@@ -58,18 +55,6 @@ Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags);
 Bool imx_kms_probe(DriverPtr drv, int flags);
 
 
-#ifdef XSERVER_LIBPCIACCESS
-static const struct pci_id_match viv_device_match[] = {
-    {
-    PCI_MATCH_ANY, PCI_MATCH_ANY, PCI_MATCH_ANY, PCI_MATCH_ANY,
-    0x00030000, 0x00ffffff, 0
-    },
-
-    { 0, 0, 0 },
-};
-#endif
-
-
 /************************************************************************
  * MACROS FOR VERSIONING & INFORMATION (END)
  ************************************************************************/
@@ -80,9 +65,6 @@ static const struct pci_id_match viv_device_match[] = {
 static const OptionInfoRec *imx_availableOptions(int chipid, int busid);
 static void imx_identify(int flags);
 static Bool imx_probe(DriverPtr drv, int flags);
-#ifdef XSERVER_LIBPCIACCESS
-static Bool imx_pci_probe(DriverPtr drv, int entity_num, struct pci_device *dev, intptr_t match_data);
-#endif
 
 static Bool imx_driver_func(ScrnInfoPtr pScrn, xorgDriverFuncOp op,
         pointer ptr);
@@ -99,10 +81,6 @@ _X_EXPORT DriverRec IMX = {
     NULL,
     0,
     imx_driver_func,
-#ifdef XSERVER_LIBPCIACCESS
-    viv_device_match,
-    imx_pci_probe,
-#endif
 
 };
 
@@ -192,14 +170,6 @@ imx_setup(pointer module, pointer opts, int *errmaj, int *errmin) {
 }
 #endif /* XFree86LOADER */
 
-
-#ifdef XSERVER_LIBPCIACCESS
-static Bool imx_pci_probe(DriverPtr drv, int entity_num,
-              struct pci_device *dev, intptr_t match_data)
-{
-   return FALSE;
-}
-#endif
 
 /************************************************************************
  * START OF THE IMPLEMENTATION FOR CORE FUNCTIONS
