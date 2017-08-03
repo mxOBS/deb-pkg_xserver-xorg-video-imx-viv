@@ -18,25 +18,25 @@
 
 .PHONY: all clean install
 
-include ./makefile.tc
+ROOTFS ?= $(SDKTARGETSYSROOT)
+prefix ?= /usr
 
 target := autohdmi
-
 OBJS := hdmi.o \
 
 # macro FREESCALE_EXTENSION is reserved for future use
 LOCAL_CFLAGS += -fvisibility=hidden -fPIC -DPIC -DFREESCALE_EXTENSION
-LOCAL_CFLAGS += -I. -I.. -I$(sysroot)/usr/include -I$(sysroot)/usr/include/xorg
+LOCAL_CFLAGS += -I. -I.. -I$(ROOTFS)/usr/include -I$(ROOTFS)/usr/include/xorg
 
 
 
 LOCAL_LFLAGS += -fPIC
-LOCAL_LFLAGS += -L$(sysroot)/usr/lib -lX11 -lXext
+LOCAL_LFLAGS += -L$(ROOTFS)/usr/lib -lX11 -lXext
 
 all: $(target)
 
 $(target): $(OBJS)
-	$(LD) -fPIC -o $(target) $(OBJS) $(LOCAL_LFLAGS) $(LFLAGS)
+	$(CC) -fPIC -o $(target) $(OBJS) $(LOCAL_LFLAGS) $(LFLAGS)
 
 clean:
 	-@rm $(target) $(OBJS)
