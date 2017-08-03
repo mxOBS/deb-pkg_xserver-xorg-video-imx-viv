@@ -2,14 +2,9 @@ TOPDIR	:= $(shell /bin/pwd)
 
 export TOPDIR
 
-.PHONY: util FslExt EXA all clean install
+.PHONY: util EXA all clean install
 
-all : FslExt util EXA
-
-FslExt:
-	@echo
-	@echo Invoking FslExt make...
-	$(MAKE) -C $(TOPDIR)/FslExt/src -f makefile.linux
+all : util EXA
 
 util:
 	@echo
@@ -22,15 +17,13 @@ EXA:
 	$(MAKE) -C $(TOPDIR)/EXA/src -f makefile.linux
 
 install:
-	mkdir -p $(prefix)/bin
-	cp $(TOPDIR)/util/autohdmi/autohdmi $(prefix)/bin/
-	chmod 700 $(prefix)/bin/autohdmi
-	mkdir -p $(prefix)/lib/
-	cp $(TOPDIR)/FslExt/src/libfsl_x11_ext.so $(prefix)/lib/
-	mkdir -p $(prefix)/lib/xorg/modules/drivers/
-	cp $(TOPDIR)/EXA/src/vivante_drv.so $(prefix)/lib/xorg/modules/drivers/
+	mkdir -p $(DESTDIR)/$(prefix)/bin
+	cp $(TOPDIR)/util/autohdmi/autohdmi $(DESTDIR)/$(prefix)/bin/
+	chmod 700 $(DESTDIR)/$(prefix)/bin/autohdmi
+	mkdir -p $(DESTDIR)/$(prefix)/lib/
+	mkdir -p $(DESTDIR)/$(prefix)/lib/xorg/modules/drivers/
+	cp $(TOPDIR)/EXA/src/vivante_drv.so $(DESTDIR)/$(prefix)/lib/xorg/modules/drivers/
 
 clean:
 	$(MAKE) -C $(TOPDIR)/util/autohdmi -f makefile.linux $@
-	$(MAKE) -C $(TOPDIR)/FslExt/src -f makefile.linux $@
 	$(MAKE) -C $(TOPDIR)/EXA/src -f makefile.linux $@
