@@ -97,7 +97,6 @@ static gctBOOL SetupDriver
             goto FREESOURCE;
         }
     }
-    else
 #endif
     {
         /*If Seperated*/
@@ -110,11 +109,12 @@ static gctBOOL SetupDriver
                 goto FREESOURCE;
             }
         }
-
+#ifndef HAVE_G2D
         if (!gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_PIPE_2D)) {
             TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
             goto FREESOURCE;
         }
+#endif
     }
 
     /* Query the amount of video memory. */
