@@ -48,16 +48,15 @@ IMX_2D := vivante_exa/vivante_exa_g2d.o \
 	vivante_exa/vivante_exa.o \
 
 OBJS := vivante_gal/vivante_gal_gpu.o \
-	vivante_gal/imx_g2d.o \
 	vivante_gal/vivante_gal_surface.o \
 	vivante_fbdev/vivante_fbdev_driver.o \
 	vivante_exa/vivante_exa_null.o \
 	vivante_extension/vivante_ext.o \
 	vivante_fbdev/vivante_dri.o \
-	imx_drm/imx_g2d_dri3.o \
-    imx_driver.o \
-    $(IMX_2D) \
-    $(IMX_DISPLAY_OBJ)
+	vivante_fbdev/vivante_dri3.o \
+        imx_driver.o \
+        $(IMX_2D) \
+        $(IMX_DISPLAY_OBJ)
 
 PIXMAN := pixman-1
 
@@ -66,17 +65,19 @@ ifeq ($(VIVANTE_ENABLE_3D),0)
        CFLAGS += -DDISABLE_VIVANTE_DRI
    endif
 endif
-LOCAL_CFLAGS += -DHAVE_DRI3
+LOCAL_CFLAGS += -DHAVE_DRI3 -DENABLE_VIVANTE_DRI3
 
+LOCAL_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function -Wno-unused-variable -Wno-return-type
 LOCAL_CFLAGS  += -DSMALL_THRESHOLD -DADD_FSL_XRANDR -DHAVE_G2D -DHAVE_VIVANTE_2D
 LOCAL_CFLAGS += -fvisibility=hidden -fPIC -DPIC
 LOCAL_CFLAGS += -DLINUX
 LOCAL_CFLAGS += -I. -I.. -I$(ROOTFS)/usr/include -I$(ROOTFS)/usr/include/xorg -I$(ROOTFS)/usr/include/xcb -I$(ROOTFS)/usr/include/$(PIXMAN)
 LOCAL_CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension -I./imx_drm
 LOCAL_CFLAGS += -I$(ROOTFS)/usr/include/drm
+LOCAL_CFLAGS += -I$(ROOTFS)/usr/include/HAL
 
 LOCAL_LFLAGS += -fPIC
-LOCAL_LFLAGS += -L$(ROOTFS)/usr/lib -lm -ldl -lg2d -Wl,-soname -Wl,vivante_drv.so
+LOCAL_LFLAGS += -L$(ROOTFS)/usr/lib -lm -ldl -lg2d -Wl,-soname -Wl,vivante_drv.so -ldrm -ldrm_vivante
 
 all: $(target)
 

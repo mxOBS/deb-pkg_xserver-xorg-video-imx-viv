@@ -50,12 +50,9 @@
  * SOFTWARE.
  */
 
-#include "vivante_common.h"
-#include "vivante_exa_g2d.h"
+#include "vivante_exa.h"
 #include "vivante.h"
 #include "vivante_priv.h"
-#include "imx_g2d.h"
-
 
 #ifdef HAVE_G2D
 
@@ -524,7 +521,7 @@ G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 
         /* mStride should be 4 aligned cause width is 8 aligned,Stride%4 !=0 shouldn't happen */
 
-        pixman_fill((uint32_t *) MapG2DPixmap(pVivPixDst),
+        pixman_fill((uint32_t *) MapViv2DPixmap(pVivPixDst),
                     pViv->mGrCtx.mG2dBlitInfo.mDstSurfInfo.mStride/4,
                     pViv->mGrCtx.mG2dBlitInfo.mDstSurfInfo.mFormat.mBpp,
                     x1, y1 , x2-x1, y2-y1, pViv->mGrCtx.mG2dBlitInfo.mColorARGB32);
@@ -534,7 +531,7 @@ G2dSolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2) {
 
     if(pVivPixDst->mCpuBusy)
     {
-        G2DCacheOperation(&pViv->mGrCtx, pVivPixDst, FLUSH);
+        VIV2DCacheOperation(&pViv->mGrCtx, pVivPixDst, FLUSH);
         pVivPixDst->mCpuBusy=FALSE;
     }
 
@@ -744,7 +741,7 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
         if ( ( width * height ) < IMX_EXA_NONCACHESURF_SIZE
             && _support_pixman_blit )
         {
-            if ( MapG2DPixmap(pVivPixSrc) != MapG2DPixmap(pVivPixDst) )
+            if ( MapViv2DPixmap(pVivPixSrc) != MapViv2DPixmap(pVivPixDst) )
             {
                 pVivPixDst->mCpuBusy = TRUE;
                 pVivPixSrc->mCpuBusy = TRUE;
@@ -755,8 +752,8 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
                 }
                 _last_hw_cpy = 0;
 
-                if ( pixman_blt((uint32_t *) MapG2DPixmap(pVivPixSrc),
-                    (uint32_t *) MapG2DPixmap(pVivPixDst),
+                if ( pixman_blt((uint32_t *) MapViv2DPixmap(pVivPixSrc),
+                    (uint32_t *) MapViv2DPixmap(pVivPixDst),
                     pViv->mGrCtx.mG2dBlitInfo.mSrcSurfInfo.mStride/4,
                     pViv->mGrCtx.mG2dBlitInfo.mDstSurfInfo.mStride/4,
                     pViv->mGrCtx.mG2dBlitInfo.mSrcSurfInfo.mFormat.mBpp,
@@ -781,13 +778,13 @@ G2dCopy(PixmapPtr pDstPixmap, int srcX, int srcY,
     pVivPixDst->mHWPath = FALSE;
     if(pVivPixSrc->mCpuBusy)
     {
-        G2DCacheOperation(&pViv->mGrCtx, pVivPixSrc, FLUSH);
+        VIV2DCacheOperation(&pViv->mGrCtx, pVivPixSrc, FLUSH);
         pVivPixSrc->mCpuBusy=FALSE;
     }
 
     if(pVivPixDst->mCpuBusy)
     {
-        G2DCacheOperation(&pViv->mGrCtx,pVivPixDst, FLUSH);
+        VIV2DCacheOperation(&pViv->mGrCtx,pVivPixDst, FLUSH);
         pVivPixDst->mCpuBusy=FALSE;
     }
 
@@ -1080,13 +1077,13 @@ G2dComposite(PixmapPtr pxDst, int srcX, int srcY, int maskX, int maskY,
 
     if(pVivPixSrc->mCpuBusy)
     {
-        G2DCacheOperation(&pViv->mGrCtx, pVivPixSrc, FLUSH);
+        VIV2DCacheOperation(&pViv->mGrCtx, pVivPixSrc, FLUSH);
         pVivPixSrc->mCpuBusy=FALSE;
     }
 
     if(pVivPixDst->mCpuBusy)
     {
-        G2DCacheOperation(&pViv->mGrCtx, pVivPixDst, FLUSH);
+        VIV2DCacheOperation(&pViv->mGrCtx, pVivPixDst, FLUSH);
         pVivPixSrc->mCpuBusy=FALSE;
     }
     g2d_enable(pGpuCtx->mDriver->mG2DHandle,G2D_BLEND);
@@ -1125,8 +1122,8 @@ static Bool G2dDoneBySWCPY(PixmapPtr pPixmap, int x, int y, int w,
     EXA_FAIL_IF(!pViv);
     EXA_FAIL_IF(!pVivPixDst);
 
-    stride = G2DGetStride(pVivPixDst);
-    mDestAddr = (char*) MapG2DPixmap(pVivPixDst);
+    stride = GetStride(pVivPixDst);
+    mDestAddr = (char*) MapViv2DPixmap(pVivPixDst);
 
     EXA_FAIL_IF(!mDestAddr);
 
@@ -1227,7 +1224,7 @@ static Bool G2dDoneByVSurf(PixmapPtr pDst, int x, int y, int w,
     pBlt->mDstSurfInfo.mWidth = pDst->drawable.width;
 
     if (pVivPixDst->mCpuBusy) {
-       G2DCacheOperation(&pViv->mGrCtx,pVivPixDst,FLUSH);
+       VIV2DCacheOperation(&pViv->mGrCtx,pVivPixDst,FLUSH);
        pVivPixDst->mCpuBusy = FALSE;
     }
 

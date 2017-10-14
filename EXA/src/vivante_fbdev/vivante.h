@@ -33,10 +33,11 @@
 extern "C" {
 #endif
 
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
 #include <xf86drm.h>
 #include "xf86Crtc.h"
-#include "compat-api.h"
 #include "drmmode_display.h"
+#endif
 
     /*GAL*/
 #include "../vivante_gal/vivante_gal.h"
@@ -90,6 +91,7 @@ extern "C" {
         int mFBOffset; /*framebuffer offset*/
         unsigned long memGpuBase;
     } FBINFO, *FBINFOPTR;
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
     typedef struct
     {
         int lastInstance;
@@ -97,6 +99,7 @@ extern "C" {
         ScrnInfoPtr pScrn_1;
         ScrnInfoPtr pScrn_2;
     } EntRec, *EntPtr;
+#endif
 #ifdef ADD_FSL_XRANDR
     typedef struct _fbSyncFlags {
         char * modeName;
@@ -116,7 +119,9 @@ extern "C" {
         OptionInfoPtr mSupportedOptions; /*Options to be parsed in xorg.conf*/
         /*Funct Pointers*/
         CloseScreenProcPtr CloseScreen; /*Screen Close Function*/
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
         CreateWindowProcPtr CreateWindow;
+#endif
         CreateScreenResourcesProcPtr CreateScreenResources;
 
         /* DRI information */
@@ -165,6 +170,8 @@ extern "C" {
         DisplayModePtr  lastVideoMode;
         FBSYNCFLAGS fbSync[MAX_MODES_SUPPORTED];
 #endif
+
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
         /*newly added may need cleanup after reuse*/
 
 
@@ -174,7 +181,7 @@ extern "C" {
         EntPtr entityPrivate;
 
         int Chipset;
-        
+
 #if XSERVER_LIBPCIACCESS
         struct pci_device *PciInfo;
 #else
@@ -183,7 +190,7 @@ extern "C" {
 #endif
 
         Bool noAccel;
-        
+
 
         /* Broken-out options. */
         OptionInfoPtr Options;
@@ -202,8 +209,7 @@ extern "C" {
         uint32_t cursor_width, cursor_height;
 
         struct dumb_bo *bo;
-        
-
+#endif
     } VivRec, * VivPtr,modesettingRec, *modesettingPtr;
 
     /********************************************************************************
@@ -242,5 +248,4 @@ extern "C" {
 #endif
 
 #endif  /* VIVANTE_H */
-
 

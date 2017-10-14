@@ -34,6 +34,9 @@ extern "C" {
 #endif
 
 #include "vivante_common.h"
+#ifdef HAVE_G2D
+#include "vivante_exa_g2d.h"
+#endif
 
 #define IMX_EXA_MIN_AREA_CLEAN         40000
 #define IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    640
@@ -115,7 +118,26 @@ extern "C" {
     /************************************************************************
      * EXA PIXMAP (FINISH)
      ************************************************************************/
-   
+
+    /************************************************************************
+     * NULL EXA (START)
+     ************************************************************************/
+    Bool
+    VivPrepareCopyFail(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap,
+            int xdir, int ydir, int alu, Pixel planemask);
+
+    Bool
+    VivPrepareSolidFail(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg);
+
+    Bool
+    VivCheckCompositeFail(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture, PicturePtr pDstPicture);
+
+    Bool
+    VivPrepareCompositeFail(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture, PicturePtr pDstPicture,
+            PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst);
+    /************************************************************************
+     * NULL EXA (FINISH)
+     ************************************************************************/
 
     /************************************************************************
      * EXA OTHER FUNCTIONS  (START)

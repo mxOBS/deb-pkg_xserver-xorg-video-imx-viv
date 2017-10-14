@@ -69,8 +69,7 @@ extern unsigned int  vivEnableDump;
 #define TRACE_EXIT(val) \
     do { return val;  } while (0)
 #define TRACE_INFO(x, args ...)
-#define TRACE_ERROR(x, args ...) fprintf(stderr, x, ## args)
-
+#define TRACE_ERROR(x, args ...)
 #endif
 
 

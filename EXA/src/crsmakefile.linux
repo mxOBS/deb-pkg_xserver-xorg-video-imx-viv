@@ -1,0 +1,81 @@
+##############################################################################
+#
+#    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+#    All Rights Reserved.
+#
+#    Permission is hereby granted, free of charge, to any person obtaining
+#    a copy of this software and associated documentation files (the
+#    'Software'), to deal in the Software without restriction, including
+#    without limitation the rights to use, copy, modify, merge, publish,
+#    distribute, sub license, and/or sell copies of the Software, and to
+#    permit persons to whom the Software is furnished to do so, subject
+#    to the following conditions:
+#
+#    The above copyright notice and this permission notice (including the
+#    next paragraph) shall be included in all copies or substantial
+#    portions of the Software.
+#
+#    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+#    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+#    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+#    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+#    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+#    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+##############################################################################
+
+
+.PHONY: all clean install
+
+include $(AQROOT)/makefile.linux.def
+
+target := vivante_drv.so
+
+OBJS := vivante_gal/vivante_gal_blit.o \
+	vivante_gal/vivante_gal_gpu.o \
+	vivante_gal/vivante_gal_surface.o \
+	vivante_fbdev/vivante_fbdev_driver.o \
+	vivante_exa/vivante_exa.o \
+	vivante_exa/vivante_solid.o \
+	vivante_exa/vivante_copy.o \
+	vivante_exa/vivante_composite.o \
+	vivante_exa/vivante_pixmap.o \
+	vivante_extension/vivante_ext.o \
+	vivante_fbdev/vivante_dri.o
+
+PIXMAN := pixman-1
+GCC := $(CROSS_COMPILE)gcc
+
+ifeq ($(NODRI),1)
+CFLAGS += -DDISABLE_VIVANTE_DRI
+endif
+
+CFLAGS += -DSMALL_THRESHOLD
+CFLAGS += -fvisibility=hidden -fPIC -DPIC
+CFLAGS += -I. -I.. -I$(ROOTFS_USR)/include/xorg -I$(ROOTFS_USR)/include/X11/dri -I$(ROOTFS_USR)/include/$(PIXMAN) -I$(ROOTFS_USR)/include
+CFLAGS += -I./vivante_gal -I./vivante_ext -I./vivante_fbdev -I./vivante_util -I./vivante_exa
+CFLAGS += -I$(ROOTFS_USR)/include/drm
+
+LFLAGS += -L$(AQROOT)/build/sdk/drivers -lGAL -lm -ldl -Wl,-soname -Wl,vivante_drv.so
+
+all: .libs/$(target)
+
+.libs/$(target): .libs $(OBJS)
+	$(GCC) -shared -fPIC -o .libs/$(target) $(OBJS) $(LFLAGS)
+
+.libs:
+	mkdir .libs
+
+clean:
+	-@rm -r .libs/
+	-@rm $(OBJS)
+
+install:
+	@mkdir -p $(AQROOT)/build/sdk/drivers/xorg/modules/drivers
+	@cp .libs/$(target) $(AQROOT)/build/sdk/drivers/xorg/modules/drivers
+
+%.o: %.c
+	$(GCC) $(CFLAGS) -o $@ -c $<
+
+

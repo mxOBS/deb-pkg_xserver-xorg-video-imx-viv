@@ -84,10 +84,37 @@ extern "C" {
 #endif
 
 #ifndef XF86_SCRN_INTERFACE
+#define SCRN_ARG_TYPE int
+#define SCRN_INFO_PTR(arg1) ScrnInfoPtr pScrn = xf86Screens[(arg1)]
+#define SCREEN_INIT_ARGS_DECL int scrnIndex, ScreenPtr pScreen, int argc, char **argv
+#define CLOSE_SCREEN_ARGS_DECL int scrnIndex, ScreenPtr pScreen
+#define CLOSE_SCREEN_ARGS scrnIndex, pScreen
+#define ADJUST_FRAME_ARGS_DECL int arg, int x, int y, int flags
+#define FBDEVHWADJUSTFRAME_ARGS(x, y) scrnIndex, (x), (y), 0
+#define SWITCH_MODE_ARGS_DECL int arg, DisplayModePtr mode, int flags
+#define ADJUST_FRAME_ARGS(scrn, x, y) (scrn), (x), (y), 0
+#define SWITCH_MODE_ARGS(arg, mode) (arg), (mode), 0
+#define FREE_SCREEN_ARGS_DECL int arg, int flags
+#define VT_FUNC_ARGS_DECL int arg, int flags
+#define VALID_MODE_DECL int arg, DisplayModePtr mode, Bool verbose, int flags
 #define PM_EVENT_DECL int arg, pmEvent event, Bool undo
+#define VT_FUNC_ARGS(flags) pScrn->scrnIndex, (flags)
 #else
-
+#define SCRN_ARG_TYPE ScrnInfoPtr
+#define SCRN_INFO_PTR(arg1) ScrnInfoPtr pScrn = (arg1)
+#define SCREEN_INIT_ARGS_DECL ScreenPtr pScreen, int argc, char **argv
+#define CLOSE_SCREEN_ARGS_DECL ScreenPtr pScreen
+#define CLOSE_SCREEN_ARGS pScreen
+#define ADJUST_FRAME_ARGS_DECL ScrnInfoPtr arg, int x, int y
+#define FBDEVHWADJUSTFRAME_ARGS(x, y) pScrn, (x), (y)
+#define SWITCH_MODE_ARGS_DECL ScrnInfoPtr arg, DisplayModePtr mode
+#define ADJUST_FRAME_ARGS(scrn, x, y) (scrn), (x), (y)
+#define SWITCH_MODE_ARGS(arg, mode) (arg), (mode)
+#define FREE_SCREEN_ARGS_DECL ScrnInfoPtr arg
+#define VT_FUNC_ARGS_DECL ScrnInfoPtr arg
+#define VALID_MODE_DECL ScrnInfoPtr arg, DisplayModePtr mode, Bool verbose, int flags
 #define PM_EVENT_DECL ScrnInfoPtr arg, pmEvent event, Bool undo
+#define VT_FUNC_ARGS(flags) pScrn
 #endif
 
 #if XF86_HAS_SCRN_CONV
@@ -129,10 +156,6 @@ extern "C" {
 #endif
 
 #endif
-
-
-#define IMX_EXA_MIN_AREA_CLEAN         40000
-#define IMX_EXA_MIN_PIXEL_AREA_COMPOSITE    640
 
 #define IMX_EXA_NONCACHESURF_SIZE ( IMX_EXA_NONCACHESURF_WIDTH * IMX_EXA_NONCACHESURF_HEIGHT )
 

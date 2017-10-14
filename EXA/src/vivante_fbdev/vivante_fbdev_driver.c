@@ -27,13 +27,8 @@
 
 
 #include "vivante_common.h"
-#include "compat-api.h"
 #include "vivante.h"
 #include "vivante_exa.h"
-#include "vivante_exa_null.h"
-#include "vivante_exa_g2d.h"
-
-
 #ifndef DISABLE_VIVANTE_DRI
 #include "vivante_dri.h"
 #endif
@@ -81,7 +76,7 @@ static const struct pci_id_match viv_device_match[] = {
 #endif
 
 
-Bool vivEnableCacheMemory=TRUE;
+Bool vivEnableCacheMemory = TRUE;
 #ifdef ADD_FSL_XRANDR
 static Bool vivEnableXrandr = FALSE;
 static Bool gEnableFbSyncExt = TRUE;
@@ -214,10 +209,12 @@ typedef enum _chipSetID {
  */
 static int pix24bpp = 0;
 
-#ifdef USE_PROBE_VIV_FBDEV_DRIVER
+
 /************************************************************************
  * X Window System Registration (START)
  ************************************************************************/
+
+#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 _X_EXPORT DriverRec VIV = {
     VIVANTE_VERSION,
     VIVANTE_DRIVER_NAME,
@@ -242,6 +239,7 @@ static SymTabRec VivChipsets[] = {
 };
 #endif
 
+
 static const OptionInfoRec VivOptions[] = {
     { OPTION_SHADOW_FB, "ShadowFB", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ROTATE, "Rotate", OPTV_STRING, {0}, FALSE },
@@ -260,7 +258,10 @@ static const OptionInfoRec VivOptions[] = {
     { OPTION_VIVCACHEMEM, "VivCacheMem", OPTV_BOOLEAN, {0}, FALSE},
     { -1, NULL, OPTV_NONE, {0}, FALSE}
 };
+
+
 #ifdef USE_PROBE_VIV_FBDEV_DRIVER
+
 /* -------------------------------------------------------------------- */
 
 #ifdef XFree86LOADER
@@ -282,6 +283,7 @@ static XF86ModuleVersionInfo VivVersRec = {
     {0, 0, 0, 0}
 };
 
+
 static Bool noVIVExtension;
 
 static ExtensionModule VIVExt =
@@ -292,8 +294,6 @@ static ExtensionModule VIVExt =
 };
 
 _X_EXPORT XF86ModuleData vivanteModuleData = {&VivVersRec, VivSetup, NULL};
-
-#endif
 
 pointer
 VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
@@ -320,6 +320,7 @@ VivSetup(pointer module, pointer opts, int *errmaj, int *errmin) {
     TRACE_EXIT(ret);
 }
 #endif /* XFree86LOADER */
+#endif
 
 /************************************************************************
  * X Window System Registration (START)
@@ -426,9 +427,9 @@ VivDGASetMode(ScrnInfoPtr pScrn, DGAModePtr pDGAMode)
     frameY0 = pScrn->frameY0;
     }
 
-    if (!(*pScrn->SwitchMode)(pScrn, pMode))
+    if (!(*pScrn->SwitchMode)(SWITCH_MODE_ARGS(pScrn, pMode)))
     return FALSE;
-    (*pScrn->AdjustFrame)(pScrn, frameX0, frameY0);
+    (*pScrn->AdjustFrame)(ADJUST_FRAME_ARGS(pScrn, frameX0, frameY0));
 
     return TRUE;
 }
@@ -436,7 +437,7 @@ VivDGASetMode(ScrnInfoPtr pScrn, DGAModePtr pDGAMode)
 static void
 VivDGASetViewport(ScrnInfoPtr pScrn, int x, int y, int flags)
 {
-    (*pScrn->AdjustFrame)(pScrn, x, y);
+    (*pScrn->AdjustFrame)(ADJUST_FRAME_ARGS(pScrn, x, y));
 }
 
 static int
@@ -726,8 +727,8 @@ static Bool DestroyExaLayer(ScreenPtr pScreen) {
 /************************************************************************
  * START OF THE IMPLEMENTATION FOR CORE FUNCTIONS
  ************************************************************************/
-#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 
+#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 static const OptionInfoRec *
 VivAvailableOptions(int chipid, int busid) {
     /*Chip id may also be used for special cases*/
@@ -742,6 +743,7 @@ VivIdentify(int flags) {
     TRACE_EXIT();
 }
 #endif
+
 static Bool
 VivProbe(DriverPtr drv, int flags) {
     int i;
@@ -1197,7 +1199,9 @@ VivCreateScreenResources(ScreenPtr pScreen) {
 
     TRACE_EXIT(TRUE);
 }
-
+#ifdef ENABLE_VIVANTE_DRI3
+extern Bool vivanteDRI3ScreenInit(ScreenPtr pScreen);
+#endif
 static Bool
 VivScreenInit(SCREEN_INIT_ARGS_DECL)
 {
@@ -1257,7 +1261,7 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
 
 
     fbdevHWSaveScreen(pScreen, SCREEN_SAVER_ON);
-    fbdevHWAdjustFrame(pScrn, 0, 0);
+    fbdevHWAdjustFrame(FBDEVHWADJUSTFRAME_ARGS(0, 0));
 
     /* mi layer */
     miClearVisualTypes();
@@ -1510,11 +1514,21 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
     }
 #endif
 
+#ifdef ENABLE_VIVANTE_DRI3
+    if (!vivanteDRI3ScreenInit(pScreen))
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,"Fail to init DRI3\n");
+    };
+#else
+
 #ifndef DISABLE_VIVANTE_DRI
     if (VivDRIScreenInit(pScreen)) {
         VivDRIFinishScreenInit(pScreen);
     }
 #endif
+
+#endif
+
 
 
     /* restore sync for FSL extension */
@@ -1536,9 +1550,16 @@ VivCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 
     TRACE_ENTER();
 
+#ifdef ENABLE_VIVANTE_DRI3
+
+#else
+
 #ifndef DISABLE_VIVANTE_DRI
     VivDRICloseScreen(pScreen);
 #endif
+
+#endif
+
 
     if (fPtr->mFakeExa.mUseExaFlag) {
         DEBUGP("UnLoading EXA");
@@ -1661,10 +1682,5 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
     }
 
     return TRUE;
-}
-#endif
-#ifndef USE_VIV_FBDEV_DRIVER
-Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags) {
-    return VivProbe(drv, flags);
 }
 #endif

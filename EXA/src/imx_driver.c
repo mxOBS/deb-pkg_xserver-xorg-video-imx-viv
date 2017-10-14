@@ -27,7 +27,6 @@
 
 
 #include "vivante_common.h"
-#include "compat-api.h"
 #include "vivante.h"
 
 #include "vivante_ext.h"

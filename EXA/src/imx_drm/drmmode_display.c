@@ -1,3 +1,31 @@
+/****************************************************************************
+*
+*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    All Rights Reserved.
+*
+*    Permission is hereby granted, free of charge, to any person obtaining
+*    a copy of this software and associated documentation files (the
+*    'Software'), to deal in the Software without restriction, including
+*    without limitation the rights to use, copy, modify, merge, publish,
+*    distribute, sub license, and/or sell copies of the Software, and to
+*    permit persons to whom the Software is furnished to do so, subject
+*    to the following conditions:
+*
+*    The above copyright notice and this permission notice (including the
+*    next paragraph) shall be included in all copies or substantial
+*    portions of the Software.
+*
+*    THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+*    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+*    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+*    IN NO EVENT SHALL VIVANTE AND/OR ITS SUPPLIERS BE LIABLE FOR ANY
+*    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+*    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+*    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*****************************************************************************/
+
+
 /*
  * Copyright © 2007 Red Hat, Inc.
  * Copyright © 2017 NXP.
@@ -769,7 +797,7 @@ drmmode_set_cursor(xf86CrtcPtr crtc)
     int ret = -EINVAL;
 
     if (cursor == NullCursor)
-	    return TRUE;
+        return TRUE;
 
     ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
                             handle, ms->cursor_width, ms->cursor_height,
@@ -1729,7 +1757,7 @@ static int parse_path_blob(drmModePropertyBlobPtr path_blob, int *conn_base_id, 
 
 static void
 drmmode_create_name(ScrnInfoPtr pScrn, drmModeConnectorPtr koutput, char *name,
-		    drmModePropertyBlobPtr path_blob)
+            drmModePropertyBlobPtr path_blob)
 {
     int ret;
     char *extra_path;
@@ -2286,9 +2314,6 @@ drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
     /* all radeons support 10 bit CLUTs */
     if (!xf86HandleColormaps(pScreen, 256, 10,
                              drmmode_load_palette, NULL, CMAP_PALETTED_TRUECOLOR
-#if 0                           /* This option messes up text mode! (eich@suse.de) */
-                             | CMAP_LOAD_EVEN_IF_OFFSCREEN
-#endif
                              | CMAP_RELOAD_ON_MODE_SWITCH))
         return FALSE;
     return TRUE;
@@ -2570,7 +2595,6 @@ drmmode_free_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
     }
 }
 
-/* ugly workaround to see if we can create 32bpp */
 void
 drmmode_get_default_bpp(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int *depth,
                         int *bpp)
