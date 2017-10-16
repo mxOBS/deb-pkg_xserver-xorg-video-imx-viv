@@ -73,6 +73,7 @@ LOCAL_CFLAGS += -fvisibility=hidden -fPIC -DPIC
 LOCAL_CFLAGS += -DLINUX
 LOCAL_CFLAGS += -I. -I.. -I$(ROOTFS)/usr/include -I$(ROOTFS)/usr/include/xorg -I$(ROOTFS)/usr/include/xcb -I$(ROOTFS)/usr/include/$(PIXMAN)
 LOCAL_CFLAGS += -I./vivante_gal -I./vivante_fbdev -I./vivante_util -I./vivante_exa -I./vivante_extension -I./imx_drm
+LOCAL_CFLAGS += -I$(ROOTFS)/usr/include/libdrm
 LOCAL_CFLAGS += -I$(ROOTFS)/usr/include/drm
 LOCAL_CFLAGS += -I$(ROOTFS)/usr/include/HAL
 
