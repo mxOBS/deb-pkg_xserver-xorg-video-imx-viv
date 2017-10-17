@@ -1,0 +1,30 @@
+Source: xserver-xorg-video-imx-viv
+Priority: extra
+Maintainer: Josua Mayer <josua.mayer97@gmail.com>
+Build-Depends:
+ debhelper (>= 8.0.0),
+ xserver-xorg-dev (>= 2:1.9.4),
+ x11proto-xf86dri-dev,
+ imx-gpu-viv-x11 (>= 6.2.2.p0),
+ imx-gpu-viv-x11-dev (>= 6.2.2.p0),
+ libg2d-dev (>= 6.2.2.p0),
+ xserver-xorg-dev,
+ libdrm-dev,
+ libxext-dev,
+ lsb-release,
+Standards-Version: 3.9.3
+Section: libs
+#Homepage: <insert the upstream URL, if relevant>
+Vcs-Git: https://github.com/mxOBS/deb-pkg_xserver-xorg-video-imx-viv.git
+Vcs-Browser: https://github.com/mxOBS/deb-pkg_xserver-xorg-video-imx-viv
+
+Package: xserver-xorg-video-imx-viv
+Section: libs
+Architecture: any-arm
+Depends: ${shlibs:Depends},
+ ${misc:Depends},
+ ${xviddriver:Depends},
+ imx-gpu-viv-x11 (>= 6.2.2.p0),
+Provides: xorg-driver-video
+Description: Vivante X.org driver
+ Provides the accelerated X.org driver for i.MX6 SoCs by Vivante/FSL.

@@ -1,0 +1,41 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+# This file was originally written by Joey Hess and Craig Small.
+# As a special exception, when this file is copied by dh-make into a
+# dh-make output file, you may use that output file without restriction.
+# This special exception was added by Craig Small in version 0.37 of dh-make.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# hardcode packaging destdir
+DESTDIR=$(CURDIR)/debian/xserver-xorg-video-imx-viv
+
+# decide on build options
+export BUSID_HAS_NUMBER=1
+export XSERVER_GREATER_THAN_13=1
+ifeq (armhf, $(shell dpkg-architecture -qDEB_HOST_ARCH))
+	export BUILD_HARD_VFP=1
+else
+	export BUILD_HARD_VFP=0
+endif
+
+# choose xorg config-file
+XORGCONF=xorg.conf
+
+%:
+	dh $@ --with xsf
+
+override_dh_auto_build:
+	./fastbuild.sh LFLAGS=-L/usr/lib/galcore CFLAGS=-I/usr/include/libdrm
+
+override_dh_auto_install:
+	install -v -m755 -D EXA/src/vivante_drv.so $(DESTDIR)/usr/lib/xorg/modules/drivers/vivante_drv.so
+	install -v -m755 -D FslExt/src/libfsl_x11_ext.so $(DESTDIR)/usr/lib/xorg/modules/extensions/libfsl_x11_ext.so
+	install -v -m755 -D util/autohdmi/autohdmi $(DESTDIR)/usr/bin/autohdmi
+	install -v -m755 -D util/pandisplay/pandisplay $(DESTDIR)/usr/bin/pandisplay
+	install -v -m644 -D $(XORGCONF) $(DESTDIR)/etc/X11/xorg.conf.d/20-vivante.conf
+
+override_dh_auto_clean:
+	./fastbuild.sh clean

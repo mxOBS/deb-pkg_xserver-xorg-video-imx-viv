@@ -1,0 +1,30 @@
+xserver-xorg-video-imx-viv (6.2.2.p0) UNRELEASED; urgency=medium
+
+  * Freescale update
+
+ -- Josua Mayer <josua.mayer97@gmail.com>  Tue, 17 Oct 2017 11:51:03 +0200
+
+xserver-xorg-video-imx-viv (5.0.11.p4.5+1) stable; urgency=low
+
+  * add Option "VivCacheMem" "false" to work around drawing problems on jessie
+
+ -- Josua Mayer <privacy@not.given>  Fri, 20 Nov 2015 12:21:04 +0100
+
+xserver-xorg-video-imx-viv (5.0.11.p4.5) stable; urgency=medium
+
+  * Initial release
+
+ -- Josua Mayer <privacy@not.given>  Fri, 12 Jun 2015 23:21:24 +0800
+
+xserver-xorg-video-imx-viv (5.0.11.p4.4) stable; urgency=low
+
+  * initial release
+
+ -- Josua Mayer <privacy@not.given>  Sun, 12 Apr 2015 12:23:34 +0200
+
+xserver-xorg-video-imx-viv (1) unstable; urgency=low
+
+  * Initial release
+  * xserver-xorg-video-imx-viv-3.10.17-1.0.1
+
+ -- unknown <unknown>  Fri, 28 Nov 2014 00:43:46 +0100
