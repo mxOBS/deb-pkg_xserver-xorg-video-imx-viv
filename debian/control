@@ -25,6 +25,7 @@ Depends: ${shlibs:Depends},
  ${misc:Depends},
  ${xviddriver:Depends},
  imx-gpu-viv-x11 (>= 6.2.2.p0),
-Provides: xorg-driver-video
+Provides:
+ ${xviddriver:Provides},
 Description: Vivante X.org driver
  Provides the accelerated X.org driver for i.MX6 SoCs by Vivante/FSL.
