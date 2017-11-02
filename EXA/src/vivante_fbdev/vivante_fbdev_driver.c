@@ -32,7 +32,11 @@
 #ifndef DISABLE_VIVANTE_DRI
 #include "vivante_dri.h"
 #endif
+
+#ifdef USE_PROBE_VIV_FBDEV_DRIVER
 #include "../vivante_extension/vivante_ext.h"
+#endif
+
 #include <errno.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
@@ -1541,6 +1545,10 @@ VivScreenInit(SCREEN_INIT_ARGS_DECL)
     TRACE_EXIT(TRUE);
 }
 
+#ifdef ENABLE_VIVANTE_DRI3
+extern void vivanteDRI3ScreenDeInit(ScreenPtr pScreen);
+#endif
+
 static Bool
 VivCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
@@ -1551,7 +1559,7 @@ VivCloseScreen(CLOSE_SCREEN_ARGS_DECL)
     TRACE_ENTER();
 
 #ifdef ENABLE_VIVANTE_DRI3
-
+    vivanteDRI3ScreenDeInit(pScreen);
 #else
 
 #ifndef DISABLE_VIVANTE_DRI
@@ -1684,3 +1692,7 @@ RestoreSyncFlags(ScrnInfoPtr pScrn)
     return TRUE;
 }
 #endif
+
+Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags) {
+    return VivProbe(drv, flags);
+}

@@ -65,7 +65,6 @@
 #include "config.h"
 #endif
 
-#include "vivante_ext.h"
 #include "xorg-server.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -1447,6 +1446,7 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
     xf86SetSilkenMouse(pScreen);
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
 
+
     /* Need to extend HWcursor support to handle mask interleave */
     if (!fPtr->drmmode.sw_cursor)
         xf86_cursors_init(pScreen, fPtr->cursor_width, fPtr->cursor_height,
@@ -1481,6 +1481,7 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
     pScreen->SetSharedPixmapBacking = msSetSharedPixmapBacking;
 #endif
 #endif
+
     if (!xf86CrtcScreenInit(pScreen))
         return FALSE;
 
@@ -1490,6 +1491,7 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
     xf86DPMSInit(pScreen, xf86DPMSSet, 0);
     if (serverGeneration == 1)
         xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
+
     return EnterVT(VT_FUNC_ARGS);
 }
 
@@ -1554,6 +1556,10 @@ SwitchMode(SWITCH_MODE_ARGS_DECL)
     return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
 }
 
+#ifdef ENABLE_VIVANTE_DRI3
+extern void vivanteDRI3ScreenDeInit(ScreenPtr pScreen);
+#endif
+
 static Bool
 CloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
@@ -1578,6 +1584,10 @@ CloseScreen(CLOSE_SCREEN_ARGS_DECL)
     if (pScrn->vtSema) {
         LeaveVT(VT_FUNC_ARGS);
     }
+
+#ifdef ENABLE_VIVANTE_DRI3
+    vivanteDRI3ScreenDeInit(pScreen);
+#endif
 
     pScreen->CreateScreenResources = fPtr->createScreenResources;
     pScreen->BlockHandler = fPtr->BlockHandler;

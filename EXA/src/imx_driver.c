@@ -29,7 +29,6 @@
 #include "vivante_common.h"
 #include "vivante.h"
 
-#include "vivante_ext.h"
 #include <errno.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
@@ -48,10 +47,8 @@
 #define IMX_DRIVER_NAME       "vivante"
 
 /*Can be moved to separate header*/
-#ifndef USE_VIV_FBDEV_DRIVER
-Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags);
-#endif
-Bool imx_kms_probe(DriverPtr drv, int flags);
+extern Bool vivante_fbdev_viv_probe(DriverPtr drv, int flags);
+extern Bool imx_kms_probe(DriverPtr drv, int flags);
 
 
 /************************************************************************
@@ -132,15 +129,6 @@ static XF86ModuleVersionInfo imxVersRec = {
     {0, 0, 0, 0}
 };
 
-static Bool noVIVExtension;
-
-static ExtensionModule VIVExt =
-{
-    VIVExtensionInit,
-    VIVEXTNAME,
-    &noVIVExtension
-};
-
 _X_EXPORT XF86ModuleData vivanteModuleData = {&imxVersRec, imx_setup, NULL};
 
 pointer
@@ -150,15 +138,10 @@ imx_setup(pointer module, pointer opts, int *errmaj, int *errmin) {
     static Bool setupDone = FALSE;
 
     if (!setupDone) {
+
         setupDone = TRUE;
         xf86AddDriver(&IMX, module, HaveDriverFuncs);
         ret = (pointer) 1;
-
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,15,0,0,0)
-        LoadExtension(&VIVExt, FALSE);
-#else
-        LoadExtensionList(&VIVExt, 1, FALSE);
-#endif
 
     } else {
         if (errmaj) *errmaj = LDR_ONCEONLY;

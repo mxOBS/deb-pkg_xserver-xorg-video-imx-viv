@@ -37,13 +37,17 @@ extern "C" {
 #include "gc_hal_raster.h"
 #include "gc_hal_base.h"
 
+#ifdef ENABLE_VIVANTE_DRI3
+#include "vivante_bo.h"
+#endif
+
     /************************************************************************
      * PIXMAP_HANDLING_STUFF(START)
      ************************************************************************/
     typedef struct {
         gctUINT64 mNode;
         gcePOOL mPool;
-        gctUINT mSizeInBytes;
+        gctUINT mBytes;
         gctUINT32 mPhysicalAddr;
         gctPOINTER mLogicalAddr;
     } VideoNode, *VideoNodePtr;
@@ -59,8 +63,10 @@ extern "C" {
         gctUINT32 mStride;
         VideoNode mVideoNode;
         gctPOINTER mData;
-        uint32_t bo_handle;
+#ifdef ENABLE_VIVANTE_DRI3
+        struct drm_vivante_bo *bo;
         int fd;
+#endif
     } GenericSurface, *GenericSurfacePtr;
 
     /************************************************************************
@@ -80,8 +86,9 @@ extern "C" {
         gctUINT32 mG2DBaseAddr;
 #endif
         gcoBRUSH mBrush;
-        int drm;
-
+#ifdef ENABLE_VIVANTE_DRI3
+        struct drm_vivante *drm;
+#endif
         /*video memory mapping*/
         gctPHYS_ADDR g_InternalPhysical, g_ExternalPhysical, g_ContiguousPhysical;
         gctSIZE_T g_InternalSize, g_ExternalSize, g_ContiguousSize;
@@ -106,12 +113,11 @@ extern "C" {
     } VIVGPU, *VIVGPUPtr;
 
 gceSTATUS AllocVideoNode(
-        IN gcoHAL Hal,
-        IN OUT gctUINT_PTR Size,
-        IN OUT gcePOOL *Pool,
-        IN gctBOOL cacheable,
-        IN gceSURF_TYPE surftype,
-        OUT gctUINT32 *Node);
+    IN gcoHAL Hal,
+    IN gctBOOL cacheable,
+    IN gceSURF_TYPE surftype,
+    IN OUT GenericSurfacePtr Surf
+    );
 
 gceSTATUS FreeVideoNode(
         IN gcoHAL Hal,
