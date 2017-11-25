@@ -93,7 +93,7 @@ gceSTATUS AllocVideoNode(
         iface.u.AllocateLinearVideoMemory.alignment = 64;
         iface.u.AllocateLinearVideoMemory.pool = Surf->mVideoNode.mPool;
         iface.u.AllocateLinearVideoMemory.type = surftype;
-        iface.u.AllocateLinearVideoMemory.flag = cacheable ? gcvALLOC_FLAG_CACHEABLE : gcvALLOC_FLAG_NONE;
+        iface.u.AllocateLinearVideoMemory.flag = cacheable ? gcvALLOC_FLAG_CACHEABLE : gcvALLOC_FLAG_CMA_LIMIT;
 
         /* Call kernel API. */
         gcmONERROR(gcoHAL_Call(Hal, &iface));
@@ -584,7 +584,7 @@ VIV2DGPUSurfaceAlloc(
         cacheable = gcvFALSE;
 
         surf->fd = -1;
-        if (drm_vivante_bo_create(gpuctx->mDriver->drm, 0, surf->mVideoNode.mBytes, &surf->bo))
+        if (drm_vivante_bo_create(gpuctx->mDriver->drm, DRM_VIV_GEM_CMA_LIMIT, surf->mVideoNode.mBytes, &surf->bo))
         {
             TRACE_ERROR("Failed to create drm create drm_vivante_bo\n");
             gcmONERROR(gcvSTATUS_GENERIC_IO);
