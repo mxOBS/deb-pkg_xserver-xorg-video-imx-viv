@@ -58,7 +58,6 @@
  *
  */
 
-
 #include "vivante_common.h"
 #include "vivante.h"
 #include "vivante_exa_g2d.h"
@@ -67,9 +66,6 @@
 #endif
 
 #include "xorg-server.h"
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-#define _GNU_SOURCE
-#endif
 #include <unistd.h>
 #include <fcntl.h>
 #include "compat-api.h"
@@ -1130,24 +1126,6 @@ msDisableSharedPixmapFlipping(RRCrtcPtr crtc)
         drmmode_DisableSharedPixmapFlipping(xf86Crtc, &ms->drmmode);
 }
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-static PixmapDirtyUpdatePtr
-ms_dirty_get_ent(ScreenPtr screen, PixmapPtr slave_dst)
-{
-    PixmapDirtyUpdatePtr ent;
-
-    if (xorg_list_is_empty(&screen->pixmap_dirty_list))
-        return NULL;
-
-    xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
-        if (ent->slave_dst == slave_dst)
-            return ent;
-    }
-
-    return NULL;
-}
-#endif
-
 static Bool
 msStartFlippingPixmapTracking(RRCrtcPtr crtc, PixmapPtr src,
                               PixmapPtr slave_dst1, PixmapPtr slave_dst2,
@@ -1182,39 +1160,6 @@ msStartFlippingPixmapTracking(RRCrtcPtr crtc, PixmapPtr src,
 
     return TRUE;
 }
-
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-static void
-redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty, int *timeout)
-{
-    modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(screen));
-    RegionRec pixregion;
-
-    PixmapRegionInit(&pixregion, dirty->slave_dst);
-    DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
-    PixmapSyncDirtyHelper(dirty);
-
-    if (!screen->isGPU) {
-#ifdef GLAMOR
-        /*
-         * When copying from the master framebuffer to the shared pixmap,
-         * we must ensure the copy is complete before the slave starts a
-         * copy to its own framebuffer (some slaves scanout directly from
-         * the shared pixmap, but not all).
-         */
-        if (ms->drmmode.glamor)
-            glamor_finish(screen);
-#endif
-        /* Ensure the slave processes the damage immediately */
-        if (timeout)
-            *timeout = 0;
-    }
-
-    DamageRegionProcessPending(&dirty->slave_dst->drawable);
-    RegionUninit(&pixregion);
-}
-#endif
 
 static Bool
 msPresentSharedPixmap(PixmapPtr slave_dst)
@@ -1323,11 +1268,6 @@ CreateScreenResources(ScreenPtr pScreen)
         }
     }
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,0,0,0)
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-    rrScrPrivPtr pScrPriv = rrGetScrPriv(pScreen);
-#endif
-
     pScrPriv->rrEnableSharedPixmapFlipping = msEnableSharedPixmapFlipping;
     pScrPriv->rrDisableSharedPixmapFlipping = msDisableSharedPixmapFlipping;
 
@@ -1404,113 +1344,6 @@ CreateWindow_oneshot(WindowPtr pWin)
 
 #ifdef ENABLE_VIVANTE_DRI3
 extern Bool vivanteDRI3ScreenInit(ScreenPtr pScreen);
-#endif
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-static Bool
-msSharePixmapBacking(PixmapPtr ppix, ScreenPtr screen, void **handle)
-{
-#ifdef GLAMOR_HAS_GBM
-    int ret;
-    CARD16 stride;
-    CARD32 size;
-    ret = glamor_shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
-                                          &stride, &size);
-    if (ret == -1)
-        return FALSE;
-
-    *handle = (void *)(long)(ret);
-    return TRUE;
-#endif
-    return FALSE;
-}
-#endif
-
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-static Bool
-msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
-{
-#ifdef GLAMOR
-    ScreenPtr screen = ppix->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    Bool ret;
-    int ihandle = (int) (long) fd_handle;
-
-    if (ihandle == -1)
-        if (!ms->drmmode.reverse_prime_offload_mode)
-           return drmmode_SetSlaveBO(ppix, &ms->drmmode, ihandle, 0, 0);
-
-    if (ms->drmmode.reverse_prime_offload_mode) {
-        ret = glamor_back_pixmap_from_fd(ppix, ihandle,
-                                         ppix->drawable.width,
-                                         ppix->drawable.height,
-                                         ppix->devKind, ppix->drawable.depth,
-                                         ppix->drawable.bitsPerPixel);
-    } else {
-        int size = ppix->devKind * ppix->drawable.height;
-        ret = drmmode_SetSlaveBO(ppix, &ms->drmmode, ihandle, ppix->devKind, size);
-    }
-    if (ret == FALSE)
-        return ret;
-
-    return TRUE;
-#else
-    return FALSE;
-#endif
-}
-#endif
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-static Bool
-msRequestSharedPixmapNotifyDamage(PixmapPtr ppix)
-{
-    ScreenPtr screen = ppix->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-
-    msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, ppix);
-
-    ppriv->notify_on_damage = TRUE;
-
-    return TRUE;
-}
-#endif
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,3,0,0)
-static Bool
-msSharedPixmapNotifyDamage(PixmapPtr ppix)
-{
-    Bool ret = FALSE;
-    int c;
-
-    ScreenPtr screen = ppix->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-
-    msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, ppix);
-
-    if (!ppriv->wait_for_damage)
-        return ret;
-    ppriv->wait_for_damage = FALSE;
-
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[c];
-        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-        if (!drmmode_crtc)
-            continue;
-        if (!(drmmode_crtc->prime_pixmap && drmmode_crtc->prime_pixmap_back))
-            continue;
-
-        // Received damage on master screen pixmap, schedule present on vblank
-        ret |= drmmode_SharedPixmapPresentOnVBlank(ppix, crtc, &ms->drmmode);
-    }
-
-    return ret;
-}
 #endif
 
 static Bool

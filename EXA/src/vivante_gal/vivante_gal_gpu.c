@@ -110,6 +110,7 @@ static gctBOOL SetupDriver
                 goto FREESOURCE;
             }
         }
+
 #ifndef HAVE_G2D
         if (!gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_PIPE_2D)) {
             TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
@@ -603,12 +604,12 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
 
-    status = UnlockVideoNode(gcvNULL, gcmPTR2INT(mappingInfo), gcvSURF_BITMAP);
+    status = UnlockVideoNode(gcvNULL, gcmPTR2SIZE(mappingInfo), gcvSURF_BITMAP);
     if (status < 0) {
         TRACE_ERROR("Unlock Failed\n");
     }
 
-    status = FreeVideoNode(gcvNULL, gcmPTR2INT(mappingInfo));
+    status = FreeVideoNode(gcvNULL, gcmPTR2SIZE(mappingInfo));
     if (status < 0) {
         TRACE_ERROR("Free Failed\n");
     }

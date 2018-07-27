@@ -83,7 +83,6 @@ gceSTATUS AllocVideoNode(
         Surf->mVideoNode.mPool  = (gcePOOL)pool;
         Surf->mVideoNode.mBytes = (gctUINT)bytes;
     }
-
 #else
     {
         gcsHAL_INTERFACE iface;
