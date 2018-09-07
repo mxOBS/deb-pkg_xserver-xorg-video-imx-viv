@@ -1028,7 +1028,7 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     memcpy(fPtr->mSupportedOptions, VivOptions, sizeof (VivOptions));
     xf86ProcessOptions(pScrn->scrnIndex, fPtr->pEnt->device->options, fPtr->mSupportedOptions);
 
-    vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_VIVCACHEMEM, TRUE);
+    vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_VIVCACHEMEM, FALSE);
 
     fPtr->mFakeExa.mNoAccelFlag = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_NOACCEL, FALSE);
 
