@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2018 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -268,12 +268,12 @@ static Bool DoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
         case 16:
             bytesperpixel = 2;
-            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), &(mmap.mUserAddr), &aligned_width, &aligned_height, &aligned_pitch);
 
             break;
         case 32:
             bytesperpixel = 4;
-            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), &(mmap.mUserAddr), &aligned_width, &aligned_height, &aligned_pitch);
             break;
         default:
             TRACE_EXIT(FALSE);
@@ -350,7 +350,7 @@ static Bool DoneByMapFuncs(PixmapPtr pDst, int x, int y, int w,
     mmap.mSize = h * aligned_pitch;
     mmap.physical = 0;
     start = calloc(1, mmap.mSize + 64);
-    mmap.mUserAddr = aligned_start = gcmINT2PTR(VIV_ALIGN(gcmPTR2INT(start), 64));
+    mmap.mUserAddr = aligned_start = gcmINT2PTR(VIV_ALIGN(gcmPTR2SIZE(start), 64));
 
     while (height--) {
         memcpy(aligned_start, src, width_in_bytes);

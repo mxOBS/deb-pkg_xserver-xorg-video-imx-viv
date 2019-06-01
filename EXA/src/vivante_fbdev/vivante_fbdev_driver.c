@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2018 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -1028,7 +1028,7 @@ VivPreInit(ScrnInfoPtr pScrn, int flags) {
     memcpy(fPtr->mSupportedOptions, VivOptions, sizeof (VivOptions));
     xf86ProcessOptions(pScrn->scrnIndex, fPtr->pEnt->device->options, fPtr->mSupportedOptions);
 
-    vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_VIVCACHEMEM, FALSE);
+    vivEnableCacheMemory = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_VIVCACHEMEM, TRUE);
 
     fPtr->mFakeExa.mNoAccelFlag = xf86ReturnOptValBool(fPtr->mSupportedOptions, OPTION_NOACCEL, FALSE);
 

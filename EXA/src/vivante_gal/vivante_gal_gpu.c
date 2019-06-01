@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2018 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -98,6 +98,7 @@ static gctBOOL SetupDriver
             goto FREESOURCE;
         }
     }
+    else
 #endif
     {
         /*If Seperated*/
@@ -111,22 +112,20 @@ static gctBOOL SetupDriver
             }
         }
 
-#ifndef HAVE_G2D
         if (!gcoHAL_IsFeatureAvailable(pDrvHandle->mHal, gcvFEATURE_PIPE_2D)) {
             TRACE_ERROR("2D PIPE IS NOT AVAIBLE");
             goto FREESOURCE;
         }
-#endif
     }
 
     /* Query the amount of video memory. */
     status = gcoHAL_QueryVideoMemory
             (pDrvHandle->mHal,
-            &pDrvHandle->g_InternalPhysical,
+            &pDrvHandle->g_InternalPhysName,
             &pDrvHandle->g_InternalSize,
-            &pDrvHandle->g_ExternalPhysical,
+            &pDrvHandle->g_ExternalPhysName,
             &pDrvHandle->g_ExternalSize,
-            &pDrvHandle->g_ContiguousPhysical,
+            &pDrvHandle->g_ContiguousPhysName,
             &pDrvHandle->g_ContiguousSize
             );
 
@@ -139,7 +138,7 @@ static gctBOOL SetupDriver
     if (pDrvHandle->g_InternalSize > 0) {
         status = gcoHAL_MapMemory(
                 pDrvHandle->mHal,
-                pDrvHandle->g_InternalPhysical,
+                pDrvHandle->g_InternalPhysName,
                 pDrvHandle->g_InternalSize,
                 &pDrvHandle->g_Internal
                 );
@@ -155,7 +154,7 @@ static gctBOOL SetupDriver
     if (pDrvHandle->g_ExternalSize > 0) {
         status = gcoHAL_MapMemory(
                 pDrvHandle->mHal,
-                pDrvHandle->g_ExternalPhysical,
+                pDrvHandle->g_ExternalPhysName,
                 pDrvHandle->g_ExternalSize,
                 &pDrvHandle->g_External
                 );
@@ -171,12 +170,12 @@ static gctBOOL SetupDriver
     if (pDrvHandle->g_ContiguousSize > 0) {
         status = gcoHAL_MapMemory
                 (pDrvHandle->mHal,
-                pDrvHandle->g_ContiguousPhysical,
+                pDrvHandle->g_ContiguousPhysName,
                 pDrvHandle->g_ContiguousSize,
                 &pDrvHandle->g_Contiguous
                 );
 
-        TRACE_INFO("Physcal : %p LOGICAL ADDR = %p  SIZE = 0x%lx\n", pDrvHandle->g_ContiguousPhysical, pDrvHandle->g_Contiguous, pDrvHandle->g_ContiguousSize);
+        TRACE_INFO("Physcal : %x LOGICAL ADDR = %p  SIZE = 0x%lx\n", pDrvHandle->g_ContiguousPhysName, pDrvHandle->g_Contiguous, pDrvHandle->g_ContiguousSize);
         if (status < 0) {
             TRACE_ERROR("gcoHAL_MapMemory failed, status = %d\n", status);
             goto FREESOURCE;
@@ -230,21 +229,21 @@ static gctBOOL SetupDriver
 FREESOURCE:
     if (smask & VINTERNAL_MASK)
         gcoHAL_UnmapMemory(pDrvHandle->mHal,
-                pDrvHandle->g_InternalPhysical,
+                pDrvHandle->g_InternalPhysName,
                 pDrvHandle->g_InternalSize,
                 pDrvHandle->g_Internal
                 );
 
     if (smask & VEXTERNAL_MASK)
         gcoHAL_UnmapMemory(pDrvHandle->mHal,
-                pDrvHandle->g_ExternalPhysical,
+                pDrvHandle->g_ExternalPhysName,
                 pDrvHandle->g_ExternalSize,
                 pDrvHandle->g_External
                 );
 
     if (smask & VCONTIGUOUS_MASK)
         gcoHAL_UnmapMemory(pDrvHandle->mHal,
-                pDrvHandle->g_ContiguousPhysical,
+                pDrvHandle->g_ContiguousPhysName,
                 pDrvHandle->g_ContiguousSize,
                 pDrvHandle->g_Contiguous
                 );
@@ -289,7 +288,7 @@ static gctBOOL DestroyDriver
     if (driver->g_Internal != gcvNULL) {
         /* Unmap the local internal memory. */
         status = gcoHAL_UnmapMemory(driver->mHal,
-                driver->g_InternalPhysical,
+                driver->g_InternalPhysName,
                 driver->g_InternalSize,
                 driver->g_Internal
                 );
@@ -302,7 +301,7 @@ static gctBOOL DestroyDriver
     if (driver->g_External != gcvNULL) {
         /* Unmap the local external memory. */
         status = gcoHAL_UnmapMemory(driver->mHal,
-                driver->g_ExternalPhysical,
+                driver->g_ExternalPhysName,
                 driver->g_ExternalSize,
                 driver->g_External
                 );
@@ -314,7 +313,7 @@ static gctBOOL DestroyDriver
     if (driver->g_Contiguous != gcvNULL) {
         /* Unmap the contiguous memory. */
         status = gcoHAL_UnmapMemory(driver->mHal,
-                driver->g_ContiguousPhysical,
+                driver->g_ContiguousPhysName,
                 driver->g_ContiguousSize,
                 driver->g_Contiguous
                 );
@@ -579,7 +578,7 @@ Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size,
         .size     = (gctUINT32)size,
     };
 
-    status = gcoHAL_WrapUserMemory(&desc, &handle);
+    status = gcoHAL_WrapUserMemory(&desc, gcvVIDMEM_TYPE_BITMAP, &handle);
 
     if (status < 0) {
         TRACE_ERROR("Wrap Failed\n");

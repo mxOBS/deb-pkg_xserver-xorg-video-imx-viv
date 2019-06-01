@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2018 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -622,7 +622,7 @@ ProcVIVEXTPixmapPhysaddr(register ClientPtr client)
     rep.sequenceNumber = client->sequence;
     rep.length = 0;
     rep.pixmapState = VIV_PixmapUndefined;
-    rep.PixmapPhysaddr = gcmPTR2INT(NULL);
+    rep.PixmapPhysaddr = gcmPTR2SIZE(NULL);
     rep.pixmapStride = 0;
 
     /* Find the pixmap */

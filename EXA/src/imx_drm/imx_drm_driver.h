@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2018 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -63,7 +63,7 @@
 
 
 #include "drmmode_display.h"
-#define DRV_ERROR(msg)    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, msg);
+#define DRV_ERROR(msg)  xf86DrvMsg(pScrn->scrnIndex, X_ERROR, msg);
 #define MS_LOGLEVEL_DEBUG 4
 
 

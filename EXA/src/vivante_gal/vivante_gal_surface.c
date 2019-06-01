@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2018 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -91,7 +91,7 @@ gceSTATUS AllocVideoNode(
         iface.u.AllocateLinearVideoMemory.bytes = Surf->mVideoNode.mBytes;
         iface.u.AllocateLinearVideoMemory.alignment = 64;
         iface.u.AllocateLinearVideoMemory.pool = Surf->mVideoNode.mPool;
-        iface.u.AllocateLinearVideoMemory.type = surftype;
+        iface.u.AllocateLinearVideoMemory.type = (gctUINT32)surftype & 0xFF;
         iface.u.AllocateLinearVideoMemory.flag = cacheable ? gcvALLOC_FLAG_CACHEABLE : gcvALLOC_FLAG_CMA_LIMIT;
 
         /* Call kernel API. */
@@ -100,7 +100,7 @@ gceSTATUS AllocVideoNode(
         /* Get allocated node in video memory. */
         Surf->mVideoNode.mNode  = iface.u.AllocateLinearVideoMemory.node;
         Surf->mVideoNode.mPool  = iface.u.AllocateLinearVideoMemory.pool;
-        Surf->mVideoNode.mBytes = iface.u.AllocateLinearVideoMemory.bytes;
+        Surf->mVideoNode.mBytes = (gctSIZE_T)iface.u.AllocateLinearVideoMemory.bytes;
     }
 #endif
 
@@ -199,7 +199,7 @@ gceSTATUS UnlockVideoNode(
     iface.ignoreTLS = gcvFALSE;
     iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
     iface.u.UnlockVideoMemory.node = Node;
-    iface.u.UnlockVideoMemory.type = surftype;
+    iface.u.UnlockVideoMemory.type = (gctUINT32)surftype & 0xFF;
     iface.u.UnlockVideoMemory.asynchroneous = gcvTRUE;
 
     /* Call the kernel. */
@@ -485,12 +485,11 @@ static gctBOOL FreeGPUSurface(VIVGPUPtr gpuctx, Viv2DPixmapPtr ppriv) {
     if ( surf->mAlignedWidth >= IMX_EXA_NONCACHESURF_WIDTH && surf->mAlignedHeight >= IMX_EXA_NONCACHESURF_HEIGHT )
     {
         surftype = gcvSURF_BITMAP;
-        cacheable = FALSE;
     } else {
 #endif
         if (vivEnableCacheMemory) {
             surftype = gcvSURF_BITMAP;
-            surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+            surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
         } else {
             surftype = gcvSURF_BITMAP;
         }
@@ -570,7 +569,7 @@ VIV2DGPUSurfaceAlloc(
             {
                 surftype = gcvSURF_BITMAP;
                 cacheable = gcvTRUE;
-                surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+                surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
             }
             else
             {
@@ -677,7 +676,7 @@ VIV2DGPUSurfaceAllocWithFd(
             {
                 surftype = gcvSURF_BITMAP;
                 cacheable = TRUE;
-                surf->mVideoNode.mPool = gcvPOOL_CONTIGUOUS;
+                surf->mVideoNode.mPool = gcvPOOL_DEFAULT;
             }
             else
             {
@@ -1004,11 +1003,11 @@ Bool MapUserMemToGPU(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
     gcsUSER_MEMORY_DESC desc = {
         .flag     = gcvALLOC_FLAG_USERMEMORY,
         .logical  = gcmPTR_TO_UINT64(logical),
-        .physical = gcvINVALID_ADDRESS,
+        .physical = gcvINVALID_PHYSICAL_ADDRESS,
         .size     = size,
     };
 
-    status = gcoHAL_WrapUserMemory(&desc, &handle);
+    status = gcoHAL_WrapUserMemory(&desc, gcvVIDMEM_TYPE_BITMAP, &handle);
 
     if (status < 0) {
         TRACE_ERROR("Wrap Failed\n");
@@ -1054,7 +1053,7 @@ void UnmapUserMem(GALINFOPTR galInfo, MemMapInfoPtr mmInfo) {
 
 typedef struct _IVSURF {
 gcoSURF surf;
-long        lineaddr;
+gctPOINTER lineaddr;
 }IVSURF,*PIVSURF;
 
 
@@ -1135,10 +1134,10 @@ static Bool VDestroySurf32() {
 
 }
 
-Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,void **lgaddr,int *width,int *height,int *stride)
 {
     static unsigned int gphyaddr[4];
-    static unsigned int glgaddr[4];
+    static gctPOINTER glgaddr[4];
     static unsigned int gwidth[4];
     static unsigned int gheight[4];
     static int gstride[4];
@@ -1170,7 +1169,7 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
         if (status!=gcvSTATUS_OK)
             TRACE_EXIT(FALSE);
 
-        status=gcoSURF_Lock(_vsurf16->surf,  &gphyaddr[_surfIndex], (void *)&glgaddr[_surfIndex]);
+        status=gcoSURF_Lock(_vsurf16->surf,  &gphyaddr[_surfIndex], &glgaddr[_surfIndex]);
 
         _vsurf16->lineaddr=glgaddr[_surfIndex];
 
@@ -1187,10 +1186,10 @@ Bool  VGetSurfAddrBy16(GALINFOPTR galInfo,int maxsize,int *phyaddr,int *lgaddr,i
 }
 
 
-Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,int *width,int *height,int *stride)
+Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,void **lgaddr,int *width,int *height,int *stride)
 {
     static unsigned int gphyaddr[4];
-    static unsigned int glgaddr[4];
+    static gctPOINTER glgaddr[4];
     static unsigned int gwidth[4];
     static unsigned int gheight[4];
 
@@ -1223,7 +1222,7 @@ Bool  VGetSurfAddrBy32(GALINFOPTR galInfo,int maxsize, int *phyaddr,int *lgaddr,
     if (status!=gcvSTATUS_OK)
         TRACE_EXIT(FALSE);
 
-    status=gcoSURF_Lock(_vsurf32->surf,  &gphyaddr[_surfIndex], (void *)&glgaddr[_surfIndex]);
+    status=gcoSURF_Lock(_vsurf32->surf,  &gphyaddr[_surfIndex], &glgaddr[_surfIndex]);
 
     _vsurf32->lineaddr=glgaddr[_surfIndex];
 
@@ -1243,4 +1242,3 @@ void  VDestroySurf()
     VDestroySurf16();
     VDestroySurf32();
 }
-
