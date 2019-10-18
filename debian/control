@@ -3,6 +3,7 @@ Priority: extra
 Maintainer: Josua Mayer <josua.mayer97@gmail.com>
 Build-Depends:
  debhelper (>= 8.0.0),
+ quilt,
  xserver-xorg-dev (>= 2:1.9.4),
  x11proto-xf86dri-dev,
  imx-gpu-viv-x11 (>= 6.2.2.p0),

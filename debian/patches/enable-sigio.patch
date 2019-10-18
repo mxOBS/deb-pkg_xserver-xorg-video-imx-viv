@@ -1,0 +1,10 @@
+diff --git a/xorg.conf b/xorg.conf
+index 11c5ac9..9aa6270 100644
+--- a/xorg.conf
++++ b/xorg.conf
+@@ -11,4 +11,5 @@ Section "ServerFlags"
+ 	Option	"StandbyTime"	"0"
+ 	Option	"SuspendTime"	"0"
+ 	Option	"OffTime"	"0"
++	Option	"UseSIGIO"	"true"
+ EndSection

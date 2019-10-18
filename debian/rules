@@ -25,7 +25,7 @@ endif
 XORGCONF=xorg.conf
 
 %:
-	dh $@ --with xsf
+	dh $@ --with quilt --with xsf
 
 override_dh_auto_build:
 	./fastbuild.sh LFLAGS=-L/usr/lib/galcore CFLAGS=-I/usr/include/libdrm

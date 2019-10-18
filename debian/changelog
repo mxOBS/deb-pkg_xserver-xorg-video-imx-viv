@@ -1,4 +1,10 @@
-xserver-xorg-video-imx-viv (6.2.2.p0) UNRELEASED; urgency=medium
+xserver-xorg-video-imx-viv (6.2.2.p0+1) stable; urgency=medium
+
+  * xorg.conf: enable UseSIGIO
+
+ -- Josua Mayer <josua.mayer97@gmail.com>  Fri, 18 Oct 2019 12:30:15 +0200
+
+xserver-xorg-video-imx-viv (6.2.2.p0) unstable; urgency=medium
 
   * Freescale update
 
