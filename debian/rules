@@ -13,29 +13,22 @@
 DESTDIR=$(CURDIR)/debian/xserver-xorg-video-imx-viv
 
 # decide on build options
-export BUSID_HAS_NUMBER=1
-export XSERVER_GREATER_THAN_13=1
-ifeq (armhf, $(shell dpkg-architecture -qDEB_HOST_ARCH))
-	export BUILD_HARD_VFP=1
-else
-	export BUILD_HARD_VFP=0
-endif
+export HAVE_G2D=0
+export X11_DRI3=1
 
 # choose xorg config-file
-XORGCONF=xorg.conf
+XORGCONF=xorg-kms.conf
 
 %:
 	dh $@ --with quilt --with xsf
 
 override_dh_auto_build:
-	./fastbuild.sh LFLAGS=-L/usr/lib/galcore CFLAGS=-I/usr/include/libdrm
+	make LFLAGS=-L/usr/lib/galcore
 
 override_dh_auto_install:
 	install -v -m755 -D EXA/src/vivante_drv.so $(DESTDIR)/usr/lib/xorg/modules/drivers/vivante_drv.so
-	install -v -m755 -D FslExt/src/libfsl_x11_ext.so $(DESTDIR)/usr/lib/xorg/modules/extensions/libfsl_x11_ext.so
 	install -v -m755 -D util/autohdmi/autohdmi $(DESTDIR)/usr/bin/autohdmi
-	install -v -m755 -D util/pandisplay/pandisplay $(DESTDIR)/usr/bin/pandisplay
-	install -v -m644 -D $(XORGCONF) $(DESTDIR)/etc/X11/xorg.conf.d/20-vivante.conf
+	install -v -m644 -D EXA/conf/$(XORGCONF) $(DESTDIR)/etc/X11/xorg.conf.d/20-vivante.conf
 
 override_dh_auto_clean:
-	./fastbuild.sh clean
+	make clean

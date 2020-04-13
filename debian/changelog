@@ -1,3 +1,9 @@
+xserver-xorg-video-imx-viv (6.4.0.p2) UNRELEASED; urgency=medium
+
+  * NXP update
+
+ -- Josua Mayer <josua.mayer97@gmail.com>  Mon, 13 Apr 2020 13:10:22 +0000
+
 xserver-xorg-video-imx-viv (6.2.2.p0+1) stable; urgency=medium
 
   * xorg.conf: enable UseSIGIO

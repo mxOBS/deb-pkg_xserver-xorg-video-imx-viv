@@ -8,7 +8,6 @@ Build-Depends:
  x11proto-xf86dri-dev,
  imx-gpu-viv-x11 (>= 6.2.2.p0),
  imx-gpu-viv-x11-dev (>= 6.2.2.p0),
- libg2d-dev (>= 6.2.2.p0),
  xserver-xorg-dev,
  libdrm-dev,
  libxext-dev,
@@ -21,7 +20,7 @@ Vcs-Browser: https://github.com/mxOBS/deb-pkg_xserver-xorg-video-imx-viv
 
 Package: xserver-xorg-video-imx-viv
 Section: libs
-Architecture: any-arm
+Architecture: any-arm arm64
 Depends: ${shlibs:Depends},
  ${misc:Depends},
  ${xviddriver:Depends},
