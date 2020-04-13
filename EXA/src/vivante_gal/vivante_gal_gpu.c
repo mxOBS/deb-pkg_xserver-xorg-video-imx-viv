@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -34,6 +34,7 @@
 #endif
 
 gctBOOL CHIP_SUPPORTA8 = gcvFALSE;
+gctBOOL EXA_G2D = gcvFALSE;
 /**
  *
  * @param driver - Driver object to be returned
@@ -120,11 +121,11 @@ static gctBOOL SetupDriver
     /* Query the amount of video memory. */
     status = gcoHAL_QueryVideoMemory
             (pDrvHandle->mHal,
-            &pDrvHandle->g_InternalPhysical,
+            &pDrvHandle->g_InternalPhysName,
             &pDrvHandle->g_InternalSize,
-            &pDrvHandle->g_ExternalPhysical,
+            &pDrvHandle->g_ExternalPhysName,
             &pDrvHandle->g_ExternalSize,
-            &pDrvHandle->g_ContiguousPhysical,
+            &pDrvHandle->g_ContiguousPhysName,
             &pDrvHandle->g_ContiguousSize
             );
 
@@ -137,7 +138,7 @@ static gctBOOL SetupDriver
     if (pDrvHandle->g_InternalSize > 0) {
         status = gcoHAL_MapMemory(
                 pDrvHandle->mHal,
-                pDrvHandle->g_InternalPhysical,
+                pDrvHandle->g_InternalPhysName,
                 pDrvHandle->g_InternalSize,
                 &pDrvHandle->g_Internal
                 );
@@ -153,7 +154,7 @@ static gctBOOL SetupDriver
     if (pDrvHandle->g_ExternalSize > 0) {
         status = gcoHAL_MapMemory(
                 pDrvHandle->mHal,
-                pDrvHandle->g_ExternalPhysical,
+                pDrvHandle->g_ExternalPhysName,
                 pDrvHandle->g_ExternalSize,
                 &pDrvHandle->g_External
                 );
@@ -169,12 +170,12 @@ static gctBOOL SetupDriver
     if (pDrvHandle->g_ContiguousSize > 0) {
         status = gcoHAL_MapMemory
                 (pDrvHandle->mHal,
-                pDrvHandle->g_ContiguousPhysical,
+                pDrvHandle->g_ContiguousPhysName,
                 pDrvHandle->g_ContiguousSize,
                 &pDrvHandle->g_Contiguous
                 );
 
-        TRACE_INFO("Physcal : %d LOGICAL ADDR = %p  SIZE = %d\n", pDrvHandle->g_ContiguousPhysical, pDrvHandle->g_Contiguous, pDrvHandle->g_ContiguousSize);
+        TRACE_INFO("Physcal : %x LOGICAL ADDR = %p  SIZE = 0x%lx\n", pDrvHandle->g_ContiguousPhysName, pDrvHandle->g_Contiguous, pDrvHandle->g_ContiguousSize);
         if (status < 0) {
             TRACE_ERROR("gcoHAL_MapMemory failed, status = %d\n", status);
             goto FREESOURCE;
@@ -216,27 +217,33 @@ static gctBOOL SetupDriver
             goto FREESOURCE;
         }
     }
+#ifdef HAVE_G2D
+    if(exaHwType == IMXG2D)
+    {
+        EXA_G2D = gcvTRUE;
+    }
+#endif
     *driver = pDrvHandle;
     TRACE_EXIT(gcvTRUE);
 
 FREESOURCE:
     if (smask & VINTERNAL_MASK)
         gcoHAL_UnmapMemory(pDrvHandle->mHal,
-                pDrvHandle->g_InternalPhysical,
+                pDrvHandle->g_InternalPhysName,
                 pDrvHandle->g_InternalSize,
                 pDrvHandle->g_Internal
                 );
 
     if (smask & VEXTERNAL_MASK)
         gcoHAL_UnmapMemory(pDrvHandle->mHal,
-                pDrvHandle->g_ExternalPhysical,
+                pDrvHandle->g_ExternalPhysName,
                 pDrvHandle->g_ExternalSize,
                 pDrvHandle->g_External
                 );
 
     if (smask & VCONTIGUOUS_MASK)
         gcoHAL_UnmapMemory(pDrvHandle->mHal,
-                pDrvHandle->g_ContiguousPhysical,
+                pDrvHandle->g_ContiguousPhysName,
                 pDrvHandle->g_ContiguousSize,
                 pDrvHandle->g_Contiguous
                 );
@@ -281,7 +288,7 @@ static gctBOOL DestroyDriver
     if (driver->g_Internal != gcvNULL) {
         /* Unmap the local internal memory. */
         status = gcoHAL_UnmapMemory(driver->mHal,
-                driver->g_InternalPhysical,
+                driver->g_InternalPhysName,
                 driver->g_InternalSize,
                 driver->g_Internal
                 );
@@ -294,7 +301,7 @@ static gctBOOL DestroyDriver
     if (driver->g_External != gcvNULL) {
         /* Unmap the local external memory. */
         status = gcoHAL_UnmapMemory(driver->mHal,
-                driver->g_ExternalPhysical,
+                driver->g_ExternalPhysName,
                 driver->g_ExternalSize,
                 driver->g_External
                 );
@@ -306,7 +313,7 @@ static gctBOOL DestroyDriver
     if (driver->g_Contiguous != gcvNULL) {
         /* Unmap the contiguous memory. */
         status = gcoHAL_UnmapMemory(driver->mHal,
-                driver->g_ContiguousPhysical,
+                driver->g_ContiguousPhysName,
                 driver->g_ContiguousSize,
                 driver->g_Contiguous
                 );
@@ -423,11 +430,12 @@ Bool VIV2DGPUCtxInit(GALINFOPTR galInfo) {
         TRACE_ERROR("UNDEFINED GPU CTX\n");
         TRACE_EXIT(FALSE);
     }
-    status = gcoOS_Allocate(gcvNULL, sizeof (VIVGPU), &mHandle);
+    status = gcoOS_Allocate(gcvNULL, sizeof(VIVGPU), &mHandle);
     if (status < 0) {
         TRACE_ERROR("Unable to allocate driver, status = %d\n", status);
         TRACE_EXIT(FALSE);
     }
+    memset(mHandle, 0, sizeof(VIVGPU));
     gpuctx = (VIVGPUPtr) (mHandle);
     ret = SetupDriver(&gpuctx->mDriver, galInfo->mExaHwType);
     if (ret != gcvTRUE) {
@@ -519,7 +527,7 @@ Bool VIV2DCacheOperation(GALINFOPTR galInfo, Viv2DPixmapPtr ppix, VIVFLUSHTYPE f
         TRACE_EXIT(TRUE);
     }
 
-    TRACE_INFO("FLUSH INFO => LOGICAL = %d PHYSICAL = %d STRIDE = %d  ALIGNED HEIGHT = %d\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mStride, surf->mAlignedHeight);
+    TRACE_INFO("FLUSH INFO => LOGICAL = %p PHYSICAL = 0x%x STRIDE = 0x%x  ALIGNED HEIGHT = 0x%x\n", surf->mVideoNode.mLogicalAddr, surf->mVideoNode.mPhysicalAddr, surf->mStride, surf->mAlignedHeight);
 
     switch (flush_type) {
         case INVALIDATE:
@@ -570,7 +578,7 @@ Bool VIV2DGPUUserMemMap(char* logical, unsigned int physical, unsigned int size,
         .size     = (gctUINT32)size,
     };
 
-    status = gcoHAL_WrapUserMemory(&desc, &handle);
+    status = gcoHAL_WrapUserMemory(&desc, gcvVIDMEM_TYPE_BITMAP, &handle);
 
     if (status < 0) {
         TRACE_ERROR("Wrap Failed\n");
@@ -595,12 +603,12 @@ Bool VIV2DGPUUserMemUnMap(char* logical, unsigned int size, void * mappingInfo, 
     TRACE_ENTER();
     gceSTATUS status = gcvSTATUS_OK;
 
-    status = UnlockVideoNode(gcvNULL, gcmPTR2INT(mappingInfo), gcvSURF_BITMAP);
+    status = UnlockVideoNode(gcvNULL, gcmPTR2SIZE(mappingInfo), gcvSURF_BITMAP);
     if (status < 0) {
         TRACE_ERROR("Unlock Failed\n");
     }
 
-    status = FreeVideoNode(gcvNULL, gcmPTR2INT(mappingInfo));
+    status = FreeVideoNode(gcvNULL, gcmPTR2SIZE(mappingInfo));
     if (status < 0) {
         TRACE_ERROR("Free Failed\n");
     }

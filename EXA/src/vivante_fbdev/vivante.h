@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -33,6 +33,12 @@
 extern "C" {
 #endif
 
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
+#include <xf86drm.h>
+#include "xf86Crtc.h"
+#include "drmmode_display.h"
+#endif
+
     /*GAL*/
 #include "../vivante_gal/vivante_gal.h"
 
@@ -54,7 +60,12 @@ extern "C" {
         OPTION_VIV,
         OPTION_NOACCEL,
         OPTION_ACCELMETHOD,
-        OPTION_VIVCACHEMEM
+        OPTION_VIVCACHEMEM,
+        OPTION_SW_CURSOR,
+        OPTION_DEVICE_PATH,
+        OPTION_PAGEFLIP,
+        OPTION_ZAPHOD_HEADS,
+        OPTION_DOUBLE_SHADOW,
     } VivOpts;
 
     typedef struct _vivFakeExa {
@@ -80,7 +91,15 @@ extern "C" {
         int mFBOffset; /*framebuffer offset*/
         unsigned long memGpuBase;
     } FBINFO, *FBINFOPTR;
-
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
+    typedef struct
+    {
+        int lastInstance;
+        int refCount;
+        ScrnInfoPtr pScrn_1;
+        ScrnInfoPtr pScrn_2;
+    } EntRec, *EntPtr;
+#endif
 #ifdef ADD_FSL_XRANDR
     typedef struct _fbSyncFlags {
         char * modeName;
@@ -100,6 +119,9 @@ extern "C" {
         OptionInfoPtr mSupportedOptions; /*Options to be parsed in xorg.conf*/
         /*Funct Pointers*/
         CloseScreenProcPtr CloseScreen; /*Screen Close Function*/
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
+        CreateWindowProcPtr CreateWindow;
+#endif
         CreateScreenResourcesProcPtr CreateScreenResources;
 
         /* DRI information */
@@ -148,12 +170,53 @@ extern "C" {
         DisplayModePtr  lastVideoMode;
         FBSYNCFLAGS fbSync[MAX_MODES_SUPPORTED];
 #endif
-    } VivRec, * VivPtr;
+
+#ifndef USE_PROBE_VIV_FBDEV_DRIVER
+        /*newly added may need cleanup after reuse*/
+
+
+        int fd;
+        char *device_name;
+
+        EntPtr entityPrivate;
+
+        int Chipset;
+
+#if XSERVER_LIBPCIACCESS
+        struct pci_device *PciInfo;
+#else
+        pciVideoPtr PciInfo;
+        PCITAG PciTag;
+#endif
+
+        Bool noAccel;
+
+
+        /* Broken-out options. */
+        OptionInfoPtr Options;
+
+        unsigned int SaveGeneration;
+
+        CreateScreenResourcesProcPtr createScreenResources;
+        ScreenBlockHandlerProcPtr BlockHandler;
+        void *driver;
+
+        drmmode_rec drmmode;
+
+        DamagePtr damage;
+        Bool dirty_enabled;
+
+        uint32_t cursor_width, cursor_height;
+
+        struct dumb_bo *bo;
+#endif
+    } VivRec, * VivPtr,modesettingRec, *modesettingPtr;
 
     /********************************************************************************
      *  Rectangle Structs (END)
      ********************************************************************************/
 #define GET_VIV_PTR(p) ((VivPtr)((p)->driverPrivate))
+#define modesettingPTR(p) ((VivPtr)((p)->driverPrivate))
 
 #if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,12,0,0,0)
 #define VIVPTR_FROM_PIXMAP(x)       \

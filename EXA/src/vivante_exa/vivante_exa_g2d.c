@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -257,13 +257,24 @@ static Bool G2dTransformSupported(PictTransform *ptransform, enum g2d_rotation *
         *rot = G2D_FLIP_H;
         isSupported = TRUE;
     }
+
+    //reflect Y
+    if ((ptransform->matrix[0][0]==pixman_fixed_1)
+        &&(ptransform->matrix[0][1]==0)
+        &&(ptransform->matrix[1][0]==0)
+        &&(ptransform->matrix[1][1]==-pixman_fixed_1))
+    {
+        *rot = G2D_FLIP_V;
+        isSupported = TRUE;
+    }
+
     return isSupported;
 }
 
 
 static void printG2dSurfaceInfo(struct g2d_surfaceEx* g2dSurface, const char* msg)
 {
-    TRACE_EXA_ERROR(
+    xf86DrvMsg(0, X_ERROR,
         "%s physicAddr = %x left = %d right = %d top=%d bottom=%d stride= %d tiling = %d, format=%d, width=%d, height=%d \n",
         msg,
         g2dSurface->base.planes[0],
@@ -283,7 +294,7 @@ static void g2d_blitSurface(void *handle, struct g2d_surfaceEx * srcG2dSurface,
 {
     if(g2d_blitEx(handle, srcG2dSurface, dstG2dSurface))
     {
-        TRACE_EXA_ERROR("From API %s\n", msg);
+        xf86DrvMsg(0, X_ERROR, "From API %s\n", msg);
         printG2dSurfaceInfo(srcG2dSurface, "ERR SRC:");
         printG2dSurfaceInfo(dstG2dSurface, "ERR DST:");
     }
@@ -330,6 +341,13 @@ static void CalG2dSurfParam(struct g2d_surface *pg2d_surf,G2DBLITINFOPTR pBlt,
             pg2d_surf->right = pg2d_surf->width - left;
             pg2d_surf->bottom = bottom;
             break;
+       case G2D_FLIP_V:
+            pg2d_surf->left = left;
+            pg2d_surf->top = pg2d_surf->height - bottom;
+            pg2d_surf->right = right;
+            pg2d_surf->bottom = pg2d_surf->height - top;
+            break;
+
     }
 }
 
@@ -1154,12 +1172,12 @@ static Bool G2dDoneByVSurf(PixmapPtr pDst, int x, int y, int w,
 
         case 16:
             bytesperpixel = 2;
-            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy16(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), &(mmap.mUserAddr), &aligned_width, &aligned_height, &aligned_pitch);
 
             break;
         case 32:
             bytesperpixel = 4;
-            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), (int *) (&(mmap.mUserAddr)), &aligned_width, &aligned_height, &aligned_pitch);
+            retvsurf = VGetSurfAddrBy32(&pViv->mGrCtx, maxsize, (int *) (&mmap.physical), &(mmap.mUserAddr), &aligned_width, &aligned_height, &aligned_pitch);
             break;
         default:
             return FALSE;

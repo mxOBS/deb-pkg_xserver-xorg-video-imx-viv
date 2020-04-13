@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -33,11 +33,9 @@
 extern "C" {
 #endif
 
-#include "HAL/gc_hal.h"
-
-#include "HAL/gc_hal_raster.h"
-
-#include "HAL/gc_hal_base.h"
+#include "gc_hal.h"
+#include "gc_hal_raster.h"
+#include "gc_hal_base.h"
 
 #ifdef HAVE_G2D
 #include "g2dExt.h"
@@ -131,6 +129,7 @@ extern "C" {
         Viv2DPixmapPtr mNextGpuBusyPixmap;
         /*reference*/
         int mRef;
+        int fdToPixmap;
     };
 
     /*Surface Info*/
@@ -278,6 +277,7 @@ extern "C" {
      ************************************************************************/
     /*Creating and Destroying Functions*/
     Bool CreateSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
+    Bool CreateSurfaceWithFd(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix, int fd);
     Bool CleanSurfaceBySW(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr pPix);
     Bool WrapSurface(PixmapPtr pPixmap, void * logical, unsigned int physical, Viv2DPixmapPtr pPix, int bytes);
     Bool ReUseSurface(GALINFOPTR galInfo, PixmapPtr pPixmap, Viv2DPixmapPtr toBeUpdatedpPix);
@@ -297,8 +297,8 @@ extern "C" {
     Bool GetDefaultFormat(int bpp, VivPictFmtPtr format);
     char *MapViv2DPixmap(Viv2DPixmapPtr pdst);
     void VSetSurfIndex(int n);
-    Bool VGetSurfAddrBy16(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
-    Bool VGetSurfAddrBy32(GALINFOPTR galInfo, int maxsize, int *phyaddr, int *lgaddr, int *width, int *height, int *stride);
+    Bool VGetSurfAddrBy16(GALINFOPTR galInfo, int maxsize, int *phyaddr, void **lgaddr, int *width, int *height, int *stride);
+    Bool VGetSurfAddrBy32(GALINFOPTR galInfo, int maxsize, int *phyaddr, void **lgaddr, int *width, int *height, int *stride);
     void VDestroySurf();
     /************************************************************************
      *EXA RELATED UTILITY (END)

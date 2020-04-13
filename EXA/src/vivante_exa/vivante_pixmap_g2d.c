@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -58,6 +58,7 @@ G2dVivCreatePixmap(ScreenPtr pScreen, int size, int align) {
     pVivPix->mSwAnyWay = FALSE;
     pVivPix->mNextGpuBusyPixmap = NULL;
     pVivPix->mRef = 0;
+    pVivPix->fdToPixmap = 0;
     TRACE_EXIT(pVivPix);
 }
 
@@ -119,6 +120,8 @@ G2dVivPixmapIsOffscreen(PixmapPtr pPixmap) {
 
     TRACE_EXIT(ret);
 }
+
+extern gctBOOL EXA_G2D;
 
 /**
  * Returning a pixmap with non-NULL devPrivate.ptr implies a pixmap which is
@@ -187,6 +190,9 @@ G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         /* Store GPU address. */
         const unsigned long physical = pViv->mFB.memGpuBase + offset;
+
+        pVivPix->fdToPixmap = 0;
+        /* reserved buffers size is greater than current pixmap used. TODO: move shadow buffer out */
         if (!WrapSurface(pPixmap, pPixData, physical, pVivPix, pViv->mFakeExa.mExaDriver->memorySize/2)) {
 
             TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
@@ -196,7 +202,30 @@ G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         TRACE_EXIT(TRUE);
 
-    } else if (pPixData) {
+    }
+#ifdef ENABLE_VIVANTE_DRI3
+    else if (pPixData && bitsPerPixel > 8 && EXA_G2D) {
+        struct g2d_buf *buf;
+
+        buf = g2d_buf_from_virt_addr(pPixData, width*height*(bitsPerPixel/8));
+        pVivPix->fdToPixmap = 0;
+        if(!buf){
+            pPixmap->devPrivate.ptr = pPixData;
+
+            pPixmap->devKind = devKind;
+            pVivPix->mVidMemInfo = NULL;
+
+            TRACE_EXIT(FALSE);
+        }
+
+        if (!WrapSurface(pPixmap, pPixData, buf->buf_paddr, pVivPix, width*height*(bitsPerPixel/8))) {
+            TRACE_ERROR("Frame Buffer Wrapping ERROR\n");
+
+            TRACE_EXIT(FALSE);
+        }
+    }
+#endif
+    else if (pPixData) {
 
         TRACE_ERROR("NO ACCERELATION\n");
 
@@ -205,7 +234,7 @@ G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
         pPixmap->devPrivate.ptr = pPixData;
 
         pPixmap->devKind = devKind;
-
+        pVivPix->fdToPixmap = 0;
         TRACE_EXA("%s:%d VivPixmap:%p",__FUNCTION__,__LINE__,pVivPix);
         //VIV2DCacheOperation(&pViv->mGrCtx, pVivPix,FLUSH);
         //VIV2DGPUBlitComplete(&pViv->mGrCtx, TRUE);
@@ -223,30 +252,46 @@ G2dVivModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
 
         if (isChanged) {
 
-            if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, pVivPix) )
-            {
+#ifndef ENABLE_VIVANTE_DRI3
+        pVivPix->fdToPixmap = 0;
+#endif
 
-                if (!DestroySurface(&pViv->mGrCtx, pVivPix)) {
-                    TRACE_ERROR("ERROR : Destroying the surface\n");
-                    fprintf(stderr,"Destroy surface failed\n");
-                    TRACE_EXIT(FALSE);
-                }
+        if (pVivPix->fdToPixmap) {
+            if (!CreateSurfaceWithFd(&pViv->mGrCtx, pPixmap, pVivPix, pVivPix->fdToPixmap)) {
+                TRACE_ERROR("ERROR : Creating the surface\n");
+                fprintf(stderr,"CreateSurface failed\n");
+                TRACE_EXIT(FALSE);
+            }
+            pVivPix->fdToPixmap = 0;
+        } else {
 
-                if (!CreateSurface(&pViv->mGrCtx, pPixmap, pVivPix)) {
-                    TRACE_ERROR("ERROR : Creating the surface\n");
-                    fprintf(stderr,"CreateSurface failed\n");
-                    TRACE_EXIT(FALSE);
+            if (isChanged) {
+
+                if ( !ReUseSurface(&pViv->mGrCtx, pPixmap, pVivPix) )
+                {
+
+                    if (!DestroySurface(&pViv->mGrCtx, pVivPix)) {
+                        TRACE_ERROR("ERROR : Destroying the surface\n");
+                        fprintf(stderr,"Destroy surface failed\n");
+                        TRACE_EXIT(FALSE);
+                    }
+
+                    if (!CreateSurface(&pViv->mGrCtx, pPixmap, pVivPix)) {
+                        TRACE_ERROR("ERROR : Creating the surface\n");
+                        fprintf(stderr,"CreateSurface failed\n");
+                        TRACE_EXIT(FALSE);
+                    }
                 }
             }
+        }
 
-            TRACE_EXA("%s:%d VivPixmap:%p",__FUNCTION__,__LINE__,pVivPix);
-            pPixmap->devKind = GetStride(pVivPix);
+        pPixmap->devKind = GetStride(pVivPix);
 
-            /* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
-            if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
-            {
-                CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, pVivPix);
-            }
+        /* Clean the new surface with black color in case the window gets scrambled image when the window is resized */
+        if ( (pPixmap->drawable.width * pPixmap->drawable.height) > IMX_EXA_MIN_AREA_CLEAN )
+        {
+            CleanSurfaceBySW(&pViv->mGrCtx, pPixmap, pVivPix);
+        }
 
 
         }

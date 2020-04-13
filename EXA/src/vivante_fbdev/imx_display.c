@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright 2012 - 2017 Vivante Corporation, Santa Clara, California.
+*    Copyright 2012 - 2019 Vivante Corporation, Santa Clara, California.
 *    All Rights Reserved.
 *
 *    Permission is hereby granted, free of charge, to any person obtaining
@@ -1523,7 +1523,6 @@ imxDisplayPreInit(ScrnInfoPtr pScrn)
     if (0 != ioctl(fd, FBIOPUT_VSCREENINFO, &fbVarScreenInfo)) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
             "unable to support largest resolution (%s)", strerror(errno));
-        return FALSE;
     }
 
     /* Access all the modes supported by frame buffer driver. */
