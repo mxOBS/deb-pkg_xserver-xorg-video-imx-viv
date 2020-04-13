@@ -96,6 +96,8 @@
 #include <pciaccess.h>
 #endif
 
+#include <xf86Priv.h>
+
 #include "imx_drm_driver.h"
 
 #include <errno.h>
@@ -292,6 +294,16 @@ modesettingEntPtr ms_ent_priv(ScrnInfoPtr scrn)
     pPriv = xf86GetEntityPrivate(fPtr->pEnt->index,
                                  ms_entity_index);
     return pPriv->ptr;
+}
+
+static int
+get_passed_fd(void)
+{
+    if (xf86DRMMasterFd >= 0) {
+        xf86DrvMsg(-1, X_INFO, "Using passed DRM master file descriptor %d\n", xf86DRMMasterFd);
+        return dup(xf86DRMMasterFd);
+    }
+    return -1;
 }
 
 static int open_hw(const char *dev)
@@ -745,6 +757,12 @@ ms_get_drm_master_fd(ScrnInfoPtr pScrn)
                    " reusing fd for second head\n");
         fPtr->fd = ms_ent->fd;
         ms_ent->fd_ref++;
+        return TRUE;
+    }
+
+    fPtr->fd_passed = FALSE;
+    if ((fPtr->fd = get_passed_fd()) >= 0) {
+        fPtr->fd_passed = TRUE;
         return TRUE;
     }
 
@@ -1268,6 +1286,7 @@ CreateScreenResources(ScreenPtr pScreen)
         }
     }
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,0,0,0)
+    rrScrPriv(pScreen);
     pScrPriv->rrEnableSharedPixmapFlipping = msEnableSharedPixmapFlipping;
     pScrPriv->rrDisableSharedPixmapFlipping = msDisableSharedPixmapFlipping;
 
@@ -1316,12 +1335,16 @@ SetMaster(ScrnInfoPtr pScrn)
         return TRUE;
 #endif
 
+    if (fPtr->fd_passed)
+        return TRUE;
+
     ret = drmSetMaster(fPtr->fd);
     if (ret)
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "drmSetMaster failed: %s\n",
             strerror(errno));
 
     return ret == 0;
+    //return 0;
 }
 /* When the root window is created, initialize the screen contents from
  * console if -background none was specified on the command line
@@ -1357,8 +1380,12 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
 
     pScrn->pScreen = pScreen;
 
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ScreenInit: going to set master\n");
     if (!SetMaster(pScrn))
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "ScreenInit: failed to set master\n");
         return FALSE;
+    }
 
     /* HW dependent - FIXME */
     pScrn->displayWidth = pScrn->virtualX;
@@ -1465,14 +1492,14 @@ ScreenInit(SCREEN_INIT_ARGS_DECL)
     pScreen->BlockHandler = msBlockHandler;
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,19,0,0,0)
-    pScreen->SharePixmapBacking = msSharePixmapBacking;
-    pScreen->SetSharedPixmapBacking = msSetSharedPixmapBacking;
+    //pScreen->SharePixmapBacking = msSharePixmapBacking;
+    //pScreen->SetSharedPixmapBacking = msSetSharedPixmapBacking;
     pScreen->StartPixmapTracking = PixmapStartDirtyTracking;
     pScreen->StopPixmapTracking = PixmapStopDirtyTracking;
 
-    pScreen->SharedPixmapNotifyDamage = msSharedPixmapNotifyDamage;
-    pScreen->RequestSharedPixmapNotifyDamage =
-        msRequestSharedPixmapNotifyDamage;
+    //pScreen->SharedPixmapNotifyDamage = msSharedPixmapNotifyDamage;
+    //pScreen->RequestSharedPixmapNotifyDamage =
+    //    msRequestSharedPixmapNotifyDamage;
 
     pScreen->PresentSharedPixmap = msPresentSharedPixmap;
     pScreen->StopFlippingPixmapTracking = msStopFlippingPixmapTracking;
@@ -1526,7 +1553,8 @@ LeaveVT(VT_FUNC_ARGS_DECL)
         return;
 #endif
 
-    drmDropMaster(fPtr->fd);
+    if (!fPtr->fd_passed)
+        drmDropMaster(fPtr->fd);
 }
 
 /*
@@ -1540,6 +1568,7 @@ EnterVT(VT_FUNC_ARGS_DECL)
 
     pScrn->vtSema = TRUE;
 
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EnterVT: going to set master\n");
     SetMaster(pScrn);
 
     if (!drmmode_set_desired_modes(pScrn, &fPtr->drmmode, TRUE))

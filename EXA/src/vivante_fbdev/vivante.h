@@ -176,6 +176,7 @@ extern "C" {
 
 
         int fd;
+        Bool fd_passed;
         char *device_name;
 
         EntPtr entityPrivate;
